@@ -1,0 +1,765 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="928.37677"
+   height="623.92432"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.47 r22583"
+   sodipodi:docname="roced_design.svg"
+   inkscape:export-filename="/usr/users/sriedel/workspace/scale/doc/roced_design_baseline.png"
+   inkscape:export-xdpi="300.1702"
+   inkscape:export-ydpi="300.1702">
+  <defs
+     id="defs4">
+    <linearGradient
+       id="linearGradient3623">
+      <stop
+         style="stop-color:#000000;stop-opacity:0.48837209;"
+         offset="0"
+         id="stop3625" />
+      <stop
+         style="stop-color:#000000;stop-opacity:0;"
+         offset="1"
+         id="stop3627" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient3592">
+      <stop
+         style="stop-color:#616161;stop-opacity:1;"
+         offset="0"
+         id="stop3594" />
+      <stop
+         style="stop-color:#b4b4b4;stop-opacity:1;"
+         offset="1"
+         id="stop3596" />
+    </linearGradient>
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 526.18109 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="744.09448 : 526.18109 : 1"
+       inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+       id="perspective10" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3592"
+       id="linearGradient3598"
+       x1="264.66504"
+       y1="394.75287"
+       x2="457.59402"
+       y2="394.75287"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.25820152,0,0,3.8183856,-472.8854,-1117.9975)" />
+    <inkscape:perspective
+       id="perspective3643"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective3669"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3592-3"
+       id="linearGradient3598-3"
+       x1="264.66504"
+       y1="394.75287"
+       x2="457.59402"
+       y2="394.75287"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.25820152,0,0,3.26283,-473.89555,-920.08372)" />
+    <linearGradient
+       id="linearGradient3592-3">
+      <stop
+         style="stop-color:#616161;stop-opacity:1;"
+         offset="0"
+         id="stop3594-8" />
+      <stop
+         style="stop-color:#b4b4b4;stop-opacity:1;"
+         offset="1"
+         id="stop3596-0" />
+    </linearGradient>
+    <inkscape:perspective
+       id="perspective3713"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective3738"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3592-6-1"
+       id="linearGradient3598-2"
+       x1="264.66504"
+       y1="394.75287"
+       x2="457.59402"
+       y2="394.75287"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.25820152,0,0,4.6882676,-326.00867,-1154.5931)" />
+    <linearGradient
+       id="linearGradient3592-6">
+      <stop
+         style="stop-color:#3d5cc0;stop-opacity:1;"
+         offset="0"
+         id="stop3594-7" />
+      <stop
+         style="stop-color:#91a5d7;stop-opacity:1;"
+         offset="1"
+         id="stop3596-5" />
+    </linearGradient>
+    <inkscape:perspective
+       id="perspective3811"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3592-6-1"
+       id="linearGradient3598-2-6"
+       x1="264.66504"
+       y1="394.75287"
+       x2="457.59402"
+       y2="394.75287"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.25820152,0,0,4.6882676,-324.12448,-1769.485)" />
+    <linearGradient
+       id="linearGradient3592-6-1">
+      <stop
+         style="stop-color:#006bd9;stop-opacity:1;"
+         offset="0"
+         id="stop3594-7-3" />
+      <stop
+         style="stop-color:#90b0ff;stop-opacity:1;"
+         offset="1"
+         id="stop3596-5-2" />
+    </linearGradient>
+    <inkscape:perspective
+       id="perspective3884"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3592-6-1"
+       id="linearGradient3598-2-6-6"
+       x1="264.66504"
+       y1="394.75287"
+       x2="457.59402"
+       y2="394.75287"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.25820152,0,0,4.6882676,-688.93643,-1461.6524)" />
+    <linearGradient
+       id="linearGradient3592-6-1-1">
+      <stop
+         style="stop-color:#3d5cc0;stop-opacity:1;"
+         offset="0"
+         id="stop3594-7-3-0" />
+      <stop
+         style="stop-color:#91a5d7;stop-opacity:1;"
+         offset="1"
+         id="stop3596-5-2-4" />
+    </linearGradient>
+    <inkscape:perspective
+       id="perspective3955"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3592-0"
+       id="linearGradient3598-8"
+       x1="264.66504"
+       y1="394.75287"
+       x2="457.59402"
+       y2="394.75287"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.25820152,0,0,3.26283,-473.89555,-920.08372)" />
+    <linearGradient
+       id="linearGradient3592-0">
+      <stop
+         style="stop-color:#616161;stop-opacity:1;"
+         offset="0"
+         id="stop3594-4" />
+      <stop
+         style="stop-color:#b4b4b4;stop-opacity:1;"
+         offset="1"
+         id="stop3596-09" />
+    </linearGradient>
+    <inkscape:perspective
+       id="perspective3995"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective4017"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective4039"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective4061"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective2912"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3592-6-1"
+       id="linearGradient3598-2-6-6-2"
+       x1="264.66504"
+       y1="394.75287"
+       x2="457.59402"
+       y2="394.75287"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.2328906,0,0,3.6015705,-529.6245,-1033.1269)" />
+    <linearGradient
+       id="linearGradient3592-6-1-1-2">
+      <stop
+         style="stop-color:#3d5cc0;stop-opacity:1;"
+         offset="0"
+         id="stop3594-7-3-0-6" />
+      <stop
+         style="stop-color:#91a5d7;stop-opacity:1;"
+         offset="1"
+         id="stop3596-5-2-4-1" />
+    </linearGradient>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="415.33003"
+     inkscape:cy="356.6908"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1280"
+     inkscape:window-height="949"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="1"
+     showguides="true"
+     inkscape:guide-bbox="true"
+     inkscape:snap-global="false">
+    <sodipodi:guide
+       orientation="0,1"
+       position="-119.02924,623.92418"
+       id="guide3870" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="342.44171,522.2488"
+       id="guide2975" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="585.71429,668.45752"
+       id="guide2977" />
+    <inkscape:grid
+       type="xygrid"
+       id="grid3686"
+       empspacing="5"
+       visible="true"
+       enabled="true"
+       snapvisiblegridlinesonly="true" />
+    <sodipodi:guide
+       orientation="0,1"
+       position="280,427.02898"
+       id="guide3692" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(74.920052,-199.79343)">
+    <path
+       sodipodi:type="arc"
+       style="fill:#e6e6e6;fill-opacity:1;stroke:none"
+       id="path3985"
+       sodipodi:cx="510"
+       sodipodi:cy="528.07648"
+       sodipodi:rx="242.85715"
+       sodipodi:ry="242.85715"
+       d="m 752.85715,528.07648 c 0,134.1263 -108.73085,242.85714 -242.85715,242.85714 -134.1263,0 -242.85715,-108.73084 -242.85715,-242.85714 0,-134.1263 108.73085,-242.85715 242.85715,-242.85715 134.1263,0 242.85715,108.73085 242.85715,242.85715 z"
+       transform="translate(-165.25381,-85.425831)"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <path
+       sodipodi:type="arc"
+       style="fill:#e6e6e6;fill-opacity:1;stroke:none"
+       id="path3985-6"
+       sodipodi:cx="510"
+       sodipodi:cy="528.07648"
+       sodipodi:rx="242.85715"
+       sodipodi:ry="242.85715"
+       d="m 752.85715,528.07648 c 0,134.1263 -108.73085,242.85714 -242.85715,242.85714 -134.1263,0 -242.85715,-108.73084 -242.85715,-242.85714 0,-134.1263 108.73085,-242.85715 242.85715,-242.85715 134.1263,0 242.85715,108.73085 242.85715,242.85715 z"
+       transform="matrix(0.7882353,0,0,0.70000001,-56.285719,94.137217)"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <path
+       sodipodi:type="arc"
+       style="fill:#cccccc;fill-opacity:1;stroke:none"
+       id="path3985-9"
+       sodipodi:cx="510"
+       sodipodi:cy="528.07648"
+       sodipodi:rx="242.85715"
+       sodipodi:ry="242.85715"
+       d="m 752.85715,528.07648 c 0,134.1263 -108.73085,242.85714 -242.85715,242.85714 -134.1263,0 -242.85715,-108.73084 -242.85715,-242.85714 0,-134.1263 108.73085,-242.85715 242.85715,-242.85715 134.1263,0 242.85715,108.73085 242.85715,242.85715 z"
+       transform="matrix(0.78529412,0,0,0.75,1.6428649,65.590537)"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <path
+       sodipodi:type="arc"
+       style="fill:#cccccc;fill-opacity:1;stroke:none"
+       id="path3985-9-2"
+       sodipodi:cx="510"
+       sodipodi:cy="528.07648"
+       sodipodi:rx="242.85715"
+       sodipodi:ry="242.85715"
+       d="m 752.85715,528.07648 c 0,134.1263 -108.73085,242.85714 -242.85715,242.85714 -134.1263,0 -242.85715,-108.73084 -242.85715,-242.85714 0,-134.1263 108.73085,-242.85715 242.85715,-242.85715 134.1263,0 242.85715,108.73085 242.85715,242.85715 z"
+       transform="matrix(0.78529412,0,0,0.75,-46.214292,3.0217922)"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <path
+       sodipodi:type="arc"
+       style="fill:#e6e6e6;fill-opacity:1;stroke:none"
+       id="path3985-6-5"
+       sodipodi:cx="510"
+       sodipodi:cy="528.07648"
+       sodipodi:rx="242.85715"
+       sodipodi:ry="242.85715"
+       d="m 752.85715,528.07648 c 0,134.1263 -108.73085,242.85714 -242.85715,242.85714 -134.1263,0 -242.85715,-108.73084 -242.85715,-242.85714 0,-134.1263 108.73085,-242.85715 242.85715,-242.85715 134.1263,0 242.85715,108.73085 242.85715,242.85715 z"
+       transform="matrix(0.70294118,0,0,0.68529413,17.928564,49.760186)"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <rect
+       style="fill:#cccccc;stroke:#800000;stroke-width:2.79098129;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect2816"
+       width="264.20523"
+       height="196.75394"
+       x="256.92117"
+       y="344.70822"
+       ry="9.126132"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <rect
+       style="fill:url(#linearGradient3598);fill-opacity:1;stroke:none"
+       id="rect3590"
+       width="49.556355"
+       height="243.00056"
+       x="-404.41943"
+       y="267.82089"
+       transform="matrix(0,-1,1,0,0,0)"
+       ry="5.3196712"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:31.58516312px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="290.81363"
+       y="390.83618"
+       id="text3657"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         id="tspan3659"
+         x="290.81363"
+         y="390.83618">ROCED Core</tspan></text>
+    <rect
+       style="fill:#99ccff;fill-opacity:1;stroke:none"
+       id="rect2816-6"
+       width="313.48477"
+       height="223.55656"
+       x="539.97192"
+       y="201.67764"
+       ry="10.369333"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <rect
+       style="fill:url(#linearGradient3598-2);fill-opacity:1;stroke:none"
+       id="rect3590-9"
+       width="49.556355"
+       height="298.3595"
+       x="-257.54272"
+       y="546.9342"
+       transform="matrix(0,-1,1,0,0,0)"
+       ry="6.5315671"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:24.31005096px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="560.10809"
+       y="240.41177"
+       id="text3657-8"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         id="tspan3659-7"
+         x="560.10809"
+         y="240.41177">Requirement Adapters</tspan></text>
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:none"
+       id="rect3785"
+       width="295.71429"
+       height="51.428574"
+       x="547.42859"
+       y="265.21933"
+       ry="7.6844006"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:15.07071495px;font-style:normal;font-weight:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="554.49451"
+       y="286.99319"
+       id="text3787"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         id="tspan3791"
+         x="554.49451"
+         y="286.99319">... supplies information about needed </tspan><tspan
+         sodipodi:role="line"
+         x="554.49451"
+         y="305.83157"
+         id="tspan3793">compute nodes, e.g. queue size</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:24.51235199px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="552.04108"
+       y="350.66104"
+       id="text3795"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         id="tspan3797"
+         x="552.04108"
+         y="350.66104">Torque</tspan><tspan
+         sodipodi:role="line"
+         x="552.04108"
+         y="381.30148"
+         id="tspan2915">Grid Engine</tspan><tspan
+         sodipodi:role="line"
+         x="552.04108"
+         y="411.94193"
+         id="tspan3801">...</tspan></text>
+    <rect
+       style="fill:#99ccff;fill-opacity:1;stroke:none"
+       id="rect2816-6-1"
+       width="313.48477"
+       height="226.08194"
+       x="-74.920052"
+       y="199.79343"
+       ry="10.486469"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <rect
+       style="fill:url(#linearGradient3598-2-6);fill-opacity:1;stroke:none"
+       id="rect3590-9-5"
+       width="49.556355"
+       height="298.3595"
+       x="-255.65854"
+       y="-67.957771"
+       transform="matrix(0,-1,1,0,0,0)"
+       ry="6.5315671"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:24.31005096px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="-44.783878"
+       y="238.52756"
+       id="text3657-8-9"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         id="tspan3659-7-9"
+         x="-44.783878"
+         y="238.52756">Integration Adapters</tspan></text>
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:none"
+       id="rect3785-1"
+       width="295.71429"
+       height="51.428574"
+       x="-67.463387"
+       y="263.33511"
+       ry="7.6844006"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:15.07071495px;font-style:normal;font-weight:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="-60.397404"
+       y="285.10898"
+       id="text3787-4"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         x="-60.397404"
+         y="285.10898"
+         id="tspan3793-1">... integrates booted compute nodes</tspan><tspan
+         sodipodi:role="line"
+         x="-60.397404"
+         y="303.94736"
+         id="tspan3874">into existing batch server</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:24.51235199px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="-62.850895"
+       y="348.77682"
+       id="text3795-0"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         x="-62.850895"
+         y="348.77682"
+         id="tspan3799-5">Torque</tspan><tspan
+         sodipodi:role="line"
+         x="-62.850895"
+         y="379.41727"
+         id="tspan2913">Grid Engine</tspan><tspan
+         sodipodi:role="line"
+         x="-62.850895"
+         y="410.05771"
+         id="tspan3801-8">...</tspan></text>
+    <rect
+       style="fill:#99ccff;fill-opacity:1;stroke:none"
+       id="rect2816-6-1-2"
+       width="313.48477"
+       height="259.1124"
+       x="232.91254"
+       y="564.60535"
+       ry="12.018537"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <rect
+       style="fill:url(#linearGradient3598-2-6-6);fill-opacity:1;stroke:none"
+       id="rect3590-9-5-2"
+       width="49.556355"
+       height="298.3595"
+       x="-620.47046"
+       y="239.87482"
+       transform="matrix(0,-1,1,0,0,0)"
+       ry="6.5315671"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:24.31005096px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="309.04871"
+       y="603.33948"
+       id="text3657-8-9-2"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         id="tspan3659-7-9-0"
+         x="309.04871"
+         y="603.33948">Site Adapters</tspan></text>
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:none"
+       id="rect3785-1-5"
+       width="295.71429"
+       height="51.428574"
+       x="240.3692"
+       y="628.14703"
+       ry="7.6844006"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:15.07071495px;font-style:normal;font-weight:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="247.43518"
+       y="649.9209"
+       id="text3787-4-5"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         x="247.43518"
+         y="649.9209"
+         id="tspan3874-9">... boot machines on various Cloud</tspan><tspan
+         sodipodi:role="line"
+         x="247.43518"
+         y="668.75928"
+         id="tspan3945">Computing sites</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:24.51235199px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="244.98169"
+       y="713.58875"
+       id="text3795-0-0"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         id="tspan3797-7-2"
+         x="244.98169"
+         y="713.58875">Amazon EC2</tspan><tspan
+         sodipodi:role="line"
+         x="244.98169"
+         y="744.22919"
+         id="tspan3799-5-8">Eucalyptus</tspan><tspan
+         sodipodi:role="line"
+         x="244.98169"
+         y="774.86963"
+         id="tspan2911">OpenNebula</tspan><tspan
+         sodipodi:role="line"
+         x="244.98169"
+         y="805.51007"
+         id="tspan3801-8-3">...</tspan></text>
+    <rect
+       style="fill:#99ccff;fill-opacity:1;stroke:none"
+       id="rect2816-6-1-2-0"
+       width="242.94171"
+       height="113.81072"
+       x="267.72214"
+       y="417.48129"
+       ry="5.2789397"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <rect
+       style="fill:url(#linearGradient3598-2-6-6-2);fill-opacity:1;stroke:none"
+       id="rect3590-9-5-2-6"
+       width="44.698456"
+       height="229.2025"
+       x="-467.87009"
+       y="274.00192"
+       transform="matrix(0,-1,1,0,0,0)"
+       ry="5.0176105"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:21.92699051px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="356.28549"
+       y="452.56128"
+       id="text3657-8-9-2-1"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         id="tspan3659-7-9-0-5"
+         x="356.28549"
+         y="452.56128">Broker</tspan></text>
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:none"
+       id="rect3785-1-5-9"
+       width="227.05"
+       height="46.387146"
+       x="275.8764"
+       y="475.50845"
+       ry="6.9311161"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394" />
+    <text
+       xml:space="preserve"
+       style="font-size:13.59336662px;font-style:normal;font-weight:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       x="280.82117"
+       y="494.43356"
+       id="text3787-4-5-4"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
+       inkscape:export-xdpi="150.00394"
+       inkscape:export-ydpi="150.00394"><tspan
+         sodipodi:role="line"
+         x="280.82117"
+         y="494.43356"
+         id="tspan2973">... decides which machines to </tspan><tspan
+         sodipodi:role="line"
+         x="280.82117"
+         y="511.42526"
+         id="tspan2916">boot or shutdown</tspan></text>
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+
+# this will work on the ekpcloud where project-id = ekpcloud
+
+from novaclient.client import Client
+nova = Client(2, "username","password", "project-id", "http://<auth server ip>:5000/v2.0")
+
+fls = nova.flavors.find(name='m1.large')
+img = nova.images.find(name='<image name>')
+
+netw = nova.networks.list()[0]
+
+# important to give a specifc network due to bug in nova api: 
+sv = nova.servers.create("started-by-api-too",  img, fls, nics=[{"net-id": netw.id}] )
+
