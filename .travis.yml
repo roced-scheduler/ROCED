@@ -1,0 +1,9 @@
+language: python
+python:
+  - "2.7"
+script: 
+  - cd src/ROCED
+  - ./drift_tests.py
+  - ./scale.py --iterations 10 --config roced_fake.config standalone
+
+
