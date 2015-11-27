@@ -2,7 +2,7 @@ language: python
 python:
   - "2.7"
 install: 
-  - "pip install simplejson python-novaclient"
+  - "pip install simplejson python-novaclient m3-libxml2-python"
 script: 
   - cd src/ROCED
   - ./drift_tests.py
