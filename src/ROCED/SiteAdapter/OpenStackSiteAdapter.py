@@ -89,7 +89,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         SiteAdapterBase.__init__(self)
 
         # load Site Adapter name for ROCED output from config file
-        self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString, "Logger name of Site Adapter")
+        self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
+                                   description="Logger name of Site Adapter", default="Site")
 
         # TODO check if this is really needed...
         # init ConfigMachines with empty dictionary

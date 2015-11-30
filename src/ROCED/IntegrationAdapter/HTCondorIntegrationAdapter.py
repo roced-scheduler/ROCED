@@ -76,11 +76,11 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         self.addCompulsoryConfigKeys(self.configCondorKey, Config.ConfigTypeString, description="ssh key")
         self.addCompulsoryConfigKeys(self.configCondorServer, Config.ConfigTypeString, description="server")
         self.addOptionalConfigKeys(self.configCondorWaitPD, Config.ConfigTypeInt,
-                                   description="wait for x mintues before changing to disintegrating")
+                                   description="wait for x mintues before changing to disintegrating", default=0)
         # self.add...(self.configCondorWaitPD, Config.ConfigTypeInt, discription="",default=1)
         # self.addCompulsoryConfigKeys(self.configCondorIgnoreWaitPD, Config.ConfigTypeBoolean)
         self.addOptionalConfigKeys(self.configCondorWaitWorking, Config.ConfigTypeInt,
-                                   description="wait for x minutes befor changing to pending disintegration")
+                                   description="wait for x minutes befor changing to pending disintegration", default=0)
         # self.addCompulsoryConfigKeys(self.configCondorIgnoreWaitWorking, Config.ConfigTypeBoolean)
         self.addCompulsoryConfigKeys(self.configCondorDeadline, Config.ConfigTypeInt,
                                      description="deadline for dying machines")

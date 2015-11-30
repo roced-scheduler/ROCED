@@ -171,10 +171,10 @@ class SiteAdapterBase(AdapterBase):
 
         self.addCompulsoryConfigKeys(self.ConfigSiteName, Config.ConfigTypeString)
 
-        self.addOptionalConfigKeys(self.ConfigMachines, Config.ConfigTypeDictionary)
-        self.addOptionalConfigKeys(self.ConfigIsAvailable, Config.ConfigTypeBoolean)
-        self.addOptionalConfigKeys(self.ConfigMachineBootTimeout, Config.ConfigTypeInt)
-        self.addOptionalConfigKeys(self.ConfigMaxMachines, Config.ConfigTypeInt)
+        self.addOptionalConfigKeys(self.ConfigMachines, Config.ConfigTypeDictionary, default={})
+        self.addOptionalConfigKeys(self.ConfigIsAvailable, Config.ConfigTypeBoolean, default=True)
+        self.addOptionalConfigKeys(self.ConfigMachineBootTimeout, Config.ConfigTypeInt, default=30)
+        self.addOptionalConfigKeys(self.ConfigMaxMachines, Config.ConfigTypeInt, default=10)
 
         self.logger = logging.getLogger('Site')
 

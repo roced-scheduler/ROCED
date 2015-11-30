@@ -23,6 +23,10 @@
 import logging
 
 
+class NoDefaultSet():
+    pass
+
+
 class AdapterBase(object):
     # Properties
 
@@ -53,14 +57,11 @@ class AdapterBase(object):
     def getCompulsoryConfigKeys(self):
         return self.configKeysToLoad
 
-    def addOptionalConfigKeys(self, key, datatype, description=None, default=None):
-        # if key is None:
-        # self.configKeysToLoadOptional += [ (default,datatype) ]
-        # else:
-        self.configKeysToLoadOptional += [(key, datatype)]
+    def addOptionalConfigKeys(self, key, datatype, description=NoDefaultSet(), default=NoDefaultSet()):
+        self.configKeysToLoadOptional += [(key, datatype, default)]
 
     def addCompulsoryConfigKeys(self, key, datatype, description=None):
-        self.configKeysToLoad += [(key, datatype)]
+        self.configKeysToLoad += [(key, datatype, NoDefaultSet())]
 
     def get_configDict(self):
         return self._configDict
