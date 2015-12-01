@@ -85,8 +85,6 @@ class ScaleCoreTest(ScaleCoreTestBase):
         config.add_section("fake_req")
         config.set("fake_req", Config.ConfigObjectType, 'FakeRequirementAdapter')
 
-        config.write(open("mconfig.cfg", "w"))
-
         fact = ScaleCoreFactory()
 
         core = fact.getCore(config)
