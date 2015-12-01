@@ -20,10 +20,10 @@
 # ==============================================================================
 
 
-import logging
-import re
-import math
 import datetime
+import logging
+import math
+import re
 from collections import defaultdict
 
 from Core import MachineRegistry, Config
@@ -307,18 +307,28 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             # returns a dict: {batch job id: return code/status, ..}
             frJobsCompleted = dict(
                 re.findall(r"^([0-9]+)[ \t]+[A-Z]+[ \t]+([-A-Z0-9\(\)]+)", frResult[1], re.MULTILINE))
-        else:
+        elif frResult[0] == 255:
             frJobsCompleted = dict()
             self.logger.warning("SSH connection to Freiburg (showq -c) could not be established.")
+        else:
+            frJobsCompleted = dict()
+            self.logger.warning(
+                "Problem running remote command in Freiburg (showq -c) (return code " + str(frResult[0]) + "):\n"
+                + str(frResult[2]))
 
         # get list of running jobs in Freiburg to see which machines booted up
         frResult = self.execCmdInFreiburg("showq -r -w user=" + frUser)
         if frResult[0] == 0:
             # returns a tuple containing ids of all running batch jobs in Freiburg
             frJobsRunning = re.findall(r"^([0-9]+)[ \t]+R", frResult[1], re.MULTILINE)
-        else:
+        elif frResult[0] == 255:
             frJobsRunning = []
             self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
+        else:
+            frJobsRunning = []
+            self.logger.warning(
+                "Problem running remote command in Freiburg (showq -r) (return code " + str(frResult[0]) + "):\n"
+                + str(frResult[2]))
 
         # get list of machines from machine registry
         mr = self.getSiteMachines()
@@ -388,7 +398,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                         del condorMachines[batchJobId]
                     # assume machine has connection problems when it stays in status up too long
                     elif (mr[mid][self.mr.regStatusLastUpdate] +
-                              datetime.timedelta(minutes=10)) < datetime.datetime.now():
+                              datetime.timedelta(minutes=6)) < datetime.datetime.now():
                         self.logger.warning("Batch job in Freiburg is running but machine not listed in HTCondor..")
                         self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
@@ -458,13 +468,18 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         if result[0] <= 1:
             ScaleTools.sshDebugOutput(self.logger, "FR-terminate", result)
             idsRemoved += re.findall(r"\'([0-9]+)\'", result[1])
-            idsInvalidated += re.findall(r"([0-9]+)", result[2])
+            idsInvalidated += re.findall(r"invalid job specified \(([0-9]+)", result[2])
             if len(idsRemoved) > 0:
                 self.logger.info("Terminated machines (" + str(len(idsRemoved)) + "): " + ", ".join(idsRemoved))
             if len(idsInvalidated) > 0:
                 self.logger.warning(
                     "Removed invalid machines (" + str(len(idsInvalidated)) + "): " + ", ".join(idsInvalidated))
+            if (len(idsRemoved) + len(idsInvalidated)) == 0:
+                self.logger.warning(
+                    "A problem occurred while canceling VMs in Freiburg (return code " + str(result[0]) + "):\n"
+                    + str(result[2]))
         else:
             self.logger.warning(
-                "A problem occurred while canceling VMs in Freiburg. (" + str(result[0]) + "): " + str(result[2]))
+                "A problem occurred while canceling VMs in Freiburg (return code " + str(result[0]) + "):\n"
+                + str(result[2]))
         return idsRemoved, idsInvalidated
