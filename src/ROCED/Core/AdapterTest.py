@@ -22,19 +22,13 @@
 
 import logging
 
-#import AdapterBox
-#import Status
-#from IntegrationAdapter import Integration
-#from src.ROCED.Core import ScaleTest
-
 import ConfigParser
 
 import ScaleTest
-from Adapter import AdapterBase
+from Adapter import AdapterBase, AdapterBoxBase
 from SiteAdapter.Site import SiteAdapterBase, SiteInformation
-from Core import ScaleCoreFactory
+from IntegrationAdapter import Integration
 import Config
-import Core
 
 
 class AdapterBoxTest(ScaleTest.ScaleTestBase):
@@ -43,14 +37,12 @@ class AdapterBoxTest(ScaleTest.ScaleTestBase):
     def test_getBoxContent(self):
         logging.basicConfig(level=logging.DEBUG)
 
-        box = AdapterBox.AdapterBoxBase()
-        box._adapterList.append(Status.StatusAdapterBase())
+        box = AdapterBoxBase()
         box._adapterList.append(Integration.IntegrationAdapterBase())
         box._adapterList.append(Integration.IntegrationAdapterBase())
 
-        con = box.getBoxContent()
-        self.assertTrue(len(con) > 0)
-        logging.debug(con)
+        con = box.get_adapterList()
+        self.assertEqual(len(con), 2)
 
 
 class AdapterBaseTest(ScaleTest.ScaleTestBase):
@@ -89,5 +81,4 @@ class AdapterBaseTest(ScaleTest.ScaleTestBase):
 
         self.assertTrue(len(adapter.getOptionalConfigKeys()) == 2)
         self.assertEqual(adapter.getConfig(SiteAdapterBase.ConfigMachineBootTimeout), 20)
-        self.assertNotEqual(adapter.getConfig(SiteAdapterBase.ConfigMachineBootTimeout), config2_def_val)
         self.assertEqual(adapter.getConfig(config1_key), config1_def_val)
