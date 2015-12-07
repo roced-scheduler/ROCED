@@ -451,59 +451,10 @@ class ScaleCoreFactory(object):
                 raise Exception("SiteAdapter type " + site_type + " not found")
 
             # transfer compulsary config
-            self.loadConfigValue(obj.getCompulsoryConfigKeys(), configuration, False, sa, obj)
+            obj.loadConfigValue(obj.getCompulsoryConfigKeys(), configuration, False, sa, obj)
             # transfer optional config
-            self.loadConfigValue(obj.getOptionalConfigKeys(), configuration, True, sa, obj)
+            obj.loadConfigValue(obj.getOptionalConfigKeys(), configuration, True, sa, obj)
 
             site_adapters += [obj]
 
         return site_adapters
-
-    def loadConfigValue(self, key_list, configuration, optional, section, new_obj):
-
-        for (config_key, config_type, opt_val) in key_list:
-            if not configuration.has_option(section, config_key) and optional:
-                if isinstance(opt_val, NoDefaultSet):
-                    logger.error("Config key " + config_key + " not defined and no default value set")
-                    exit(0)
-                else:
-                    val = opt_val
-            else:
-                if config_type == Config.ConfigTypeString:
-                    val = configuration.get(section, config_key)
-                elif config_type == Config.ConfigTypeInt:
-                    val = configuration.getint(section, config_key)
-                elif config_type == Config.ConfigTypeFloat:
-                    val = configuration.getfloat(section, config_key)
-                elif config_type == Config.ConfigTypeBoolean:
-                    val = configuration.getboolean(section, config_key)
-                elif config_type == Config.ConfigTypeDictionary:
-                    val = json.loads(configuration.get(section, config_key))
-                else:
-                    print "Config data type " + config_type + " not supported"
-                    exit(0)
-
-            new_obj.setConfig(config_key, val)
-
-        """ old code fragment - remove when new one works
-        for (config_key, config_type) in key_list:
-            if optional:
-                if not configuration.has_option(section, config_key):
-                    continue
-
-            if config_type == Config.ConfigTypeString:
-                val = configuration.get(section, config_key)
-            elif config_type == Config.ConfigTypeInt:
-                val = configuration.getint(section, config_key)
-            elif config_type == Config.ConfigTypeFloat:
-                val = configuration.getfloat(section, config_key)
-            elif config_type == Config.ConfigTypeBoolean:
-                val = configuration.getboolean(section, config_key)
-            elif config_type == Config.ConfigTypeDictionary:
-                val = json.loads(configuration.get(section, config_key))
-            else:
-                print "Config data type " + config_type + " not supported"
-                exit(0)
-
-            new_obj.setConfig(config_key, val)
-        """

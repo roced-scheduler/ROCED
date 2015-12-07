@@ -39,7 +39,7 @@ from Core.Core import ScaleCoreFactory
 # test classes here
 # import SiteTest
 
-from Core import Config, EventTest
+from Core import Config, EventTest, AdapterTest
 from SiteAdapter import SiteTest
 from RequirementAdapter import RequirementTest
 from IntegrationAdapter import IntegrationTest
@@ -58,6 +58,7 @@ class ScaleMain(object):
         logging.getLogger().setLevel(logging.DEBUG)
 
         ts = unittest.TestSuite()
+        ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(AdapterTest))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(SiteTest))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(CoreTest))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(EventTest))

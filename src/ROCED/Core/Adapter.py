@@ -21,6 +21,8 @@
 
 
 import logging
+import Config
+import json
 
 
 class NoDefaultSet():
@@ -121,6 +123,56 @@ class AdapterBase(object):
             self._rpcServer.register_function(meth, name)
         else:
             logging.warn("Can't register method " + name + " with rpc, _rpcServer not set")
+
+    def loadConfigValue(self, key_list, configuration, optional, section, new_obj):
+
+        for (config_key, config_type, opt_val) in key_list:
+            if not configuration.has_option(section, config_key) and optional:
+                if isinstance(opt_val, NoDefaultSet):
+                    logger.error("Config key " + config_key + " not defined and no default value set")
+                    exit(0)
+                else:
+                    val = opt_val
+            else:
+                if config_type == Config.ConfigTypeString:
+                    val = configuration.get(section, config_key)
+                elif config_type == Config.ConfigTypeInt:
+                    val = configuration.getint(section, config_key)
+                elif config_type == Config.ConfigTypeFloat:
+                    val = configuration.getfloat(section, config_key)
+                elif config_type == Config.ConfigTypeBoolean:
+                    val = configuration.getboolean(section, config_key)
+                elif config_type == Config.ConfigTypeDictionary:
+                    val = json.loads(configuration.get(section, config_key))
+                else:
+                    print "Config data type " + config_type + " not supported"
+                    exit(0)
+
+            new_obj.setConfig(config_key, val)
+
+        """
+        old code fragment - remove when new one works
+        for (config_key, config_type) in key_list:
+            if optional:
+                if not configuration.has_option(section, config_key):
+                    continue
+
+            if config_type == Config.ConfigTypeString:
+                val = configuration.get(section, config_key)
+            elif config_type == Config.ConfigTypeInt:
+                val = configuration.getint(section, config_key)
+            elif config_type == Config.ConfigTypeFloat:
+                val = configuration.getfloat(section, config_key)
+            elif config_type == Config.ConfigTypeBoolean:
+                val = configuration.getboolean(section, config_key)
+            elif config_type == Config.ConfigTypeDictionary:
+                val = json.loads(configuration.get(section, config_key))
+            else:
+                print "Config data type " + config_type + " not supported"
+                exit(0)
+
+            new_obj.setConfig(config_key, val)
+        """
 
 
 class AdapterBoxBase(object):

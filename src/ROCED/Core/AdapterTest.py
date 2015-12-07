@@ -22,10 +22,19 @@
 
 import logging
 
-import AdapterBox
-import Status
-from IntegrationAdapter import Integration
-from src.ROCED.Core import ScaleTest
+#import AdapterBox
+#import Status
+#from IntegrationAdapter import Integration
+#from src.ROCED.Core import ScaleTest
+
+import ConfigParser
+
+import ScaleTest
+from Adapter import AdapterBase
+from SiteAdapter.Site import SiteAdapterBase, SiteInformation
+from Core import ScaleCoreFactory
+import Config
+import Core
 
 
 class AdapterBoxTest(ScaleTest.ScaleTestBase):
@@ -42,3 +51,43 @@ class AdapterBoxTest(ScaleTest.ScaleTestBase):
         con = box.getBoxContent()
         self.assertTrue(len(con) > 0)
         logging.debug(con)
+
+
+class AdapterBaseTest(ScaleTest.ScaleTestBase):
+    _adapterList = []
+
+    def test_addOptionalConfigKeys(self):
+        config = ConfigParser.RawConfigParser()
+
+        # general
+        config.add_section(Config.GeneralSection)
+        config.set(Config.GeneralSection, Config.GeneralSiteAdapters, 'fake_site')
+
+        # Site
+        config.add_section("fake_site")
+        config.set("fake_site", SiteAdapterBase.ConfigMachineBootTimeout, 20)
+
+
+        adapter = AdapterBase()
+
+        # config keys not in "config file"
+        config1_key = "key"
+        config1_def_val = "def_value"
+        config1_type = Config.ConfigTypeString
+        config1_description = "config value not in config file"
+
+        # config keys in "config file"
+        config2_def_val = 10
+        config2_def_desc = "config value in config file"
+
+        adapter.addOptionalConfigKeys(config1_key, config1_type, description=config1_description,
+                                      default=config1_def_val)
+        adapter.addOptionalConfigKeys(SiteAdapterBase.ConfigMachineBootTimeout, Config.ConfigTypeInt,
+                                      description=config2_def_desc ,default=config2_def_val)
+
+        adapter.loadConfigValue(adapter.getOptionalConfigKeys(), config, True, "fake_site", adapter)
+
+        self.assertTrue(len(adapter.getOptionalConfigKeys()) == 2)
+        self.assertEqual(adapter.getConfig(SiteAdapterBase.ConfigMachineBootTimeout), 20)
+        self.assertNotEqual(adapter.getConfig(SiteAdapterBase.ConfigMachineBootTimeout), config2_def_val)
+        self.assertEqual(adapter.getConfig(config1_key), config1_def_val)
