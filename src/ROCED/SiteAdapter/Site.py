@@ -253,7 +253,10 @@ class SiteAdapterBase(AdapterBase):
         for (k, v) in myMachines.iteritems():
             if not v.get(self.mr.regStatus) == self.mr.statusDown:
                 # will later hold specific information, like id, ip etc
-                machineList[v[self.mr.regMachineType]].append(k)
+                try:
+                    machineList[v[self.mr.regMachineType]].append(k)
+                except KeyError:
+                    pass
 
         return machineList
 

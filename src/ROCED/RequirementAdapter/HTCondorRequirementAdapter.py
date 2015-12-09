@@ -113,7 +113,11 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         return 23
 
     def getNeededMachineType(self):
-        return "vm-default"
+        machineType = self.getConfig(self.configMachines).keys()[0]
+        if machineType:
+            return machineType
+        else:
+            self.logger.error("No machine type defined for requirement.")
 
     def getDescription(self):
         return "HTCondorRequirementAdapter"

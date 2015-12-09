@@ -417,7 +417,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
             self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
             # todo: handle different machine types
-            self.mr.machines[mid][self.mr.regMachineType] = "vm-default"
+            self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
             self.mr.machines[mid][self.regMachineJobId] = batchJobId
             self.mr.machines[mid][self.regMachineCondorSlotStatus] = condorMachines[batchJobId]
             self.mr.updateMachineStatus(mid, self.mr.statusWorking)
