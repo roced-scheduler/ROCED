@@ -269,9 +269,9 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
             # machines in status up are set to integrating
             if evt.newStatus == self.mr.statusUp:
-                logging.info("Integrating machine with ip " + str(self.mr.machines[evt.id].get(self.mr.regHostname)))
-                self.mr.updateMachineStatus(evt.id, self.mr.statusIntegrating)
-                self.mr.machines[evt.id][self.reg_status_changed_to_integrating] = datetime.datetime.now()
+                if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
+                    self.mr.updateMachineStatus(evt.id, self.mr.statusIntegrating)
+                    self.mr.machines[evt.id][self.reg_status_changed_to_integrating] = datetime.datetime.now()
 
     def getDescription(self):
         return "HTCondorIntegrationAdapter"

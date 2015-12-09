@@ -445,14 +445,15 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # check correct site etc...
         if isinstance(mid, MachineRegistry.StatusChangedEvent):
             if self.mr.machines[mid.id].get(self.mr.regSite) == self.getSiteName():
-                # if new status is disintegrating, halt machine
-                if mid.newStatus == self.mr.statusDisintegrating:
-                    self.openstackStopMachine(mid.id)
-                # if new status is disintegrated, machine is alreade shut down, so kill it
-                if mid.newStatus == self.mr.statusDisintegrated:
-                    self.openstackTerminateMachines(mid)
-                    self.mr.updateMachineStatus(mid.id, self.mr.statusDown)
-                    self.mr.machines[mid.id][self.reg_status_changed_to_down] = datetime.datetime.now()
+                if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
+                    # if new status is disintegrating, halt machine
+                    if mid.newStatus == self.mr.statusDisintegrating:
+                        self.openstackStopMachine(mid.id)
+                    # if new status is disintegrated, machine is alreade shut down, so kill it
+                    if mid.newStatus == self.mr.statusDisintegrated:
+                        self.openstackTerminateMachines(mid)
+                        self.mr.updateMachineStatus(mid.id, self.mr.statusDown)
+                        self.mr.machines[mid.id][self.reg_status_changed_to_down] = datetime.datetime.now()
 
     """private part"""
 
