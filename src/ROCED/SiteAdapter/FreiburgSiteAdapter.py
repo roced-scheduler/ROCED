@@ -29,7 +29,7 @@ from collections import defaultdict
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase
 from Util import ScaleTools
-from Util.ScaleTools import JsonLog
+from Util.Logging import JsonLog
 
 
 class FreiburgSiteAdapter(SiteAdapterBase):

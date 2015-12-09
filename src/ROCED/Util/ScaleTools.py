@@ -20,13 +20,8 @@
 # ===============================================================================
 
 
-from datetime import datetime
-import json
 import logging
-import os
 import subprocess
-import time
-
 from Core import MachineRegistry
 
 """
@@ -531,84 +526,3 @@ class Vpn():
         """disable ssh connnections for public ips
         """
         pass
-
-
-class JsonLog:
-    # use class variables to share log among instances
-    __jsonLog = {}
-    __fileName = ""
-
-    def __init__(self):
-        if not JsonLog.__fileName:
-            JsonLog.__fileName = "log/monitoring_" + str(datetime.today().strftime("%Y-%m-%d_%H-%M")) + ".json"
-
-    def addItem(self, key, value):
-        JsonLog.__jsonLog[key] = value
-
-    def writeLog(self):
-        oldLog = {}
-        if os.path.isfile(JsonLog.__fileName):
-            try:
-                jsonFile = open(JsonLog.__fileName, "r")
-                try:
-                    oldLog = json.load(jsonFile)
-                    oldLog[int(time.time())] = JsonLog.__jsonLog
-                except ValueError:
-                    logging.error("Could not parse JSON log!")
-                    oldLog = {int(time.time()): JsonLog.__jsonLog}
-                jsonFile.close()
-            except IOError:
-                logging.error("JSON file could not be opened for logging!")
-        else:
-            oldLog = {int(time.time()): JsonLog.__jsonLog}
-        try:
-            jsonFile = open(JsonLog.__fileName, "w")
-            json.dump(oldLog, jsonFile, sort_keys=True, indent=2)
-            jsonFile.close()
-        except IOError:
-            logging.error("JSON file could not be opened for logging!")
-
-        # clear jsonLog for next cycle
-        JsonLog.__jsonLog = {}
-
-    def printLog(self):
-        print str(int(time.time())) + ": " + str(JsonLog.__jsonLog)
-
-
-class JsonStats:
-    __jsonStats = {}
-    __fileName = ""
-
-    def __init__(self, dir="log", prefix="stats", suffix=""):
-        if not JsonStats.__fileName:
-            JsonStats.__fileName = str(dir) + '/' + prefix + '_' + str(
-                datetime.today().strftime('%Y-%m-%d_%H-%M')) + str(suffix) + ".json"
-
-    def add_item(self, key, value):
-        JsonStats.__jsonStats[key] = value
-
-    def write_stats(self):
-        old_stats = {}
-        if os.path.isfile(JsonStats.__fileName):
-            try:
-                jsonFile = open(JsonStats.__fileName, "r")
-                try:
-                    oldStats = json.load(jsonFile)
-                    oldStats[int(time.time())] = JsonStats.__jsonStats
-                except ValueError:
-                    logging.error("Could not parse JSON log!")
-                    oldStats = {int(time.time()): JsonStats.__jsonStats}
-                jsonFile.close()
-            except IOError:
-                logging.error("JSON file could not be opened for logging!")
-        else:
-            oldStats = {int(time.time()): JsonStats.__jsonStats}
-        try:
-            jsonFile = open(JsonStats.__fileName, "w")
-            json.dump(oldStats, jsonFile, sort_keys=True, indent=2)
-            jsonFile.close()
-        except IOError:
-            logging.error("JSON file could not be opened for logging!")
-
-    def printStats(self):
-        print str(int(time.time())) + ": " + str(JsonStats.__jsonStats)

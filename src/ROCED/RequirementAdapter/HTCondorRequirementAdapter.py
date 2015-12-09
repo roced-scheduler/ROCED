@@ -26,7 +26,7 @@ import re
 
 from Core import MachineRegistry, Config
 from RequirementAdapter.Requirement import RequirementAdapterBase
-from Util import ScaleTools
+from Util import Logging, ScaleTools
 
 
 class HTCondorRequirementAdapter(RequirementAdapterBase):
@@ -98,7 +98,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
             # calculate the number of machines needed
             self.curReq = int(math.ceil(n_slots / float(n_cores)))
 
-            json_log = ScaleTools.JsonLog()
+            json_log = Logging.JsonLog()
             json_log.addItem('jobs_idle', n_jobs_idle)
             json_log.addItem('jobs_running', n_jobs_running)
 

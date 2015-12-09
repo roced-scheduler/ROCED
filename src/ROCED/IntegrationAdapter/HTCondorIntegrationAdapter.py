@@ -27,7 +27,7 @@ from collections import defaultdict
 import datetime
 from Core import MachineRegistry, Config
 from Util import ScaleTools
-from Util.ScaleTools import JsonStats
+from Util.Logging import JsonStats
 
 from Integration import IntegrationAdapterBase
 
@@ -50,15 +50,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     # list of the different slot states for each machine, e.g. [slot1,slot2,...]
     reg_site_condor_status = "condor_slot_status"
 
-    # timestamps for status changes
-    reg_status_changed_to_booting = "status_changed_to_booting"
-    reg_status_changed_to_up = "status_changed_to_up"
-    reg_status_changed_to_integrating = "status_changed_to_integrating"
-    reg_status_changed_to_working = "status_changed_to_working"
-    reg_status_changed_to_pending_disintegration = "status_changed_to_pending_disintegration"
-    reg_status_changed_to_disintegrating = "status_changed_to_disintegrating"
-    reg_status_changed_to_disintegrated = "status_changed_to_disintegrated"
-    reg_status_changed_to_down = "status_changed_to_down"
+    reg_status_last_update = "status_last_update"
 
     def __init__(self):
         """Init function
@@ -154,8 +146,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                             minutes=self.getConfig(self.configCondorDeadline))):
                         # if the machine is stuck in this state for more than (deadline) minutes, run the shutdown cycle
                         self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
-                        self.mr.machines[mid][
-                            self.reg_status_changed_to_pending_disintegration] = datetime.datetime.now()
 
                     # check if machine is stuck while disintegrating
                     # TODO: this is kind of strange... Does this do anything different than the lines above?
@@ -163,7 +153,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                                                       + datetime.timedelta(
                             minutes=self.getConfig(self.configCondorDeadline))):
                         self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
-                        self.mr.machines[mid][self.reg_status_changed_to_disintegrated] = datetime.datetime.now()
 
                 # check if machines integerating are completely started up
                 if mr_machines[mid][self.mr.regStatus] == self.mr.statusIntegrating:
@@ -172,19 +161,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         self.mr.updateMachineStatus(mid, self.mr.statusWorking)
                         # update condor slot status in machine registry
                         self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[mid]
-                        self.mr.machines[mid][self.reg_status_changed_to_working] = datetime.datetime.now()
-
-                        # write some statistics into JsonStats, this is going to be integrated in updateMachineStatus()
-                        # therefore this section will be cleaned up a in the future
-                        """json_stats = JsonStats()
-                        time_diff = self.mr.machines[mid][self.reg_status_changed_to_working] - self.mr.machines[mid][
-                            self.reg_status_changed_to_booting]
-                        json_stats.add_item("Diff.", str(time_diff.seconds))
-                        # json_stats.add_item(str(self.reg_status_changed_to_booting), str(self.mr.machines[mid][self.reg_status_changed_to_working]))
-                        # json_stats.add_item(str(self.reg_status_changed_to_up), str(self.mr.machines[mid][self.reg_status_changed_to_up]))
-                        # json_stats.add_item(str(self.reg_status_changed_to_integrating), str(self.mr.machines[mid][self.reg_status_changed_to_integrating]))
-                        # json_stats.add_item(str(self.reg_status_changed_to_working), str(self.mr.machines[mid][self.reg_status_changed_to_working]))
-                        json_stats.write_stats()"""
 
                 # check if machines with status pending disintegration can be shut down
                 if mr_machines[mid][self.mr.regStatus] == self.mr.statusPendingDisintegration:
@@ -204,19 +180,18 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         # if the time passed since the last machine status update is higher than the time it should stay
                         # in thie state (it can sometimes happen, that condor needs quite some time to distribute jobs
                         # to unclaimed slots/cores
-                        if (datetime.datetime.now() > (mr_machines[mid][self.mr.regStatusLastUpdate] + \
+                        if (datetime.datetime.now() > (mr_machines[mid][self.reg_status_last_update] + \
                                                                datetime.timedelta(
                                                                    minutes=self.getConfig(self.configCondorWaitPD)))):
                             # if the machine load is higher than zero, it means at least one slot is claimed and
                             # therefore the machine should be update to status working
                             if mr_machines[mid][self.mr.regMachineLoad] > 0.1:
                                 self.mr.updateMachineStatus(mid, self.mr.statusWorking)
-                                self.mr.machines[mid][self.reg_status_changed_to_working] = datetime.datetime.now()
                             # otherwise the machine is unclaimed and can be shut down/disintegrated
                             else:
                                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
-                                self.mr.machines[mid][
-                                    self.reg_status_changed_to_disintegrating] = datetime.datetime.now()
+                    else:
+                        self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
 
                 # if the machines are in status working it should be checked if the machine load is smaller than 0.1
                 # if so the machine is unclaimed and the machine can be set to pending disintegration
@@ -230,7 +205,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                             if mr_machines[mid][self.reg_site_condor_status][core][0] == self.condorStatusClaimed:
                                 cores_claimed = cores_claimed + 1
                                 # set a timestamp on this event
-                                # self.mr.machines[mid][self.reg_status_changed_to_working] = datetime.datetime.now()
+                                self.mr.machines[mid][self.reg_status_last_update] = datetime.datetime.now()
                         # update the machine load in machine registry with the newly calculated machine load
                         mr_machines[mid][self.mr.regMachineLoad] = cores_claimed / len(
                             mr_machines[mid][self.reg_site_condor_status])
@@ -240,20 +215,20 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         # if the time passed since the last machine status change (timestamp) is longer than the time it
                         # should wait in this status for new jobs and also the machine load is smaller than 0.1:
                         # change the machine state to pending disintegration
-                        if (datetime.datetime.now() > (mr_machines[mid][self.reg_status_changed_to_working] + \
-                                                               datetime.timedelta(minutes=self.getConfig(
-                                                                   self.configCondorWaitWorking)))):
+                        if (datetime.datetime.now() > (mr_machines[mid][self.reg_status_last_update] +\
+                                                       datetime.timedelta(minutes=self.getConfig(
+                                                           self.configCondorWaitWorking)))):
                             if mr_machines[mid][self.mr.regMachineLoad] <= 0.1:
                                 self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
-                                self.mr.machines[mid][
-                                    self.reg_status_changed_to_pending_disintegration] = datetime.datetime.now()
+                                self.mr.machines[mid][self.reg_status_last_update] = datetime.datetime.now()
+                    else:
+                        self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
 
                 # if a machine is in status disintegrating it is shutting down right now
                 # if it is not listed in condor it is done shutting down so the status is set to disintegrated
                 if mr_machines[mid][self.mr.regStatus] == self.mr.statusDisintegrating:
                     if mid not in condor_machines:
                         self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
-                        self.mr.machines[mid][self.reg_status_changed_to_disintegrated] = datetime.datetime.now()
 
         self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
 
@@ -271,7 +246,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             if evt.newStatus == self.mr.statusUp:
                 if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
                     self.mr.updateMachineStatus(evt.id, self.mr.statusIntegrating)
-                    self.mr.machines[evt.id][self.reg_status_changed_to_integrating] = datetime.datetime.now()
 
     def getDescription(self):
         return "HTCondorIntegrationAdapter"

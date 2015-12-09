@@ -21,10 +21,11 @@
 
 import logging
 import uuid
-import datetime
+import time, datetime
 
 import Event
 
+from Util.Logging import JsonStats
 
 class MachineEvent(Event.EventBase):
     def id():  # @NoSelf
@@ -109,6 +110,8 @@ class MachineRegistry(Event.EventPublisher):
     statusShutdown = "down"  # not in PBS, but still running and needing cloud resources
     statusDown = "down"
 
+    statusChangeHistory = "state_change_history"
+
     regStatus = "status"
     regStatusLastUpdate = "status_last_update"
     regHostname = "hostname"
@@ -168,16 +171,36 @@ class MachineRegistry(Event.EventPublisher):
         return newd
 
     def updateMachineStatus(self, id, newStatus):
-        oldStat = self.machines[id].get("status", None)
+        newTime = datetime.datetime.now()
+        if self.regStatusLastUpdate in self.machines[id]:
+            oldTime = self.machines[id][self.regStatusLastUpdate]
+        else:
+            oldTime = newTime
+        diffTime = newTime - oldTime
+
+        oldStatus = self.machines[id].get("status", None)
         self.machines[id]["status"] = newStatus
         self.machines[id][self.regStatus] = newStatus
-        self.machines[id][self.regStatusLastUpdate] = datetime.datetime.now()
+        self.machines[id][self.regStatusLastUpdate] = newTime #datetime.datetime.now()
+        self.machines[id][self.statusChangeHistory].append(
+            {
+                "old_status": oldStatus,
+                "new_status": newStatus,
+                "timestamp": str(newTime),
+                "time_diff": str(diffTime)
+            }
+        )
 
-        # TODO write statistics at this point
-        # self.machines[id]["state_change_history"].append( ( oldState, newStat, absTime, diff ) )
+        if (id in self.machines) and (len(self.machines[id][self.statusChangeHistory]) > 0):
+            json_stats = JsonStats()
+            json_stats.add_item(self.machines[id]["site"], id, self.machines[id][self.statusChangeHistory][-1])
+            json_stats.write_stats()
+            del json_stats
 
-        self.logger.info("updating status of " + str(id) + ": " + str(oldStat) + " -> " + newStatus)
-        self.publishEvent(StatusChangedEvent(id, oldStat, newStatus))
+        #self.machines[id][self.statusChangeHistory].append([oldStatus, newStatus, str(newTime), str(diffTime)])
+
+        self.logger.info("updating status of " + str(id) + ": " + str(oldStatus) + " -> " + newStatus)
+        self.publishEvent(StatusChangedEvent(id, oldStatus, newStatus))
 
     # in secs
     def calcLastStateChange(self, mid):
@@ -209,6 +232,7 @@ class MachineRegistry(Event.EventPublisher):
             id = str(uuid.uuid4())
         self.logger.debug("adding machine with id " + id)
         self.machines[id] = dict()
+        self.machines[id][self.statusChangeHistory] = []
         self.publishEvent(NewMachineEvent(id))
         return id
 

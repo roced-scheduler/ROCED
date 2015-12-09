@@ -45,7 +45,7 @@ from SiteAdapter.FakeSiteAdapter import FakeSiteAdapter
 import Broker
 import Config
 import MachineRegistry
-from Util.ScaleTools import JsonLog
+from Util.Logging import JsonLog
 from Adapter import NoDefaultSet
 
 logger = logging.getLogger('Core')

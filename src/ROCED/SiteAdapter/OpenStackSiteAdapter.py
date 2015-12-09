@@ -27,7 +27,7 @@ from collections import defaultdict
 import datetime, time
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase
-from Util.ScaleTools import JsonLog, JsonStats
+from Util.Logging import JsonLog, JsonStats
 # Open Stack API
 from novaclient.client import Client
 
@@ -60,16 +60,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     configDay = "daytime"
     configNight = "nighttime"
 
-    # timestamps and status changes for statistic files
-    reg_status_changed_to_booting = "status_changed_to_booting"
-    reg_status_changed_to_up = "status_changed_to_up"
-    reg_status_changed_to_integrating = "status_changed_to_integrating"
-    reg_status_changed_to_working = "status_changed_to_working"
-    reg_status_changed_to_pending_disintegration = "status_changed_to_pending_disintegration"
-    reg_status_changed_to_disintegrating = "status_changed_to_disintegrating"
-    reg_status_changed_to_disintegrated = "status_changed_to_disintegrated"
-    reg_status_changed_to_down = "status_changed_to_down"
-
     # name, id and status of VMs at OpenStack
     reg_site_server_name = "open_stack_server_name"
     reg_site_server_id = "open_stack_server_id"
@@ -79,6 +69,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     reg_site_server_status_active = "ACTIVE"
     reg_site_server_status_error = "ERROR"
     reg_site_server_status_shutoff = "SHUTOFF"
+
+    reg_status_change_history = "state_change_history"
 
     def __init__(self):
         """Init function
@@ -265,9 +257,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
                 self.mr.machines[mid][self.reg_site_server_id] = sv.id
 
-                # TODO: set these information in updateMachineStatus()
-                self.mr.machines[mid][self.reg_status_changed_to_booting] = datetime.datetime.now()
-
                 # TODO: set machine information, like openstack id
                 self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
@@ -353,31 +342,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
             # if status is down, machine is terminated at OpenStack, so remove it from machine registry
             if mr_machines[mid][self.mr.regStatus] == self.mr.statusDown:
-                # write the statics to file
-                json_stats = JsonStats()
-                #json_stats.add_item("mid", mid)
-                json_stats.add_item(mid, self.reg_status_changed_to_booting,
-                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_booting].timetuple())))
-                json_stats.add_item(mid, self.reg_status_changed_to_up,
-                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_up].timetuple())))
-                json_stats.add_item(mid, self.reg_status_changed_to_integrating,
-                                    int(time.mktime(mr_machines[mid][
-                                                        self.reg_status_changed_to_integrating].timetuple())))
-                json_stats.add_item(mid, self.reg_status_changed_to_working,
-                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_working].timetuple())))
-                json_stats.add_item(mid, self.reg_status_changed_to_pending_disintegration,
-                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_pending_disintegration].
-                                        timetuple())))
-                json_stats.add_item(mid, self.reg_status_changed_to_disintegrating,
-                                    int(time.mktime(mr_machines[mid][
-                                                        self.reg_status_changed_to_disintegrating].timetuple())))
-                json_stats.add_item(mid, self.reg_status_changed_to_disintegrated,
-                                    int(time.mktime(mr_machines[mid][
-                                                        self.reg_status_changed_to_disintegrated].timetuple())))
-                json_stats.add_item(mid, self.reg_status_changed_to_down,
-                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_down].timetuple())))
-                json_stats.write_stats()
-                # actually delete machine from machine registry
                 self.mr.removeMachine(mid)
                 continue
 
@@ -386,7 +350,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 # they started correctly when the OpenStack state changes to active
                 if nova_machines[mid][self.reg_site_server_status] == self.reg_site_server_status_active:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
-                    self.mr.machines[mid][self.reg_status_changed_to_up] = datetime.datetime.now()
                     self.mr.machines[mid][self.reg_site_server_status] = nova_machines[mid][self.reg_site_server_status]
                 if mid in nova_machines:
                     del nova_machines[mid]
@@ -399,7 +362,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 # if machine is in status shutoff (OpenStack), update to disintegrated
                 if nova_machines[mid][self.reg_site_server_status] == self.reg_site_server_status_shutoff:
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
-                    self.mr.machines[mid][self.reg_status_changed_to_disintegrated] = datetime.datetime.now()
                 if mid in nova_machines:
                     del nova_machines[mid]
 
@@ -418,10 +380,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
                 if nova_machines[mid][self.reg_site_server_status] == self.reg_site_server_status_error:
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
-                    self.mr.machines[mid][self.reg_status_changed_to_disintegrating] = datetime.datetime.now()
                 else:
                     self.mr.updateMachineStatus(mid, self.mr.statusWorking)
-                    self.mr.machines[mid][self.reg_status_changed_to_working] = datetime.datetime.now()
 
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at GridKa: " + str(self.getRunningMachinesCount()["vm-default"]))
@@ -442,18 +402,23 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         :return:
         """
 
+        if (mid.id in self.mr.machines) and (len(self.mr.machines[mid.id][self.reg_status_change_history]) > 0):
+            json_stats = JsonStats()
+            json_stats.add_item(self.mr.machines[mid.id]["site"], mid.id, self.mr.machines[mid.id][self.reg_status_change_history][-1])
+            json_stats.write_stats()
+            del json_stats
+
         # check correct site etc...
         if isinstance(mid, MachineRegistry.StatusChangedEvent):
             if self.mr.machines[mid.id].get(self.mr.regSite) == self.getSiteName():
-                if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
+                if self.mr.machines[mid.id].get(self.mr.regSite) == self.getSiteName():
                     # if new status is disintegrating, halt machine
                     if mid.newStatus == self.mr.statusDisintegrating:
                         self.openstackStopMachine(mid.id)
-                    # if new status is disintegrated, machine is alreade shut down, so kill it
+                    # if new status is disintegrated, machine is already shut down, so kill it
                     if mid.newStatus == self.mr.statusDisintegrated:
                         self.openstackTerminateMachines(mid)
                         self.mr.updateMachineStatus(mid.id, self.mr.statusDown)
-                        self.mr.machines[mid.id][self.reg_status_changed_to_down] = datetime.datetime.now()
 
     """private part"""
 
