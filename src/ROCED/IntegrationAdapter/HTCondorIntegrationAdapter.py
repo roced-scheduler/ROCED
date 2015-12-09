@@ -34,6 +34,7 @@ from Integration import IntegrationAdapterBase
 
 class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     configIntLogger = "int_logger"
+    configCondorName = "site_name"
     configCondorRequirement = "condor_requirement"
     configCondorUser = "condor_user"
     configCondorKey = "condor_key"
@@ -55,7 +56,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     reg_status_changed_to_integrating = "status_changed_to_integrating"
     reg_status_changed_to_working = "status_changed_to_working"
     reg_status_changed_to_pending_disintegration = "status_changed_to_pending_disintegration"
-    reg_status_changed_to_disintegrating = "status_changed_to_disintegration"
+    reg_status_changed_to_disintegrating = "status_changed_to_disintegrating"
     reg_status_changed_to_disintegrated = "status_changed_to_disintegrated"
     reg_status_changed_to_down = "status_changed_to_down"
 
@@ -75,6 +76,8 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         self.addCompulsoryConfigKeys(self.configCondorUser, Config.ConfigTypeString, description="username")
         self.addCompulsoryConfigKeys(self.configCondorKey, Config.ConfigTypeString, description="ssh key")
         self.addCompulsoryConfigKeys(self.configCondorServer, Config.ConfigTypeString, description="server")
+        self.addCompulsoryConfigKeys(self.configCondorName, Config.ConfigTypeString,
+                                     description="site name")
         self.addOptionalConfigKeys(self.configCondorWaitPD, Config.ConfigTypeInt,
                                    description="wait for x mintues before changing to disintegrating", default=0)
         # self.add...(self.configCondorWaitPD, Config.ConfigTypeInt, discription="",default=1)
@@ -94,6 +97,24 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         """
         self.logger = logging.getLogger(self.getConfig(self.configIntLogger))
         self.mr.registerListener(self)
+
+    def getSiteName(self):
+        """
+        Get site name of OpenStack site
+
+        :return: site_name
+        """
+        return self.getConfig(self.configCondorName)
+
+    def getSiteMachines(self, status=None, machineType=None):
+        """
+        Get machines running at OpenStack site
+
+        :param status:
+        :param machineType:
+        :return: machine_registry
+        """
+        return self.mr.getMachines(self.getSiteName(), status, machineType)
 
     def manage(self):
         """Managing machine status
@@ -116,7 +137,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         valid_condor_info = condor_machines_tuple[1]
 
         # get a list of machines from machine registry
-        mr_machines = self.mr.getMachines()
+        mr_machines = self.getSiteMachines()
 
         # check if condor info is valid. if for example condor is not reachable, it could be not valid
         # loop over all machines in machine registry and check their status
@@ -155,7 +176,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
                         # write some statistics into JsonStats, this is going to be integrated in updateMachineStatus()
                         # therefore this section will be cleaned up a in the future
-                        json_stats = JsonStats()
+                        """json_stats = JsonStats()
                         time_diff = self.mr.machines[mid][self.reg_status_changed_to_working] - self.mr.machines[mid][
                             self.reg_status_changed_to_booting]
                         json_stats.add_item("Diff.", str(time_diff.seconds))
@@ -163,7 +184,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         # json_stats.add_item(str(self.reg_status_changed_to_up), str(self.mr.machines[mid][self.reg_status_changed_to_up]))
                         # json_stats.add_item(str(self.reg_status_changed_to_integrating), str(self.mr.machines[mid][self.reg_status_changed_to_integrating]))
                         # json_stats.add_item(str(self.reg_status_changed_to_working), str(self.mr.machines[mid][self.reg_status_changed_to_working]))
-                        json_stats.write_stats()
+                        json_stats.write_stats()"""
 
                 # check if machines with status pending disintegration can be shut down
                 if mr_machines[mid][self.mr.regStatus] == self.mr.statusPendingDisintegration:
@@ -209,7 +230,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                             if mr_machines[mid][self.reg_site_condor_status][core][0] == self.condorStatusClaimed:
                                 cores_claimed = cores_claimed + 1
                                 # set a timestamp on this event
-                                self.mr.machines[mid][self.reg_status_changed_to_working] = datetime.datetime.now()
+                                # self.mr.machines[mid][self.reg_status_changed_to_working] = datetime.datetime.now()
                         # update the machine load in machine registry with the newly calculated machine load
                         mr_machines[mid][self.mr.regMachineLoad] = cores_claimed / len(
                             mr_machines[mid][self.reg_site_condor_status])
@@ -234,7 +255,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
                         self.mr.machines[mid][self.reg_status_changed_to_disintegrated] = datetime.datetime.now()
 
-        self.logger.debug("Content of machine registry:\n" + str(self.mr.getMachines()))
+        self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
 
     def onEvent(self, evt):
         """Event handler

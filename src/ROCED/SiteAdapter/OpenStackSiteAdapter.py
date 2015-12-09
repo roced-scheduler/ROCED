@@ -1,6 +1,6 @@
 # ==============================================================================
 #
-# Copyright (c) 2010, 2011 by Guenther Erli
+# Copyright (c) 2010, 2011, 2015 by Guenther Erli
 #
 # This file is part of ROCED.
 #
@@ -24,10 +24,10 @@ import logging
 import re
 from collections import defaultdict
 
-import datetime
+import datetime, time
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase
-from Util.ScaleTools import JsonLog
+from Util.ScaleTools import JsonLog, JsonStats
 # Open Stack API
 from novaclient.client import Client
 
@@ -48,6 +48,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     configUser = "openstack_User"
     configPass = "openstack_Password"
     configTenant = "openstack_Tenant"
+    configTimeout = "openstack_Timeout"
 
     # machine specific settings
     configMachines = "machines"
@@ -65,7 +66,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     reg_status_changed_to_integrating = "status_changed_to_integrating"
     reg_status_changed_to_working = "status_changed_to_working"
     reg_status_changed_to_pending_disintegration = "status_changed_to_pending_disintegration"
-    reg_status_changed_to_disintegrating = "status_changed_to_disintegration"
+    reg_status_changed_to_disintegrating = "status_changed_to_disintegrating"
     reg_status_changed_to_disintegrated = "status_changed_to_disintegrated"
     reg_status_changed_to_down = "status_changed_to_down"
 
@@ -103,6 +104,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         self.addCompulsoryConfigKeys(self.configUser, Config.ConfigTypeString, "OpenStack user name")
         self.addCompulsoryConfigKeys(self.configPass, Config.ConfigTypeString, "OpenStack password")
         self.addCompulsoryConfigKeys(self.configTenant, Config.ConfigTypeString, "OpenStack tenant information")
+        self.addOptionalConfigKeys(self.configTimeout, Config.ConfigTypeInt,
+                                   description="OpenStack connection timeout", default=300)
 
         # TODO check if this is really needed...
         # init ConfigMachineType with empty dictionary
@@ -128,6 +131,16 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
 
         self.mr.registerListener(self)
+
+    def getSiteMachines(self, status=None, machineType=None):
+        """
+        Get machines running at Freiburg site
+
+        :param status:
+        :param machineType:
+        :return: machine_registry
+        """
+        return self.mr.getMachines(self.getSiteName(), status, machineType)
 
     def getRunningMachines(self):
         """Returns a dictionary containing all running machines
@@ -214,21 +227,21 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                     # machines at day, set the number of requested machines so that it fits the limits
                     # also: if it is daytime, the amount of allowed machines is set to (percentage * max_machines)
                     # if it is nighttime, nothing happens
-                    if (requested + len(self.mr.getMachines())) > (
+                    if (requested + len(self.getSiteMachines())) > (
                                 self.getConfig(self.configMaxMachines) * self.getConfig(self.configMachinePercentage)):
                         self.logger.info("Request exceeds maximum number of allowed machines for daytime (" +
-                                         str(requested + len(self.mr.getMachines())) + ">" + str(
+                                         str(requested + len(self.getSiteMachines())) + ">" + str(
                             int(self.getConfig(self.configMaxMachines) * self.getConfig(
                                 self.configMachinePercentage))) +
                                          ")! Will spawn " + str(int(
                             (self.getConfig(self.configMaxMachines) * self.getConfig(
                                 self.configMachinePercentage)) - len(
-                                self.mr.getMachines()))) +
+                                self.getSiteMachines()))) +
                                          " machines")
                         requested = int(
                             (self.getConfig(self.configMaxMachines) * self.getConfig(
                                 self.configMachinePercentage)) - len(
-                                self.mr.getMachines()))
+                                self.getSiteMachines()))
 
             # check if the requested amount of machines exceeds the allowed number of machines per cycle
             if requested > self.getConfig(self.configMaxMachinesPerCycle):
@@ -321,7 +334,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         """
         nova_machines = self.getNovaMachines()
 
-        mr_machines = self.mr.getMachines()
+        mr_machines = self.getSiteMachines()
 
         # look after each machine in machine registry and perform state changes. if machine appears also in nova
         # machines, delete it from nova machines. this will result in all machines appearing in machine registry will
@@ -329,9 +342,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # this could happen, if somehow machines will boot up at OpenStack without being requested...
         for mid in mr_machines:
             # if machine is not listed in OpenStack, remove it from machine registry
-            if mid not in nova_machines:
-                self.mr.removeMachine(mid)
-                continue
+            """#if mid not in nova_machines:
+            #    self.mr.removeMachine(mid)
+            #    continue"""
 
             # status handled by Integration Adapter
             if mr_machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating, self.mr.statusWorking,
@@ -340,8 +353,33 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
             # if status is down, machine is terminated at OpenStack, so remove it from machine registry
             if mr_machines[mid][self.mr.regStatus] == self.mr.statusDown:
-                del nova_machines[mid]
+                # write the statics to file
+                json_stats = JsonStats()
+                #json_stats.add_item("mid", mid)
+                json_stats.add_item(mid, self.reg_status_changed_to_booting,
+                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_booting].timetuple())))
+                json_stats.add_item(mid, self.reg_status_changed_to_up,
+                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_up].timetuple())))
+                json_stats.add_item(mid, self.reg_status_changed_to_integrating,
+                                    int(time.mktime(mr_machines[mid][
+                                                        self.reg_status_changed_to_integrating].timetuple())))
+                json_stats.add_item(mid, self.reg_status_changed_to_working,
+                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_working].timetuple())))
+                json_stats.add_item(mid, self.reg_status_changed_to_pending_disintegration,
+                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_pending_disintegration].
+                                        timetuple())))
+                json_stats.add_item(mid, self.reg_status_changed_to_disintegrating,
+                                    int(time.mktime(mr_machines[mid][
+                                                        self.reg_status_changed_to_disintegrating].timetuple())))
+                json_stats.add_item(mid, self.reg_status_changed_to_disintegrated,
+                                    int(time.mktime(mr_machines[mid][
+                                                        self.reg_status_changed_to_disintegrated].timetuple())))
+                json_stats.add_item(mid, self.reg_status_changed_to_down,
+                                    int(time.mktime(mr_machines[mid][self.reg_status_changed_to_down].timetuple())))
+                json_stats.write_stats()
+                # actually delete machine from machine registry
                 self.mr.removeMachine(mid)
+                continue
 
             # check if machine could be started correctly
             if mr_machines[mid][self.mr.regStatus] == self.mr.statusBooting:
@@ -391,9 +429,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         json_log.addItem('machines_requested', int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                                                    len(self.getSiteMachines(status=self.mr.statusUp)) +
                                                    len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        # json_log.addItem('machines_requested', len(self.mr.getMachines(status=self.mr.StatusBooting)))
         json_log.addItem('condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
-        # json_log.addItem('condor_nodes', len(self.mr.getMachines(status=self.mr.StatusWorking)))
         json_log.addItem('condor_nodes_draining', len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 
     def onEvent(self, mid):
@@ -433,8 +469,10 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         password = self.getConfig(self.configPass)
         tenant = self.getConfig(self.configTenant)
         keystone = self.getConfig(self.configKeystoneServer)
+        time_out = self.getConfig(self.configTimeout)
 
-        return Client(2, user, password, tenant, keystone)
+        #client = __import__('novaclient', globals(), locals(), [], 0)
+        return Client(2, user, password, tenant, keystone, timeout=time_out)
 
     def getNovaMachines(self):
         """Get list of machines from OpenStack
@@ -470,3 +508,4 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 nova_machines[mid][self.reg_site_server_status] = open_stack_server_status
 
         return nova_machines
+
