@@ -99,8 +99,8 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
             self.curReq = int(math.ceil(n_slots / float(n_cores)))
 
             json_log = Logging.JsonLog()
-            json_log.addItem('jobs_idle', n_jobs_idle)
-            json_log.addItem('jobs_running', n_jobs_running)
+            json_log.addItem(self.getNeededMachineType(), 'jobs_idle', n_jobs_idle)
+            json_log.addItem(self.getNeededMachineType(), 'jobs_running', n_jobs_running)
 
             return self.curReq
         else:

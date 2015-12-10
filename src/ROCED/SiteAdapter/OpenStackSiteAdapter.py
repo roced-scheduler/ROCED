@@ -386,11 +386,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at GridKa: " + str(self.getRunningMachinesCount()["vm-default"]))
         json_log = JsonLog()
-        json_log.addItem('machines_requested', int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
+        json_log.addItem(self.getSiteName(), 'machines_requested', int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                                                    len(self.getSiteMachines(status=self.mr.statusUp)) +
                                                    len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        json_log.addItem('condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
-        json_log.addItem('condor_nodes_draining', len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
+        json_log.addItem(self.getSiteName(), 'condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
+        json_log.addItem(self.getSiteName(), 'condor_nodes_draining', len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 
     def onEvent(self, mid):
         """Event handler

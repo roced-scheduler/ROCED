@@ -425,9 +425,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.logger.info("Machines using resources in Freiburg: " + str(self.getCloudOccupyingMachinesCount()))
         self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
         jsonLog = JsonLog()
-        jsonLog.addItem("condor_nodes", len(self.getSiteMachines(status=self.mr.statusWorking)))
-        jsonLog.addItem("condor_nodes_draining", len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
-        jsonLog.addItem("machines_requested", len(self.getSiteMachines(status=self.mr.statusBooting))
+        jsonLog.addItem(self.getSiteName(), "condor_nodes", len(self.getSiteMachines(status=self.mr.statusWorking)))
+        jsonLog.addItem(self.getSiteName(), "condor_nodes_draining", len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
+        jsonLog.addItem(self.getSiteName(), "machines_requested", len(self.getSiteMachines(status=self.mr.statusBooting))
                         + len(self.getSiteMachines(status=self.mr.statusUp)))
 
     def execCmdInFreiburg(self, cmd):

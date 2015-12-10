@@ -47,8 +47,10 @@ class JsonLog:
         if not JsonLog.__fileName:
             JsonLog.__fileName = "log/monitoring_" + str(datetime.today().strftime("%Y-%m-%d_%H-%M")) + ".json"
 
-    def addItem(self, key, value):
-        JsonLog.__jsonLog[key] = value
+    def addItem(self, site, key, value):
+        if site not in JsonLog.__jsonLog.keys():
+            JsonLog.__jsonLog[site] = {}
+        JsonLog.__jsonLog[site][key] = value
 
     def writeLog(self):
         oldLog = {}
