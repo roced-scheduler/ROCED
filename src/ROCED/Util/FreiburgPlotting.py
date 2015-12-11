@@ -130,15 +130,17 @@ def main():
     # add content to quantity lists, use np.NaN if no value is available
     i_entry = 0
     for entry in content:
-        for quantity in plot_dict.keys():
-            try:
-                quantities[quantity][i_entry] = entry[quantity]
-            except (KeyError, TypeError):
-                if quantity is 'condor_nodes_draining':
-                    quantities[quantity][i_entry] = 0
-                else:
-                    quantities[quantity][i_entry] = np.NaN
-                    # print "Missing information: " + str(timestamps[i_entry]) + " " + str(datetime.fromtimestamp(float(timestamps[i_entry])))
+        for site in entry.keys():
+            for quantity in plot_dict.keys():
+                if quantity in entry[site].keys():
+                    try:
+                        quantities[quantity][i_entry] = entry[site][quantity]
+                    except (KeyError, TypeError):
+                        if quantity is 'condor_nodes_draining':
+                            quantities[quantity][i_entry] = 0
+                        else:
+                            quantities[quantity][i_entry] = np.NaN
+                            # print "Missing information: " + str(timestamps[i_entry]) + " " + str(datetime.fromtimestamp(float(timestamps[i_entry])))
         i_entry += 1
 
     # prepare plot
