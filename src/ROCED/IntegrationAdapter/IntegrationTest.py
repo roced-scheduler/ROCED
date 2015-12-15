@@ -72,10 +72,12 @@ class TorqueIntegrationAdapterTest(ScaleTest.ScaleTestBase):
         int = IntegrationAdapter.TorqueIntegrationAdapter.TorqueIntegrationAdapter()
 
         mid = self.mr.newMachine()
+        self.mr.machines[mid][self.mr.regSite] = "cloud-site"
         self.mr.updateMachineStatus(mid, self.mr.statusWorking)
         self.mr.machines[mid][int.reg_torque_node_name] = "cloud-001"
 
         mid_notorque = self.mr.newMachine()
+        self.mr.machines[mid_notorque][self.mr.regSite] = "cloud_site"
         self.mr.updateMachineStatus(mid_notorque, self.mr.statusWorking)
 
         # todo: fix and re-enable

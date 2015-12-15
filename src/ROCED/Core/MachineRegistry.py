@@ -193,6 +193,8 @@ class MachineRegistry(Event.EventPublisher):
 
         if (id in self.machines) and (len(self.machines[id][self.statusChangeHistory]) > 0):
             json_stats = JsonStats()
+            if str("site") not in self.machines[id].keys():
+                self.machines[id]["site"] = "site"
             json_stats.add_item(self.machines[id]["site"], id, self.machines[id][self.statusChangeHistory][-1])
             json_stats.write_stats()
             del json_stats
