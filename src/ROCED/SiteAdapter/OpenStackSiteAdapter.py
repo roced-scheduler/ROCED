@@ -57,14 +57,14 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     # machine specific settings
     configMachines = "machines"
     configMachineType = "machine_type"
-    configMaxMachinesPerCycle = "max_machines_per_cycle"
+    configMaxMachinesPerCycle = "openstack_machines_per_cycle"
     configMaxMachines = "max_machines"
-    configUseTime = "use_time"
-    configMachinePercentage = "max_usage_daytime"
-    configDay = "daytime"
-    configNight = "nighttime"
-    configImage = "image"
-    configFlavor = "flavor"
+    configUseTime = "openstack_use_time"
+    configMachinePercentage = "openstack_usage_daytime"
+    configDay = "openstack_daytime"
+    configNight = "openstack_nighttime"
+    configImage = "openstack_image"
+    configFlavor = "openstack_flavor"
 
     # name, id and status of VMs at OpenStack
     reg_site_server_name = "open_stack_server_name"
@@ -121,8 +121,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configMaxMachinesPerCycle, Config.ConfigTypeInt,
                                    description="Number of machines booted per cycle", default=5)
         self.addOptionalConfigKeys(self.configMaxMachines, Config.ConfigTypeInt,
-                                   description="Number of machines allowed on site",
-                                   default=22)
+                                   description="Number of machines allowed on site", default=22)
         self.addOptionalConfigKeys(self.configDay, Config.ConfigTypeString, description="Defines when day begins",
                                    default="08:00")
         self.addOptionalConfigKeys(self.configNight, Config.ConfigTypeString, description="Defines when night begins",
@@ -141,7 +140,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     def init(self):
 
         # if admin access is enabled, get number of max machines from number of hypervisors
-        if self.getConfig(self.configUseTime):
+        if self.getConfig(self.configUseTime) == True:
             self.setConfig(self.configMaxMachines, self.getMaxMachines())
 
         # set name of Site Adapter for ROCED output
@@ -166,6 +165,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             maxMachines = 0
             for host in host_list:
                 maxMachines = maxMachines + (host.__dict__["vcpus"] / flavor_cores)
+            print "max machines = " + str(maxMachines)
             return maxMachines
 
     def getSiteMachines(self, status=None, machineType=None):
