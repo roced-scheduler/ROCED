@@ -28,7 +28,7 @@ from novaclient.client import Client
 from novaclient.v1_1.hypervisors import HypervisorManager
 
 from Core import MachineRegistry, Config
-from SiteAdapter.Site import SiteAdapterBase
+from SiteAdapter.Site import SiteAdapterBase, SiteInformation
 from Util.Logging import JsonLog, JsonStats
 
 
@@ -55,8 +55,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     configAdminTenant = "openstack_admin_tenant"
 
     # machine specific settings
+    # configMachineName = "machine_name"
     configMachines = "machines"
-    configMachineType = "machine_type"
+    # configMachineType = "machine_type"
     configMaxMachinesPerCycle = "openstack_machines_per_cycle"
     configMaxMachines = "max_machines"
     configUseTime = "openstack_use_time"
@@ -94,9 +95,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # TODO check if this is really needed...
         # init ConfigMachines with empty dictionary
-        self.setConfig(self.configMachines, dict())
-
+        # self.setConfig(self.configMachines, dict())
         # self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeDictionary, "Machine dictionary")
+        self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeString, "Machine name")
 
         # load OpenStack login data from config file
         self.addCompulsoryConfigKeys(self.configKeystoneServer, Config.ConfigTypeString, "OpenStack server address")
@@ -114,7 +115,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # TODO check if this is really needed...
         # init ConfigMachineType with empty dictionary
-        self.setConfig(self.configMachineType, dict())
+        # self.setConfig(self.configMachineType, dict())
         # self.addCompulsoryConfigKeys(self.configMachineType, Config.ConfigTypeDictionary)
 
         # load machine specific settings from config file
@@ -158,15 +159,26 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         :return: maxMachines
         """
-        # if adminacces is enabled, get number of max machines from number of hypervisors
+        # if admin access is enabled, get number of max machines from number of hypervisors
         if self.getConfig(self.configUseTime):
             flavor_cores = self.getNovaApi().flavors.find(name=self.getConfig(self.configFlavor)).__dict__["vcpus"]
             host_list = HypervisorManager(self.getNovaApi(self.getConfig(self.configUseTime))).list()
             maxMachines = 0
             for host in host_list:
                 maxMachines = maxMachines + (host.__dict__["vcpus"] / flavor_cores)
-            print "max machines = " + str(maxMachines)
             return maxMachines
+
+    def getSiteInformation(self):
+
+        sinfo = SiteInformation()
+        sinfo.siteName = self.getSiteName()
+        sinfo.maxMachines = self.getConfig(self.ConfigMaxMachines)
+        sinfo.baselineMachines = self.getConfig(self.ConfigBaselineMachines)
+        sinfo.supportedMachineTypes = self.getConfig(self.ConfigMachines)
+        sinfo.cost = self.getConfig(self.ConfigCost)
+        sinfo.isAvailable = self.getConfig(self.ConfigIsAvailable)
+
+        return sinfo
 
     def getSiteMachines(self, status=None, machineType=None):
         """
@@ -191,11 +203,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         myMachines = self.getSiteMachines()
         machineList = dict()
 
-        for i in self.getConfig(self.configMachines):
-            machineList[i] = []
+        machineList[self.getConfig(self.configMachines)] = []
+        # for i in self.getConfig(self.configMachines).keys():
+        #    machineList[i] = []
 
-        # filter for machines in status booting, up, integrating, working or
-        # pending disintegration
+        # filter for machines in status booting, up, integrating, working or pending disintegration
         for (k, v) in myMachines.iteritems():
             if (v.get(self.mr.regStatus) == self.mr.statusBooting) or \
                     (v.get(self.mr.regStatus) == self.mr.statusUp) or \
@@ -213,8 +225,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         :return: running_machines_count
         """
-        # this function return the a dictionary containing the number of running
-        # machines for each machine type
+        # this function return the a dictionary containing the number of running machines for each machine type
         running_machines = self.getRunningMachines()
         running_machines_count = dict()
 
@@ -241,6 +252,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         :param requested: requested number of machines
         :return: count
         """
+
+        print machineType
+        print self.getConfig(self.configMachines)
+        if not machineType == self.getConfig(self.configMachines):
+            return 0
 
         try:
             nova = self.getNovaApi()
@@ -315,7 +331,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # if spawning fails, do nothing
         except:
-            pass
+            self.logger.warning("Spawning machines failed...")
 
     def openstackTerminateMachines(self, mid):
         """Terminate machines in OpenStack
@@ -483,7 +499,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.machines[new][self.mr.regSite] = self.getSiteName()
                 self.mr.machines[new][self.mr.regSiteType] = self.getSiteType()
                 # TODO: handle different machine types
-                self.mr.machines[new][self.mr.regMachineType] = "vm-default"
+                self.mr.machines[new][self.mr.regMachineType] = self.getConfig(self.configMachines)  # "vm-default"
                 self.mr.machines[new][self.reg_site_server_id] = nova_machines[mid][self.reg_site_server_id]
                 self.mr.machines[new][self.reg_site_server_status] = nova_machines[mid][self.reg_site_server_status]
                 # self.mr.machines[new][self.mr.regMachineCores] = self.getConfig(self.configMachineType)["vm-default"][
@@ -499,7 +515,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at " + str(self.getSiteName()) + " : " + str(
-                self.getRunningMachinesCount()["vm-default"]))
+                self.getRunningMachinesCount()[self.getConfig(self.configMachines)]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.getSiteName(), 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
@@ -555,6 +571,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # return the corresponding hypervisor
         for (vm_id, vm_hypervisor) in nova_machines:
             if str(vm_id) == str(id):
+                # if vm_hypervisor == "None":
+
+
                 return vm_hypervisor
 
     def getNovaApi(self, admin_access=False):
@@ -593,16 +612,19 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # get list of servers
         try:
             nova_results = [(x.id, x.name, x.status) for x in nova.servers.list()]
+            # except:
+            #    pass
+
+            nova_machines = {}
+
+            if len(nova_results) >= 1:
+                for (id, name, status) in nova_results:
+                    # set some machine information
+                    nova_machines[name] = {}
+                    nova_machines[name][self.reg_site_server_id] = id
+                    nova_machines[name][self.reg_site_server_status] = status
+
+            return nova_machines
+
         except:
             pass
-
-        nova_machines = {}
-
-        if len(nova_results) >= 1:
-            for (id, name, status) in nova_results:
-                # set some machine information
-                nova_machines[name] = {}
-                nova_machines[name][self.reg_site_server_id] = id
-                nova_machines[name][self.reg_site_server_status] = status
-
-        return nova_machines
