@@ -4,7 +4,7 @@
 IP=`ifconfig eth0 | sed -rn 's/.*r:([^ ]+) .*/\1/p'`
 ETC_HOST="${IP}	${HOSTNAME}"
 
-echo $ETC_HOST >> /etc/hosts
+echo ${ETC_HOST} >> /etc/hosts
 
 scp ge62u5*.tar.gz /tmp/.
 
@@ -29,6 +29,6 @@ apt-get install binutils
 
 export SGE_ROOT=/opt/sge6.2u5
 
-cd $SGE_ROOT
+cd ${SGE_ROOT}
 
 ./inst_sge -m

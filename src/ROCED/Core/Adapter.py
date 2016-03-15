@@ -21,9 +21,10 @@
 
 
 import abc
-import logging
-import Config
 import json
+import logging
+
+import Config
 
 
 class NoDefaultSet:
@@ -32,8 +33,6 @@ class NoDefaultSet:
 
 
 class AdapterBase(object):
-    # Properties
-
     """
     Contains a list of ConfigKeys which must not be published outside
     the application borders, for example the REST API
@@ -62,7 +61,8 @@ class AdapterBase(object):
     def getCompulsoryConfigKeys(self):
         return self.configKeysToLoad
 
-    def addOptionalConfigKeys(self, key, datatype, description=NoDefaultSet(), default=NoDefaultSet()):
+    def addOptionalConfigKeys(self, key, datatype, description=NoDefaultSet(),
+                              default=NoDefaultSet()):
         self.configKeysToLoadOptional += [(key, datatype, default)]
 
     def addCompulsoryConfigKeys(self, key, datatype, description=None):
@@ -84,7 +84,7 @@ class AdapterBase(object):
         strippedConf = {}
 
         for (k, v) in self.configDict.iteritems():
-            if not k in self.privateConfig:
+            if k not in self.privateConfig:
                 strippedConf[k] = v
 
         return strippedConf
@@ -123,7 +123,7 @@ class AdapterBase(object):
     _rpcServer = None
 
     def exportMethod(self, meth, name):
-        if not self._rpcServer == None:
+        if self._rpcServer is not None:
             self._rpcServer.register_function(meth, name)
         else:
             logging.warn("Can't register method " + name + " with rpc, _rpcServer not set")
@@ -133,7 +133,8 @@ class AdapterBase(object):
         for (config_key, config_type, opt_val) in key_list:
             if not configuration.has_option(section, config_key) and optional:
                 if isinstance(opt_val, NoDefaultSet):
-                    logger.error("Config key " + config_key + " not defined and no default value set")
+                    logger.error(
+                        "Config key " + config_key + " not defined and no default value set")
                     exit(0)
                 else:
                     val = opt_val
@@ -154,33 +155,31 @@ class AdapterBase(object):
 
             new_obj.setConfig(config_key, val)
 
-        """
-        old code fragment - remove when new one works
-        for (config_key, config_type) in key_list:
-            if optional:
-                if not configuration.has_option(section, config_key):
-                    continue
-
-            if config_type == Config.ConfigTypeString:
-                val = configuration.get(section, config_key)
-            elif config_type == Config.ConfigTypeInt:
-                val = configuration.getint(section, config_key)
-            elif config_type == Config.ConfigTypeFloat:
-                val = configuration.getfloat(section, config_key)
-            elif config_type == Config.ConfigTypeBoolean:
-                val = configuration.getboolean(section, config_key)
-            elif config_type == Config.ConfigTypeDictionary:
-                val = json.loads(configuration.get(section, config_key))
-            else:
-                print "Config data type " + config_type + " not supported"
-                exit(0)
-
-            new_obj.setConfig(config_key, val)
-        """
+        # old code fragment - remove when new one works
+        # for (config_key, config_type) in key_list:
+        #     if optional:
+        #         if not configuration.has_option(section, config_key):
+        #             continue
+        #
+        #     if config_type == Config.ConfigTypeString:
+        #         val = configuration.get(section, config_key)
+        #     elif config_type == Config.ConfigTypeInt:
+        #         val = configuration.getint(section, config_key)
+        #     elif config_type == Config.ConfigTypeFloat:
+        #         val = configuration.getfloat(section, config_key)
+        #     elif config_type == Config.ConfigTypeBoolean:
+        #         val = configuration.getboolean(section, config_key)
+        #     elif config_type == Config.ConfigTypeDictionary:
+        #         val = json.loads(configuration.get(section, config_key))
+        #     else:
+        #         print "Config data type " + config_type + " not supported"
+        #         exit(0)
+        #
+        #     new_obj.setConfig(config_key, val)
 
 
 class AdapterBoxBase(object):
-    ''' Properties '''
+    """ Properties """
 
     def get_rpcServer(self):
         return self._rpcServer
@@ -211,7 +210,7 @@ class AdapterBoxBase(object):
         self.adapterList += alist
 
     def exportMethod(self, meth, name):
-        if not self._rpcServer == None:
+        if self._rpcServer is not None:
             self._rpcServer.register_function(meth, name)
         else:
             logging.warn("Can't register method " + name + " with rpc, self._rpcServer not set")

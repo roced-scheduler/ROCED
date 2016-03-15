@@ -22,11 +22,9 @@
 """
 The IntegrationAdapters are responsible for adding and removing cloud machines
 to batch servers or other scheduling infrastructure
-
-Todo:
-    try to get node names from existing nodes
-    clean up torque sever on scale start
 """
+# TODO: try to get node names from existing nodes
+# TODO: clean up torque sever on scale start
 
 
 import abc

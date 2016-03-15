@@ -149,12 +149,12 @@ class TorqueRequirementAdapter(RequirementAdapterBase):
         return (0, p1.communicate()[0])
 
     def getCurrentRequirement(self):
-        if not self.curReq == None:
+        if self.curReq is not None:
             return self.curReq
 
         cmd = "qstat | egrep \"Q %s|R %s\" | wc -l" % (self.torqQName, self.torqQName)
 
-        if self.torqKey == None:
+        if self.torqKey is None:
             (res1, count1) = self.countLocalQ(cmd)
         else:
             ssh = ScaleTools.Ssh(self.torqIp, "root", self.torqKey, None, 1)

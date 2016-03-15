@@ -7,5 +7,3 @@ script:
   - cd src/ROCED
   - ./scale.py test
   - ./scale.py --iterations 10 --config roced_fake.config standalone
-
-

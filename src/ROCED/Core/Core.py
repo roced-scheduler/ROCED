@@ -25,7 +25,6 @@ all module objects and runs the SiteBroker to handle
 Cloud utilization.
 """
 
-import json
 import logging
 from threading import Timer
 import shutil
@@ -33,6 +32,7 @@ from datetime import datetime
 import simplejson
 
 from IntegrationAdapter.Integration import IntegrationBox
+# TODO: Dynamically load required adapters. Look at config for required list.
 from IntegrationAdapter.FakeIntegrationAdapter import FakeIntegrationAdapter
 from IntegrationAdapter.HTCondorIntegrationAdapter import HTCondorIntegrationAdapter
 from RequirementAdapter.Requirement import RequirementBox
@@ -92,12 +92,6 @@ class MachineStatus(object):
 
 
 class ScaleCore(object):
-    '''
-    Contains all Adpater Boxes and the Broker object and
-    calls SiteBrokerBase. Decides and issues the new site orders to
-    the site adapters. 
-    '''
-
     def broker():  # @NoSelf
         doc = """Docstring"""  # @UnusedVariable
 
@@ -197,7 +191,7 @@ class ScaleCore(object):
     _rpcServer = None
 
     def exportMethod(self, meth, name):
-        if not self._rpcServer == None:
+        if self._rpcServer is not None:
             self._rpcServer.register_function(meth, name)
         else:
             logger.warn("Can't register method " + name + " with rpc, self._rpcServer not set")
@@ -210,7 +204,12 @@ class ScaleCore(object):
                  intAdapterList,
                  autoRun=True,
                  maximumManageIterations=None):
+        """
+        Main core object which knows adapters, brokers and calls SiteBroker.
 
+        Contains all adapter boxes & broker objects.
+        SiteBroker decides on and issues new orders to the site adapter(s).
+        """
         self.broker = broker
         self.autoRun = autoRun
         self.manageInterval = 30
@@ -218,9 +217,6 @@ class ScaleCore(object):
         self.manageIterations = 0
         self.maximumManageIterations = maximumManageIterations
         self.mr = MachineRegistry.MachineRegistry()
-        '''
-        Constructor
-        '''
         self._rpcServer = rpcServer
         # self._rpcServer.register_function(self.getDescription,"ScaleCore_getDescription" )
 
@@ -252,18 +248,18 @@ class ScaleCore(object):
         self.intBox.addAdapterList(intAdapterList)
 
     def toJson(self, python_object):
-        """function to write not serializeable objects in a json file.
+        """function to write not serializable objects in a json file.
         set default=toJson in json.dump()
         must be adapted for other types!
         """
 
-        if isinstance(python_object, datetime):
-            return {"__class__": "datetime.datetime", \
+        if isinstance(python_object, datetime) is True:
+            return {"__class__": "datetime.datetime",
                     "__value__": python_object.strftime("%Y-%m-%d %H:%M:%S:%f")}
-            raise TypeError(repr(python_object) + ' is not JSON serializable')
+        raise TypeError(repr(python_object) + ' is not JSON serializable')
 
     def fromJson(self, json_object):
-        """function to read not serializeable objects from a json file.
+        """function to read not serializable objects from a json file.
         set object_hook=fromJson in json.load()
         must be adapted for other types!
         """
@@ -283,12 +279,9 @@ class ScaleCore(object):
         except IOError:
             logger.warning("Json file could not be moved!")
 
-        # print self.mr.machines
-
         try:
-            file = open("log/machine_registry.json", "w")
-            simplejson.dump(self.mr.machines, file, default=self.toJson)
-            file.close()
+            with open("log/machine_registry.json", "w") as file_:
+                simplejson.dump(self.mr.machines, file_, default=self.toJson)
         except IOError:
             logger.error("json file could not be opened for dumping state!")
 
@@ -298,12 +291,9 @@ class ScaleCore(object):
         """
 
         try:
-            file = open("log/machine_registry.json", "r")
-            state = simplejson.load(file, object_hook=self.fromJson)
-            file.close()
-
+            with open("log/machine_registry.json", "r") as file_:
+                state = simplejson.load(file_, object_hook=self.fromJson)
             self.mr.machines = state
-
         except IOError:
             logger.error("json file could not be opened for loading state!")
 
@@ -379,10 +369,10 @@ class ScaleCore(object):
         self.manageIterations += 1
 
         lastIteration = False
-        if not self.maximumManageIterations is None:
+        if self.maximumManageIterations is not None:
             lastIteration = self.maximumManageIterations <= self.manageIterations
 
-        if self.autoRun == True and not lastIteration:
+        if self.autoRun is True and lastIteration is False:
             self.startManagementTimer()
 
     def getDescription(self):
@@ -390,11 +380,17 @@ class ScaleCore(object):
 
 
 class ObjectFactory(object):
+    """
+    Create one instance of the object
+
+    Imports added module names(!) to the global parameter list.
+    If we receive the module's name as string, we instantiate one of these objects.
+    """
     @staticmethod
+    # TODO Dynamic import here
     def getObject(classname):
         obj = globals()[classname]
         return obj()
-
 
 class ScaleCoreFactory(object):
     def getCore(self, configuration, maximumInterval=None):
@@ -424,6 +420,7 @@ class ScaleCoreFactory(object):
         # get broker type 
         broker_type = configuration.get(broker_name, Config.ConfigObjectType)
 
+        # TODO: Get rid of hard-coded StupidBroker
         if broker_type == "Broker.StupidBroker":
             return Broker.StupidBroker()
         else:
@@ -447,8 +444,8 @@ class ScaleCoreFactory(object):
             site_type = configuration.get(sa, Config.ConfigObjectType)
             obj = ObjectFactory.getObject(site_type)
 
-            if obj == None:
-                raise Exception("SiteAdapter type " + site_type + " not found")
+            if obj is None:
+                raise Exception("Adapter type " + site_type + " not found")
 
             # transfer compulsary config
             obj.loadConfigValue(obj.getCompulsoryConfigKeys(), configuration, False, sa, obj)

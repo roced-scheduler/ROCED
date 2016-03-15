@@ -20,15 +20,14 @@
 # ===============================================================================
 
 
+import ConfigParser
 import logging
 
-import ConfigParser
-
+import Config
 import ScaleTest
 from Adapter import AdapterBase, AdapterBoxBase
-from SiteAdapter.Site import SiteAdapterBase, SiteInformation
 from IntegrationAdapter import Integration
-import Config
+from SiteAdapter.Site import SiteAdapterBase
 
 
 class AdapterBaseTestClass(AdapterBase):
@@ -83,8 +82,9 @@ class AdapterBaseTest(ScaleTest.ScaleTestBase):
 
         adapter.addOptionalConfigKeys(config1_key, config1_type, description=config1_description,
                                       default=config1_def_val)
-        adapter.addOptionalConfigKeys(SiteAdapterBase.ConfigMachineBootTimeout, Config.ConfigTypeInt,
-                                      description=config2_def_desc ,default=config2_def_val)
+        adapter.addOptionalConfigKeys(SiteAdapterBase.ConfigMachineBootTimeout,
+                                      Config.ConfigTypeInt,
+                                      description=config2_def_desc, default=config2_def_val)
 
         adapter.loadConfigValue(adapter.getOptionalConfigKeys(), config, True, "fake_site", adapter)
 

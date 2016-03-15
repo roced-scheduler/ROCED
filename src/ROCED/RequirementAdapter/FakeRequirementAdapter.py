@@ -35,11 +35,12 @@ class FakeRequirementAdapter(RequirementAdapterBase):
         self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):
-        self.exportMethod(self.setCurrentRequirement, "FakeRequirementAdapter_setCurrentRequirement")
+        self.exportMethod(self.setCurrentRequirement,
+                          "FakeRequirementAdapter_setCurrentRequirement")
 
     def getCurrentRequirement(self):
 
-        if self.completeJobs == False:
+        if self.completeJobs is False:
             return self.curReq
 
         # free done jobs
@@ -51,7 +52,7 @@ class FakeRequirementAdapter(RequirementAdapterBase):
         # find 'free' machines
         for (k, v) in self.mr.machines.iteritems():
             if self.curReq > 0:
-                if not k in self.machinesRunningJobs:
+                if k not in self.machinesRunningJobs:
                     if v.get(self.mr.regStatus) == self.mr.statusWorking:
                         self.machinesRunningJobs[k] = datetime.now()
                         self.curReq = self.curReq - 1

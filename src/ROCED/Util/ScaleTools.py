@@ -22,6 +22,7 @@
 
 import logging
 import subprocess
+
 from Core import MachineRegistry
 
 """
@@ -243,7 +244,8 @@ class Ssh(object):
 
     gatewayKey = property(**gatewayKey())
 
-    def __init__(self, host, username, key, password=None, timeout=3, gatewayip=None, gatewaykey=None,
+    def __init__(self, host, username, key, password=None, timeout=3, gatewayip=None,
+                 gatewaykey=None,
                  gatewayuser=None, ):
         self.host = host
         self.username = username
@@ -274,10 +276,11 @@ class Ssh(object):
 
     def handleSshCall(self, call, quiet=False):
 
-        if not self.gatewayIp == None:
+        if self.gatewayIp is not None:
             # use the gateway...
             # wrap ssh command in another ssh call
-            call = "ssh -i %s %s@%s '%s'" % (self.gatewayKey, self.gatewayUser, self.gatewayIp, call)
+            call = "ssh -i %s %s@%s '%s'" % (
+                self.gatewayKey, self.gatewayUser, self.gatewayIp, call)
         else:
             # dont use the gateway
             pass
@@ -328,7 +331,8 @@ class Ssh(object):
                               "-i", self.key, \
                               self.username + "@" + self.host, \
                               command], \
-                             bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                             bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
         return (p.returncode, stdout, stderr)
 
@@ -342,7 +346,7 @@ def sshDebugOutput(logger, scope, result):
 
 class Vpn():
     """
-    ToDo: - Check if there is already a valid certificate with the same name
+    TODO: - Check if there is already a valid certificate with the same name
           --> new var in machreg: cert_is_valid = None (by default)
                                                         True (on first generation)
                                                         False (after revocation)
@@ -390,14 +394,13 @@ class Vpn():
 
         # ip = "141.52.208.189"
 
-        """
-        cmd = "cd /etc/openvpn/easy-rsa/2.0/keys && \
-                scp -o ConnectTimeout=3 \
-			-o UserKnownHostsFile=/dev/null \
-			-o StrictHostKeyChecking=no \
-			-o PasswordAuthentication=no \
-			-i ~/.ssh/id_rsa %s.p12 root@%s:/etc/openvpn/certs/." % (cert_name, ip)
-        """
+        # cmd = "cd /etc/openvpn/easy-rsa/2.0/keys && \
+        #         scp -o ConnectTimeout=3 \
+        #     -o UserKnownHostsFile=/dev/null \
+        #     -o StrictHostKeyChecking=no \
+        #     -o PasswordAuthentication=no \
+        #     -i ~/.ssh/id_rsa %s.p12 root@%s:/etc/openvpn/certs/." % (cert_name, ip)
+
 
         cmd = "/etc/openvpn/vpn.sh -copy_cert %s %s" % (cert_name, ip)
 
@@ -419,11 +422,9 @@ class Vpn():
 
         logging.info("revoking certificate...")
 
-        """
-        cmd = "cd /etc/openvpn/easy-rsa/2.0 && \
-                source ./vars && \
-                ./revoke-full %s" % (cert_name)
-        """
+        # cmd = "cd /etc/openvpn/easy-rsa/2.0 && \
+        #         source ./vars && \
+        #         ./revoke-full %s" % (cert_name)
 
         cmd = "/etc/openvpn/vpn.sh -revoke_cert %s" % (cert_name)
 
@@ -443,10 +444,8 @@ class Vpn():
 
         logging.info("deleting certificate...")
 
-        """
-        cmd = "cd /etc/openvpn/easy-rsa/2.0/keys && \
-                rm -rf %s.*" % (cert_name)
-        """
+        # cmd = "cd /etc/openvpn/easy-rsa/2.0/keys && \
+        #         rm -rf %s.*" % (cert_name)
 
         cmd = "/etc/openvpn/vpn.sh -delete_cert %s" % (cert_name)
 
@@ -467,11 +466,9 @@ class Vpn():
 
         logging.info("connecting to vpn server...")
 
-        """
-        cmd = "openvpn --daemon openvpn \
-                        --config /etc/openvpn/c2n.client.conf \
-                        --pkcs12 /etc/openvpn/certs/%s.p12" % (cert_name)
-        """
+        # cmd = "openvpn --daemon openvpn \
+        #                 --config /etc/openvpn/c2n.client.conf \
+        #                 --pkcs12 /etc/openvpn/certs/%s.p12" % (cert_name)
 
         cmd = "killall openvpn; sleep 5; /etc/openvpn/vpn.sh -connect %s; sleep 5" % (cert_name)
 
@@ -493,9 +490,7 @@ class Vpn():
 
         logging.info("disconnecting from vpn server...")
 
-        """
-        cmd = "killall openvpn"
-        """
+        # cmd = "killall openvpn"
 
         cmd = "/etc/openvpn/vpn.sh -disconnect"
 

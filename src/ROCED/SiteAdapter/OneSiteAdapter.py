@@ -205,7 +205,7 @@ class OneSiteAdapter(SiteAdapterBase):
         logging.info("Machine " + str(mid) + " is running but no ssh connect yet")
         firstCheck = self.mr.machines[mid].get(self.reg_site_one_first_dead_check, None)
 
-        if firstCheck == None:
+        if firstCheck is None:
             self.mr.machines[mid][self.reg_site_one_first_dead_check] = datetime.datetime.now()
         else:
             if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(self.ConfigMachineBootTimeout):
@@ -246,11 +246,11 @@ class OneSiteAdapter(SiteAdapterBase):
                         if self.checkIfMachineIsUp(k):
                             vpn = ScaleTools.Vpn()
 
-                            if (myMachines[k]["vpn_cert_is_valid"] == None):
+                            if (myMachines[k]["vpn_cert_is_valid"] is None):
                                 if (vpn.makeCertificate(myMachines[k]["vpn_cert"]) == 0):
                                     myMachines[k]["vpn_cert_is_valid"] = True
 
-                            if (myMachines[k]["vpn_cert_is_valid"] == True and myMachines[k]["vpn_ip"] == None):
+                            if (myMachines[k]["vpn_cert_is_valid"] == True and myMachines[k]["vpn_ip"] is None):
                                 if (vpn.copyCertificate(myMachines[k]["vpn_cert"], myMachines[k]) == 0):
                                     if (vpn.connectVPN(myMachines[k]["vpn_cert"], myMachines[k]) == 0):
                                         (res, ip) = vpn.getIP(myMachines[k])
@@ -261,7 +261,7 @@ class OneSiteAdapter(SiteAdapterBase):
                                         else:
                                             print "getting VPN IP failed!!"
 
-                            if (myMachines[k]["vpn_cert_is_valid"] == True and myMachines[k]["vpn_ip"] != None):
+                            if (myMachines[k]["vpn_cert_is_valid"] == True and myMachines[k]["vpn_ip"] is not None):
                                 # if( vpn.revokeCertificate(myMachines[k]["vpn_cert"]) == 0):
                                 #    myMachines[k]["vpn_cert_is_valid"] == False
                                 self.mr.updateMachineStatus(k, self.mr.statusUp)

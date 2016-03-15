@@ -81,8 +81,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     reg_status_change_history = "state_change_history"
 
     def __init__(self):
-        """Init function
-
+        """
         Load config keys from config files
 
         :return:
@@ -100,13 +99,17 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeString, "Machine name")
 
         # load OpenStack login data from config file
-        self.addCompulsoryConfigKeys(self.configKeystoneServer, Config.ConfigTypeString, "OpenStack server address")
-        self.addCompulsoryConfigKeys(self.configUser, Config.ConfigTypeString, "OpenStack user name")
+        self.addCompulsoryConfigKeys(self.configKeystoneServer, Config.ConfigTypeString,
+                                     "OpenStack server address")
+        self.addCompulsoryConfigKeys(self.configUser, Config.ConfigTypeString,
+                                     "OpenStack user name")
         self.addCompulsoryConfigKeys(self.configPass, Config.ConfigTypeString, "OpenStack password")
-        self.addCompulsoryConfigKeys(self.configTenant, Config.ConfigTypeString, "OpenStack tenant information")
+        self.addCompulsoryConfigKeys(self.configTenant, Config.ConfigTypeString,
+                                     "OpenStack tenant information")
         self.addOptionalConfigKeys(self.configTimeout, Config.ConfigTypeInt,
                                    description="OpenStack connection timeout", default=300)
-        self.addOptionalConfigKeys(self.configAdmin, Config.ConfigTypeString, description="OpenStack admin user name",
+        self.addOptionalConfigKeys(self.configAdmin, Config.ConfigTypeString,
+                                   description="OpenStack admin user name",
                                    default=None)
         self.addOptionalConfigKeys(self.configAdminPass, Config.ConfigTypeString,
                                    description="OpenStack admin password", default=None)
@@ -123,17 +126,22 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                                    description="Number of machines booted per cycle", default=5)
         self.addOptionalConfigKeys(self.configMaxMachines, Config.ConfigTypeInt,
                                    description="Number of machines allowed on site", default=22)
-        self.addOptionalConfigKeys(self.configDay, Config.ConfigTypeString, description="Defines when day begins",
+        self.addOptionalConfigKeys(self.configDay, Config.ConfigTypeString,
+                                   description="Defines when day begins",
                                    default="08:00")
-        self.addOptionalConfigKeys(self.configNight, Config.ConfigTypeString, description="Defines when night begins",
+        self.addOptionalConfigKeys(self.configNight, Config.ConfigTypeString,
+                                   description="Defines when night begins",
                                    default="20:00")
         self.addOptionalConfigKeys(self.configUseTime, Config.ConfigTypeBoolean,
-                                   description="Consider different amounts of machines at day/night", default=False)
+                                   description="Consider different amounts of machines at day/night",
+                                   default=False)
         self.addOptionalConfigKeys(self.configMachinePercentage, Config.ConfigTypeFloat,
                                    description="Percentage of machines loaded at day", default=0.5)
-        self.addCompulsoryConfigKeys(self.configImage, Config.ConfigTypeString, "Defines the image to be loaded")
+        self.addCompulsoryConfigKeys(self.configImage, Config.ConfigTypeString,
+                                     "Defines the image to be loaded")
         self.addOptionalConfigKeys(self.configFlavor, Config.ConfigTypeString,
-                                   description="Defines the flavor to be selected", default="m1.large")
+                                   description="Defines the flavor to be selected",
+                                   default="m1.large")
 
         # init Machine Registry
         self.mr = MachineRegistry.MachineRegistry()
@@ -161,8 +169,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         """
         # if admin access is enabled, get number of max machines from number of hypervisors
         if self.getConfig(self.configUseTime):
-            flavor_cores = self.getNovaApi().flavors.find(name=self.getConfig(self.configFlavor)).__dict__["vcpus"]
-            host_list = HypervisorManager(self.getNovaApi(self.getConfig(self.configUseTime))).list()
+            flavor_cores = \
+                self.getNovaApi().flavors.find(name=self.getConfig(self.configFlavor)).__dict__[
+                    "vcpus"]
+            host_list = HypervisorManager(
+                self.getNovaApi(self.getConfig(self.configUseTime))).list()
             maxMachines = 0
             for host in host_list:
                 maxMachines = maxMachines + (host.__dict__["vcpus"] / flavor_cores)
@@ -280,27 +291,30 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                     # also: if it is daytime, the amount of allowed machines is set to (percentage * max_machines)
                     # if it is nighttime, nothing happens
                     if (requested + len(self.getSiteMachines())) > (
-                                self.getConfig(self.configMaxMachines) * self.getConfig(self.configMachinePercentage)):
-                        self.logger.info("Request exceeds maximum number of allowed machines for daytime (" +
-                                         str(requested + len(self.getSiteMachines())) + ">" + str(
+                                self.getConfig(self.configMaxMachines) * self.getConfig(
+                                self.configMachinePercentage)):
+                        self.logger.info(
+                            "Request exceeds maximum number of allowed machines for daytime (" +
+                            str(requested + len(self.getSiteMachines())) + ">" + str(
                                 int(self.getConfig(self.configMaxMachines) * self.getConfig(
-                                        self.configMachinePercentage))) +
-                                         ")! Will spawn " + str(int(
+                                    self.configMachinePercentage))) +
+                            ")! Will spawn " + str(int(
                                 (self.getConfig(self.configMaxMachines) * self.getConfig(
-                                        self.configMachinePercentage)) - len(
-                                        self.getSiteMachines()))) +
-                                         " machines")
+                                    self.configMachinePercentage)) - len(
+                                    self.getSiteMachines()))) +
+                            " machines")
                         requested = int(
-                                (self.getConfig(self.configMaxMachines) * self.getConfig(
-                                        self.configMachinePercentage)) - len(
-                                        self.getSiteMachines()))
+                            (self.getConfig(self.configMaxMachines) * self.getConfig(
+                                self.configMachinePercentage)) - len(
+                                self.getSiteMachines()))
 
             # check if the requested amount of machines exceeds the allowed number of machines per cycle
             if requested > self.getConfig(self.configMaxMachinesPerCycle):
-                self.logger.info("Request exceeds maximum number of allowed machines per cycle on this site (" +
-                                 str(requested) + ">" + str(
+                self.logger.info(
+                    "Request exceeds maximum number of allowed machines per cycle on this site (" +
+                    str(requested) + ">" + str(
                         self.getConfig(self.configMaxMachinesPerCycle)) + ")! Will spawn " +
-                                 str(self.getConfig(self.configMaxMachinesPerCycle)) + " machines")
+                    str(self.getConfig(self.configMaxMachinesPerCycle)) + " machines")
                 # set requested equals the number of machines per cycle
                 requested = self.getConfig(self.configMaxMachinesPerCycle)
 
@@ -321,7 +335,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 # if admin account is set, also set the hypervisor
                 if self.getConfig(self.configUseTime):
                     time.sleep(1)
-                    self.mr.machines[mid][self.reg_site_server_hypervisor] = self.getHypervisor(vm.id)
+                    self.mr.machines[mid][self.reg_site_server_hypervisor] = self.getHypervisor(
+                        vm.id)
 
                 # TODO: set machine information, like openstack id
                 self.mr.updateMachineStatus(mid, self.mr.statusBooting)
@@ -393,34 +408,38 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             for mid in mr_machines:
                 # if hypervisor is not set or None, set the hypervisor correctly
                 if self.reg_site_server_hypervisor not in mr_machines[mid].keys() \
-                        or mr_machines[mid][self.reg_site_server_hypervisor] == None:
+                        or mr_machines[mid][self.reg_site_server_hypervisor] is None:
                     mr_machines[mid][self.reg_site_server_hypervisor] = self.getHypervisor(
-                            mr_machines[mid][self.reg_site_server_id])
+                        mr_machines[mid][self.reg_site_server_id])
                 # get the hypervisor from machine registry
                 hypervisor = mr_machines[mid][self.reg_site_server_hypervisor]
                 # append machine to hypervisor in hypvisor list
                 if hypervisor in hypervisor_machines:
-                    hypervisor_machines[mr_machines[mid][self.reg_site_server_hypervisor]].append(mid)
+                    hypervisor_machines[mr_machines[mid][self.reg_site_server_hypervisor]].append(
+                        mid)
                 else:
                     hypervisor_machines[mr_machines[mid][self.reg_site_server_hypervisor]] = [mid]
 
             for hypervisor in hypervisor_machines.keys():
                 # check if there are more machines running on specific hypervisor and if so, get the least one used and
                 # terminate it
-                if len(hypervisor_machines[hypervisor]) > self.getConfig(self.configMachinePercentage) * (
+                if len(hypervisor_machines[hypervisor]) > self.getConfig(
+                        self.configMachinePercentage) * (
                             self.getConfig(self.configMaxMachines) / len(hypervisor_machines)):
                     # self.logger.info("Need to terminate machines due to daytime use...")
                     to_terminate = None
                     for mid in hypervisor_machines[hypervisor]:
-                        if to_terminate == None:
+                        if to_terminate is None:
                             to_terminate = mid
                         # prefer machines booting and not ones working
-                        if mr_machines[mid][self.mr.regStatus] in [self.mr.statusUp, self.mr.statusBooting,
+                        if mr_machines[mid][self.mr.regStatus] in [self.mr.statusUp,
+                                                                   self.mr.statusBooting,
                                                                    self.mr.statusIntegrating]:
                             to_terminate = mid
                             break
                         # if all machines are working, get the least one used
-                        if mr_machines[mid][self.reg_site_server_status] is not self.reg_site_server_status_error:
+                        if mr_machines[mid][
+                            self.reg_site_server_status] is not self.reg_site_server_status_error:
                             if mr_machines[mid][self.mr.regMachineLoad] < mr_machines[to_terminate][
                                 self.mr.regMachineLoad]:
                                 to_terminate = mid
@@ -457,13 +476,16 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 continue
 
             # if machine is in error state, move it to disintegrating
-            if nova_machines[mid][self.reg_site_server_status] in [self.reg_site_server_status_error,
-                                                                   self.reg_site_server_status_shutoff]:
-                self.mr.machines[mid][self.reg_site_server_status] = self.reg_site_server_status_error
+            if nova_machines[mid][self.reg_site_server_status] in [
+                self.reg_site_server_status_error,
+                self.reg_site_server_status_shutoff]:
+                self.mr.machines[mid][
+                    self.reg_site_server_status] = self.reg_site_server_status_error
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
 
             # status handled by Integration Adapter
-            if mr_machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating, self.mr.statusWorking,
+            if mr_machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating,
+                                                       self.mr.statusWorking,
                                                        self.mr.statusPendingDisintegration]:
                 del nova_machines[mid]
 
@@ -475,19 +497,23 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             # check if machine could be started correctly
             if mr_machines[mid][self.mr.regStatus] == self.mr.statusBooting:
                 # they started correctly when the OpenStack state changes to active
-                if nova_machines[mid][self.reg_site_server_status] == self.reg_site_server_status_active:
+                if nova_machines[mid][
+                    self.reg_site_server_status] == self.reg_site_server_status_active:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
-                    self.mr.machines[mid][self.reg_site_server_status] = nova_machines[mid][self.reg_site_server_status]
+                    self.mr.machines[mid][self.reg_site_server_status] = nova_machines[mid][
+                        self.reg_site_server_status]
                 if mid in nova_machines:
                     del nova_machines[mid]
 
             # check if machines is disintegrating
             if mr_machines[mid][self.mr.regStatus] == self.mr.statusDisintegrating:
                 # check if machine is in status active (OpenStack status), if so, send stop command
-                if nova_machines[mid][self.reg_site_server_status] == self.reg_site_server_status_active:
+                if nova_machines[mid][
+                    self.reg_site_server_status] == self.reg_site_server_status_active:
                     self.openstackStopMachine(mid)
                 # if machine is in status shutoff (OpenStack), update to disintegrated
-                if nova_machines[mid][self.reg_site_server_status] == self.reg_site_server_status_shutoff:
+                if nova_machines[mid][
+                    self.reg_site_server_status] == self.reg_site_server_status_shutoff:
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
                 if mid in nova_machines:
                     del nova_machines[mid]
@@ -499,13 +525,17 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.machines[new][self.mr.regSite] = self.getSiteName()
                 self.mr.machines[new][self.mr.regSiteType] = self.getSiteType()
                 # TODO: handle different machine types
-                self.mr.machines[new][self.mr.regMachineType] = self.getConfig(self.configMachines)  # "vm-default"
-                self.mr.machines[new][self.reg_site_server_id] = nova_machines[mid][self.reg_site_server_id]
-                self.mr.machines[new][self.reg_site_server_status] = nova_machines[mid][self.reg_site_server_status]
+                self.mr.machines[new][self.mr.regMachineType] = self.getConfig(
+                    self.configMachines)  # "vm-default"
+                self.mr.machines[new][self.reg_site_server_id] = nova_machines[mid][
+                    self.reg_site_server_id]
+                self.mr.machines[new][self.reg_site_server_status] = nova_machines[mid][
+                    self.reg_site_server_status]
                 # self.mr.machines[new][self.mr.regMachineCores] = self.getConfig(self.configMachineType)["vm-default"][
                 #    "cores"]
 
-                if nova_machines[mid][self.reg_site_server_status] == self.reg_site_server_status_error:
+                if nova_machines[mid][
+                    self.reg_site_server_status] == self.reg_site_server_status_error:
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
                 else:
                     self.mr.updateMachineStatus(mid, self.mr.statusWorking)
@@ -515,13 +545,15 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at " + str(self.getSiteName()) + " : " + str(
-                self.getRunningMachinesCount()[self.getConfig(self.configMachines)]))  # ["vm-default"]))
+            self.getRunningMachinesCount()[
+                self.getConfig(self.configMachines)]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.getSiteName(), 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                              len(self.getSiteMachines(status=self.mr.statusUp)) +
                              len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        json_log.addItem(self.getSiteName(), 'condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
+        json_log.addItem(self.getSiteName(), 'condor_nodes',
+                         len(self.getSiteMachines(status=self.mr.statusWorking)))
         json_log.addItem(self.getSiteName(), 'condor_nodes_draining',
                          len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 
@@ -535,7 +567,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         :return:
         """
 
-        if (mid.id in self.mr.machines) and (len(self.mr.machines[mid.id][self.reg_status_change_history]) > 0):
+        if (mid.id in self.mr.machines) and (
+                    len(self.mr.machines[mid.id][self.reg_status_change_history]) > 0):
             json_stats = JsonStats()
             json_stats.add_item(self.mr.machines[mid.id][self.mr.regSite], mid.id,
                                 self.mr.machines[mid.id][self.reg_status_change_history][-1])

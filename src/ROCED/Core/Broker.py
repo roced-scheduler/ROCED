@@ -21,7 +21,6 @@
 
 import abc
 import logging
-
 from datetime import datetime
 
 
@@ -36,29 +35,28 @@ class SiteBrokerBase(object):
     @abc.abstractmethod
     def decide(self, machineTypes, siteInfo):
         """
-        Concrete implementaions of a SiteBroker must implement this method to specify the
-        behaviour of the class.
-        
-        machineTypes: a dictionary with the machine type (string) as key and a MachineStatus object
-                      as value
-        siteInfo: a dictionary with the site name (string) as key and a SiteInformation object
-                  as value
-                  
-        return: contanis 2 nested dics: [siteName][machineName] = the Delta of machines on siteName
-                [siteName][machineName] = 0  -> no change on this site
-                [siteName][machineName] = -3  -> shutdown 3 machines on this site
+        Main SiteBroker method with the intended behaviour.
+
+        :type machineTypes dictionary  machine type (string)   key
+                                       MachineStatus object    value
+        :type siteInfo     dictionary  site name (string)      key
+                                       SiteInformation object  value
+
+        :returns: dictionary: { siteName:[machineName] }
+                  Delta of machines on siteName
+                  [siteName][machineName] = 0  -> no change on this site
+                  [siteName][machineName] = -3  -> shutdown 3 machines on site
         """
 
 
 class StupidBroker(SiteBrokerBase):
     """
-    This class implements a simple cloud allocation schema.
-    The basic functionality is impelement:
-    - if new machines are required they are booted on the cheapest available cloud site
-    - if machines are not needed any more, the are shut down on the most expansive cloud sites first
+    This class implements a simple cloud allocation scheme:
+    - boot required new machines on the cheapest available cloud site(s)
+    - shutdown unneeded machines on the most expensive cloud site(s)
     """
 
-    # the maximum number (global) of cloud instances to run
+    # the global(!) maximum of cloud instances to run
     # can be used as a fallback while debugging Brokering code     
     def __init__(self, max_instances=1000, shutdown_delay=0):
         self.delayedShutdownTime = None
@@ -66,34 +64,34 @@ class StupidBroker(SiteBrokerBase):
         self._maxInstances = max_instances
         self.logger = logging.getLogger('Broker')
 
-    def modSiteOrders(self, di, siteName, machineName, mod):
+    def modSiteOrders(self, dict_, siteName, machineName, mod):
         """
-        Increases or decreases the machines which shoud be stopped or stared on a site
+        Increases or decreases the machines which should be stopped or started
+        :type dict_: Dictionary to be manipulated
         """
         if mod == 0:
             return
 
-        if not siteName in di:
-            di[siteName] = dict({machineName: 0})
+        if siteName not in dict_:
+            dict_[siteName] = dict({machineName: 0})
 
-        if not machineName in di[siteName]:
-            di[siteName][machineName] = 0
+        if machineName not in dict_[siteName]:
+            dict_[siteName][machineName] = 0
 
-        di[siteName][machineName] += mod
+        dict_[siteName][machineName] += mod
 
     def decide(self, machineTypes, siteInfo):
         """
-        Redistribute cloud usage        
-        TODO:
-        report if not all req can be met
-        the data input to this method is not complete. the Broker has to know which machine is 
-        TODO: running at which site. FIX    
+        Redistribute cloud usage
+
         """
+        # TODO: report if not all req can be met
+        # TODO: Input not yet complete. Broker has to know where each machine is running. FIX!!!
         machinesToSpawn = dict()
 
         for (mname, mreq) in machineTypes.iteritems():
-            # dont request any new machines when requirement is None (due to failure)
-            if not mreq.required == None:
+            # don't request new machines in case of failure
+            if mreq.required is not None:
                 delta = mreq.required - mreq.actual
             else:
                 delta = 0
@@ -103,12 +101,21 @@ class StupidBroker(SiteBrokerBase):
                 mreq.required) + " needed. spawning/removing " + str(delta))
 
             # if delta > 0:
-            if machinesToSpawn.has_key(mname):
+            if mname in machinesToSpawn:
                 machinesToSpawn[mname] += delta
             else:
                 machinesToSpawn[mname] = delta
 
-        # now machinesToSpawn contains the wishlist of machines, distribute this to the cloud
+        # machinesToSpawn contains the wishlist of machines, distribute this to the cloud
+        # TODO Recheck "cost" implementation [cost per what?]
+        # Siteinfo has the following attributes:
+        # siteName
+        # baselineMachines
+        # maxMachines
+        # supportedMachineTypes
+        # cost
+        # isAvailable
+        # -> Sort by cost by using sorted(siteInfo, key=attrgetter('cost'), reverse=True)
 
         # spawn, cheap sites first...
         cheapFirst = sorted(siteInfo, lambda x, y: x.cost - y.cost)
@@ -124,7 +131,7 @@ class StupidBroker(SiteBrokerBase):
                     if mname in site.supportedMachineTypes:
                         self.modSiteOrders(siteOrders, site.siteName, mname, tospawn)
 
-                        # implement max quota here
+                        # TODO implement max quota [Siteinfo.maxMachines]
                         tospawn = 0
 
         # shutdown
@@ -132,7 +139,7 @@ class StupidBroker(SiteBrokerBase):
             for site in expensiveFirst:
                 if tospawn < 0:
                     if mname in site.supportedMachineTypes:
-                        if not self.delayedShutdownTime == None:
+                        if self.delayedShutdownTime is not None:
                             if (datetime.now() - self.delayedShutdownTime).seconds > self.shutdownDelay:
                                 self.modSiteOrders(siteOrders, site.siteName, mname, tospawn)
                                 self.delayedShutdownTime = None
