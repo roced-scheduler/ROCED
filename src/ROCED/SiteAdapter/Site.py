@@ -20,8 +20,9 @@
 # ===============================================================================
 
 
-from Core.Adapter import AdapterBase, AdapterBoxBase
 from Core import MachineRegistry
+from Core.Adapter import AdapterBase, AdapterBoxBase
+
 # from EucaUtil import EucaUtil
 # from EucaUtil import Ec2Util
 import logging
@@ -119,11 +120,8 @@ class SiteInformation(object):
 
     cost = property(**cost())
 
-    '''
-    if true, this site is available to run new nodes. If a site is not available, already
-    running nodes keep running
-    '''
-
+    # if true, this site is available to run new nodes.
+    # If a site is not available, already running nodes keep running
     def isAvailable():  # @NoSelf
         doc = """Docstring"""  # @UnusedVariable
 
@@ -157,8 +155,7 @@ class SiteAdapterBase(AdapterBase):
     ConfigMachineBootTimeout = "machine_boot_timeout"
     ConfigBaselineMachines = "baseline_machines"
 
-    """ Override the following for your custom cloud implementation """
-
+    # Override the following for your custom cloud implementation
     @abc.abstractmethod
     def __init__(self):
         super(SiteAdapterBase, self).__init__()
@@ -219,9 +216,11 @@ class SiteAdapterBase(AdapterBase):
                 # respect site limit for max machines for spawning but don't remove machines when above limit
                 # this limit is currently implemented per machine type, not per site!
                 if max_machines and (decision[machine_type] + n_running_machines) > max_machines:
-                    self.logger.info("Request exceeds maximum number of allowed machines on this site (" +
-                                     str(decision[machine_type] + n_running_machines) + ">" + str(max_machines) +
-                                     ")! Will spawn " + str(max(0, max_machines - n_running_machines)) + " machines.")
+                    self.logger.info(
+                        "Request exceeds maximum number of allowed machines on this site (" +
+                        str(decision[machine_type] + n_running_machines) + ">" + str(max_machines) +
+                        ")! Will spawn " + str(
+                            max(0, max_machines - n_running_machines)) + " machines.")
                     decision[machine_type] = max_machines - n_running_machines
                     # is the new decision valid?
                     if decision[machine_type] > 0:
@@ -265,7 +264,8 @@ class SiteAdapterBase(AdapterBase):
         return machineList
 
     def getCloudOccupyingMachinesCount(self):
-        return reduce(lambda v, (k, inp): v + len(inp), self.getCloudOccupyingMachines().iteritems(), 0)
+        return reduce(lambda v, (k, inp): v + len(inp),
+                      self.getCloudOccupyingMachines().iteritems(), 0)
 
     def isMachineTypeSupported(self, machineType):
         return machineType in self.getConfig(self.ConfigMachines)
@@ -287,6 +287,11 @@ class SiteAdapterBase(AdapterBase):
         return sinfo
 
     def getRunningMachines(self):
+        """ Return machines running at a specific site
+
+        :return dictionary {machine: status} :
+        """
+
         myMachines = self.getSiteMachines()
         machineList = dict()
 
@@ -314,31 +319,32 @@ class SiteAdapterBase(AdapterBase):
 
 class SiteBox(AdapterBoxBase):
     def getRunningMachines(self):
-        all = dict()
+        all_ = dict()
 
         for s in self.adapterList:
-            all[s.getSiteName()] = s.getRunningMachines()
+            all_[s.getSiteName()] = s.getRunningMachines()
 
-        return all
+        return all_
 
     def getRunningMachinesCount(self):
-        all = dict()
+        all_ = dict()
 
         for s in self.adapterList:
-            all[s.getSiteName()] = s.getRunningMachinesCount()
+            all_[s.getSiteName()] = s.getRunningMachinesCount()
 
-        return all
+        return all_
 
     def applyMachineDecision(self, decision):
-        map(lambda x: x.applyMachineDecision(decision.get(x.getSiteName(), dict())), self.adapterList)
+        map(lambda x: x.applyMachineDecision(decision.get(x.getSiteName(), dict())),
+            self.adapterList)
 
     def getSiteConfigAsDict(self):
-        all = dict()
+        all_ = dict()
 
         for s in self.adapterList:
-            all[s.getSiteName()] = s.getConfigAsDict()
+            all_[s.getSiteName()] = s.getConfigAsDict()
 
-        return all
+        return all_
 
     def getSite(self, siteName):
         res = filter(lambda x: x.getSiteName() == siteName, self.adapterList)
@@ -348,27 +354,24 @@ class SiteBox(AdapterBoxBase):
             return None
 
     def getSiteInformation(self):
-        all = dict()
+        all_ = dict()
 
         for s in self.adapterList:
-            all[s.getSiteName()] = s.getSiteInformation()
+            all_[s.getSiteName()] = s.getSiteInformation()
 
-        return all
+        return all_
 
-    '''
-
-        def getMachineCount(self, machineType):
-        return reduce(lambda x, y: x + y.getMachineCount("machineType"),
-                       self.adapterList,
-                       0)
-
-    def spawnMachines(self, machineType, count):
-        supported = filter( lambda x: x.isMachineTypeSupported(machineType), self.adapterList )
-
-        if len(supported) == 0:
-            logging.error("MachineType " + machineType + " not supported by any Spawn adapter")
-            return 0
-
-        #take cost and free slots into consideration
-        return supported[0].spawnMachines(machineType, count)
-    '''
+# def getMachineCount(self, machineType):
+#     return reduce(lambda x, y: x + y.getMachineCount("machineType"),
+#                   self.adapterList, 0)
+#
+#
+# def spawnMachines(self, machineType, count):
+#     supported = filter(lambda x: x.isMachineTypeSupported(machineType), self.adapterList)
+#
+#     if len(supported) == 0:
+#         logging.error("MachineType " + machineType + " not supported by any Spawn adapter")
+#         return 0
+#
+#     # take cost and free slots into consideration
+#     return supported[0].spawnMachines(machineType, count)

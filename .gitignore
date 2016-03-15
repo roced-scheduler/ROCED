@@ -1,5 +1,11 @@
-*.pyc
+### ROCED ###
+
+src/ROCED/log/
+
+### Operating system ###
 *~
-.metadata/
+
+### Editor specific ###
 .idea/
-log/
+*.pyc
+.metadata/

@@ -36,13 +36,12 @@ class EventBase(object):
 
 class EventPublisher(object):
     __metaclass__ = abc.ABCMeta
-    '''
-    def __new__(self, *args):
-        if not '_the_instance' in self.__dict__:
-            self._the_instance = object.__new__(self)
-        return self._the_instance
 
-    '''
+    # old singleton implementation:
+    # def __new__(self, *args):
+    #   if not '_the_instance' in self.__dict__:
+    #       self._the_instance = object.__new__(self)
+    #   return self._the_instance
 
     def __init__(self):
         """
@@ -72,7 +71,7 @@ class EventPublisher(object):
     def registerListener(self, new_listener):
         logging.info("Registering new event listener: " + str(new_listener))
 
-        if not new_listener in self.listener:
+        if new_listener not in self.listener:
             self.listener.append(new_listener)
 
     def clearListeners(self):

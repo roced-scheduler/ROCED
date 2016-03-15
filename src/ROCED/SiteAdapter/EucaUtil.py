@@ -50,7 +50,7 @@ class E2basedUtil(object):
         pass
 
     def loadImages(self, euca_conn):
-        if self.imagesCache == None:
+        if self.imagesCache is None:
             self.imagesCache = euca_conn.get_all_images()
 
     def getImageByImageName(self, euca_conn, image_name):

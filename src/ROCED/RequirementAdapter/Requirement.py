@@ -84,17 +84,17 @@ class RequirementBox(AdapterBoxBase):
 
     def getMachineTypeRequirement(self, fromCache=False):
 
-        if fromCache == True:
+        if fromCache is True:
             return self.reqCache
 
         needDict = dict()
 
         for a in self.adapterList:
-            if not needDict.has_key(a.getNeededMachineType()):
+            if a.getNeededMachineType() not in needDict:
                 needDict[a.getNeededMachineType()] = 0
 
             curReq = a.getCurrentRequirement()
-            if not curReq == None:
+            if curReq is not None:
                 needDict[a.getNeededMachineType()] += int(curReq)
             else:
                 needDict[a.getNeededMachineType()] = None

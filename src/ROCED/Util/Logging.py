@@ -20,23 +20,23 @@
 # ===============================================================================
 
 
-from datetime import datetime
 import json
 import logging
 import os
 import time
-
+from datetime import datetime
 
 """
+    JSON Log handling
 
     stores the following to a json file
-
-    logs: how much machines are needed/used/requested
-
-    stats: time statistics for each machine
-
+    ::logs:    how much machines are needed/used/requested
+    ::stats:   time statistics for each machine
 """
 
+
+# TODO: Should config file "logfolder" be used?
+# TODO: "Logging" -> "Monitoring"?
 
 class JsonLog(object):
     # use class variables to share log among instances
@@ -53,6 +53,9 @@ class JsonLog(object):
         JsonLog.__jsonLog[site][key] = value
 
     def writeLog(self):
+        """
+        Write current log into JSON file.
+        """
         oldLog = {}
         if os.path.isfile(JsonLog.__fileName):
             try:
@@ -65,6 +68,7 @@ class JsonLog(object):
                     oldLog = {int(time.time()): JsonLog.__jsonLog}
                 jsonFile.close()
             except IOError:
+                # TODO Why does this not create log folder in test mode?
                 logging.error("JSON file could not be opened for logging!")
         else:
             oldLog = {int(time.time()): JsonLog.__jsonLog}
@@ -80,6 +84,11 @@ class JsonLog(object):
 
     def printLog(self):
         print str(int(time.time())) + ": " + str(JsonLog.__jsonLog)
+        """
+        Print log to output device.
+
+        Format: | Timestamp: Log Output
+        """
 
 
 class JsonStats(object):

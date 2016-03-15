@@ -252,7 +252,7 @@ class Ec2BasedSiteAdapter(Site.SiteAdapterBase):
         logging.info("Machine " + str(mid) + " is running but no ssh connect yet")
         firstCheck = self.mr.machines[mid].get(self.reg_site_euca_first_dead_check, None)
 
-        if firstCheck == None:
+        if firstCheck is None:
             self.mr.machines[mid][self.reg_site_euca_first_dead_check] = datetime.datetime.now()
         else:
             if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(self.ConfigMachineBootTimeout):
@@ -276,7 +276,7 @@ class Ec2BasedSiteAdapter(Site.SiteAdapterBase):
         for r in reservations:
             for i in r.instances:
                 mach = self.getMachineByEucaId(myMachines, i.id)
-                if not mach == None:
+                if mach is not None:
 
                     if i.state == "terminated" and not mach[1].get(self.mr.regStatus) == self.mr.statusDown:
                         self.mr.updateMachineStatus(mach[0], self.mr.statusDown)
@@ -307,7 +307,7 @@ class Ec2BasedSiteAdapter(Site.SiteAdapterBase):
         ut = self.getApiUtil()
 
         try:
-            if mtype == None:
+            if mtype is None:
                 imageName = ut.getImageNameByImageId(euca_conn, euca_inst.image_id)
                 machineType = self.getMachineTypeByImageName(imageName)
             else:
@@ -375,21 +375,21 @@ class Ec2BasedSiteAdapter(Site.SiteAdapterBase):
 
         # only pick the needed amount
         toRemove = toRemove[0:count]
-        # dont shutdown machines yet, only trigger the deregister process
+        # don't shutdown machines yet, only trigger the deregistration process
         map(lambda (k, v): self.mr.updateMachineStatus(k, self.mr.statusPendingDisintegration), toRemove)
 
         return len(toRemove)
 
-    '''
+    """
     event on completion
-    '''
+    """
 
     def spawnMachines(self, machineType, count):
         if not self.isMachineTypeSupported(machineType):
             raise LookupError("Machine Image " + machineType + " not supported by this Adapter")
 
         # ensure we dont overstep the site quota
-        if not self.getConfig(self.ConfigMaxMachines) == None:
+        if not self.getConfig(self.ConfigMaxMachines) is None:
             # returns a dict of machine types
             machineCount = self.getCloudOccupyingMachinesCount()
             slotsLeft = self.getConfig(self.ConfigMaxMachines) - machineCount
@@ -407,7 +407,7 @@ class Ec2BasedSiteAdapter(Site.SiteAdapterBase):
             machineConf = self.getConfig(self.ConfigMachines)[machineType]
             imgId = ut.getImageIdByImageName(euca_conn, machineConf.imageName)
 
-            if machineConf.securityGroup == None:
+            if machineConf.securityGroup is None:
                 secGroup = []
             else:
                 secGroup = [machineConf.securityGroup]

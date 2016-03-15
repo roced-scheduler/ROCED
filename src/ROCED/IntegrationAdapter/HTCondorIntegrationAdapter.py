@@ -72,7 +72,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                                      description="site name")
         self.addOptionalConfigKeys(self.configCondorWaitPD, Config.ConfigTypeInt,
                                    description="wait for x mintues before changing to disintegrating", default=0)
-        # self.add...(self.configCondorWaitPD, Config.ConfigTypeInt, discription="",default=1)
         # self.addCompulsoryConfigKeys(self.configCondorIgnoreWaitPD, Config.ConfigTypeBoolean)
         self.addOptionalConfigKeys(self.configCondorWaitWorking, Config.ConfigTypeInt,
                                    description="wait for x minutes befor changing to pending disintegration", default=0)
@@ -114,7 +113,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         Called every cycle to check on machine states and change them according to their requires
 
-        This managment function will work with status changes:
+        This management function will work with status changes:
         booting
         up
         integrating

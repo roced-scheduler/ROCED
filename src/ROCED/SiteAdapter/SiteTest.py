@@ -23,11 +23,16 @@
 
 # from SiteAdapter.Ec2SiteAdapter import EucaSiteAdapter
 from Core import MachineRegistry, ScaleTest
+
+
 # import EucaUtil
 
 
-# todo: disabled until properly fixed
+# TODO: disabled until properly fixed
 class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
+
+    def __init__(self):
+        pass
 
     class MockEucaConnection(object):
         def run_instances(self, image_id,
@@ -64,7 +69,8 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         return m
 
     def getDefaultMachines(self):
-        return dict({'euca-default': self.getDefaultMachine(), 'euca-alt-default': self.getAltDefaultMachine(), })
+        return dict({'euca-default': self.getDefaultMachine(),
+                     'euca-alt-default': self.getAltDefaultMachine(),})
 
     def test_getMachineAvailable(self):
         espawn = EucaSiteAdapter()
@@ -144,12 +150,11 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         mr.machines[id2][espawn.reg_site_euca_instance_id] = "i-123456"
         mr.updateMachineStatus(id2, mr.statusDisintegrated)
 
-        """
-        id3 = mr.newMachine()
-        mr.machines[id3][ mr.reg_site ] = "default-site"
-        mr.machines[id3][ mr.reg_machine_type ] = "machine2"
-        mr.updateMachineStatus(id3, mr.StatusDisintegrated )
-        """
+        # id3 = mr.newMachine()
+        # mr.machines[id3][ mr.reg_site ] = "default-site"
+        # mr.machines[id3][ mr.reg_machine_type ] = "machine2"
+        # mr.updateMachineStatus(id3, mr.StatusDisintegrated )
+
 
         self.assertTrue(self.wasRun)
         self.assertEqual(mr.machines[id1][mr.regStatus], mr.statusDisintegrated)
@@ -194,7 +199,7 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         self.assertEqual(mr.machines[id4][mr.regStatus], mr.statusWorking)
 
     def test_getRunningMachines(self):
-        # todo
+        # TODO: Fix
         return
         espawn = EucaSiteAdapter()
         espawn.setConfig(EucaSiteAdapter.ConfigMachines, self.getDefaultMachines())
@@ -208,7 +213,7 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         self.assertEqual(len(runningMachines["euca-alt-default"]), 2)
 
     def test_applyDes(self):
-        # todo
+        # TODO: Fix
         return
 
         class LazyObject(object):

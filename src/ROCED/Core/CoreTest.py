@@ -22,12 +22,12 @@
 
 import ConfigParser
 
-from Core import MachineStatus, ScaleCore, ScaleCoreFactory
-from Core import Config
-from Broker import StupidBroker, SiteBrokerBase
-from SiteAdapter.Site import SiteAdapterBase, SiteInformation
-from RequirementAdapter.Requirement import RequirementAdapterBase
 import ScaleTest
+from Broker import StupidBroker, SiteBrokerBase
+from Core import Config
+from Core import MachineStatus, ScaleCore, ScaleCoreFactory
+from RequirementAdapter.Requirement import RequirementAdapterBase
+from SiteAdapter.Site import SiteAdapterBase, SiteInformation
 
 
 class SiteBrokerTest(SiteBrokerBase):
@@ -77,7 +77,6 @@ class ScaleCoreTest(ScaleCoreTestBase):
         config.set(Config.GeneralSection, Config.GeneralIntAdapters, 'fake_req')
         config.set(Config.GeneralSection, Config.GeneralReqAdapters, 'fake_int')
 
-
         # Broker
         config.add_section("default_broker")
         config.set("default_broker", Config.ConfigObjectType, 'Broker.StupidBroker')
@@ -104,8 +103,8 @@ class ScaleCoreTest(ScaleCoreTestBase):
         fact = ScaleCoreFactory()
 
         core = fact.getCore(config)
-        self.assertFalse(core == None)
-        self.assertFalse(core.broker == None)
+        self.assertFalse(core is None)
+        self.assertFalse(core.broker is None)
 
         self.assertEqual(len(core.siteBox.get_adapterList()), 2)
 
@@ -134,9 +133,8 @@ class StupidBrokerTest(ScaleCoreTestBase):
     def test_decide(self):
         broker = StupidBroker(20, 0)
         broker.shutdownDelay = 0
-        mtypes = dict({"machine1": MachineStatus(),
-                       "machine2": MachineStatus(),
-                       "machine3": MachineStatus()})
+        mtypes = {"machine1": MachineStatus(), "machine2": MachineStatus(),
+                  "machine3": MachineStatus()}
 
         mtypes["machine1"].required = 2
         mtypes["machine1"].actual = 0
@@ -149,8 +147,8 @@ class StupidBrokerTest(ScaleCoreTestBase):
         orders = broker.decide(mtypes, sinfo)
 
         self.assertEqual(orders["site1"]["machine1"], 2)
-        self.assertTrue(not "machine1" in orders["site2"])
+        self.assertTrue("machine1" not in orders["site2"])
         self.assertEqual(orders["site2"]["machine2"], -2)
-        self.assertTrue(not "machine2" in orders["site1"])
-        self.assertTrue(not "machine3" in orders["site1"])
-        self.assertTrue(not "machine3" in orders["site2"])
+        self.assertTrue("machine2" not in orders["site1"])
+        self.assertTrue("machine3" not in orders["site1"])
+        self.assertTrue("machine3" not in orders["site2"])
