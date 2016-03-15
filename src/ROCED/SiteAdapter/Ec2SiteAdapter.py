@@ -217,8 +217,7 @@ class Ec2BasedSiteAdapter(Site.SiteAdapterBase):
     reg_site_euca_first_dead_check = "site_euca_first_dead_check"
 
     def __init__(self):
-        Site.SiteAdapterBase.__init__(self)
-
+        super(Ec2BasedSiteAdapter, self).__init__()
         self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):

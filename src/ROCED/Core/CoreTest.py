@@ -30,6 +30,22 @@ from RequirementAdapter.Requirement import RequirementAdapterBase
 import ScaleTest
 
 
+class SiteBrokerTest(SiteBrokerBase):
+    def decide(self, machineTypes, siteInfo):
+        pass
+
+
+class SiteAdapterTest(SiteAdapterBase):
+    def __init__(self):
+        """
+        Empty Unittest implementation of SiteAdapterBase
+        """
+        super(SiteAdapterTest, self).__init__()
+
+    def spawnMachines(self, machineType, count):
+        return
+
+
 class ScaleCoreTestBase(ScaleTest.ScaleTestBase):
     def getDefaultSiteInfo(self):
         sinfo = [SiteInformation(), SiteInformation()]
@@ -94,19 +110,19 @@ class ScaleCoreTest(ScaleCoreTestBase):
         self.assertEqual(len(core.siteBox.get_adapterList()), 2)
 
     def test_manage(self):
-        broker = SiteBrokerBase()
+        broker = SiteBrokerTest()
         broker.decide = lambda machineTypes, siteInfo: dict({"site1": dict({"machine1": 1})})
 
         req = RequirementAdapterBase()
         req.getCurrentRequirement = lambda: 1
         # req.getNeededMachineType = lambda xself: "machine1"
 
-        site1 = SiteAdapterBase()
+        site1 = SiteAdapterTest()
         site1.getSiteName = lambda: "site1"
         site1.getSiteInformation = lambda: self.getDefaultSiteInfo()
         site1.getRunningMachines = lambda: dict({"machine1": [None], "machine2": [None, None]})
 
-        site2 = SiteAdapterBase()
+        site2 = SiteAdapterTest()
         site2.getSiteName = lambda: "site2"
         site2.getSiteInformation = lambda: self.getDefaultSiteInfo()
         site2.getRunningMachines = lambda: dict({"machine1": [None]})

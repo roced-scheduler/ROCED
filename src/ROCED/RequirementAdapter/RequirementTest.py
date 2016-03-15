@@ -26,15 +26,19 @@ from Core import ScaleTest
 from RequirementAdapter import Requirement
 
 
+class RequirementAdapterTest(Requirement.RequirementAdapterBase):
+    def __init__(self, machineType="default"):
+        super(RequirementAdapterTest, self).__init__(machineType)
+
+
 class RequirementBoxTest(ScaleTest.ScaleTestBase):
     def test_getReq(self):
         box = Requirement.RequirementBox()
 
-        box.adapterList.append(Requirement.RequirementAdapterBase("type1"))
-
-        box.adapterList.append(Requirement.RequirementAdapterBase("type2"))
-        box.adapterList.append(Requirement.RequirementAdapterBase("type3"))
-        box.adapterList.append(Requirement.RequirementAdapterBase("type2"))
+        box.adapterList.append(RequirementAdapterTest("type1"))
+        box.adapterList.append(RequirementAdapterTest("type2"))
+        box.adapterList.append(RequirementAdapterTest("type3"))
+        box.adapterList.append(RequirementAdapterTest("type2"))
 
         self.assertEqual(len(box.getMachineTypeRequirement()), 3)
         self.assertEqual(box.getMachineTypeRequirement()["type2"], 0)

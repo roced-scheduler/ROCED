@@ -19,6 +19,7 @@
 #
 # ===============================================================================
 
+import abc
 import logging
 
 from datetime import datetime
@@ -26,10 +27,13 @@ from datetime import datetime
 
 class SiteBrokerBase(object):
     """
-    Prototype class for SiteBrokers. SiteBroker allocate/disallocate cloud resources. 
-    Concrete implementations must inherit this class.
-    """
+    Abstract class for SiteBrokers. SiteBrokers (de-)allocate cloud resources.
 
+    Implementations must inherit from this class.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
     def decide(self, machineTypes, siteInfo):
         """
         Concrete implementaions of a SiteBroker must implement this method to specify the
@@ -44,7 +48,6 @@ class SiteBrokerBase(object):
                 [siteName][machineName] = 0  -> no change on this site
                 [siteName][machineName] = -3  -> shutdown 3 machines on this site
         """
-        raise NotImplementedError()
 
 
 class StupidBroker(SiteBrokerBase):

@@ -31,6 +31,16 @@ from IntegrationAdapter import Integration
 import Config
 
 
+class AdapterBaseTestClass(AdapterBase):
+    def getDescription(self):
+        super(AdapterBaseTestClass, self).getDescription()
+
+
+class IntegrationAdapterTest(Integration.IntegrationAdapterBase):
+    def init(self):
+        super(IntegrationAdapterTest, self).init()
+
+
 class AdapterBoxTest(ScaleTest.ScaleTestBase):
     _adapterList = []
 
@@ -38,8 +48,8 @@ class AdapterBoxTest(ScaleTest.ScaleTestBase):
         logging.basicConfig(level=logging.DEBUG)
 
         box = AdapterBoxBase()
-        box._adapterList.append(Integration.IntegrationAdapterBase())
-        box._adapterList.append(Integration.IntegrationAdapterBase())
+        box._adapterList.append(IntegrationAdapterTest())
+        box._adapterList.append(IntegrationAdapterTest())
 
         con = box.get_adapterList()
         self.assertEqual(len(con), 2)
@@ -59,8 +69,7 @@ class AdapterBaseTest(ScaleTest.ScaleTestBase):
         config.add_section("fake_site")
         config.set("fake_site", SiteAdapterBase.ConfigMachineBootTimeout, 20)
 
-
-        adapter = AdapterBase()
+        adapter = AdapterBaseTestClass()
 
         # config keys not in "config file"
         config1_key = "key"

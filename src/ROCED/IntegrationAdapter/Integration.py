@@ -28,10 +28,15 @@ Todo:
     clean up torque sever on scale start
 """
 
+
+import abc
+
 from Core import Adapter
 
 
 class IntegrationAdapterBase(Adapter.AdapterBase):
+    __metaclass__ = abc.ABCMeta
+
     def nodeBootstrapFile():  # @NoSelf
         """ Contains the name of the file which should be copied to new nodes """
         doc = """Docstring"""  # @UnusedVariable
@@ -71,6 +76,10 @@ class IntegrationAdapterBase(Adapter.AdapterBase):
 
     def getDescription(self):
         return "IntegrationAdapterBase"
+
+    @abc.abstractmethod
+    def init(self):
+        pass
 
 
 class IntegrationBox(Adapter.AdapterBoxBase):

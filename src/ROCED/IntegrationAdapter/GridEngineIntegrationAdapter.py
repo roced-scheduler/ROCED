@@ -36,7 +36,7 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
     ConfigGridEngineKey = "ge_key"
 
     def __init__(self):
-        IntegrationAdapterBase.__init__(self)
+        super(GridEngineIntegrationAdapter, self).__init__()
         self.mr = MachineRegistry.MachineRegistry()
 
         self.addCompulsoryConfigKeys(self.ConfigGridEngineIp, Config.ConfigTypeString)
@@ -44,6 +44,7 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
         self.addCompulsoryConfigKeys(self.ConfigGridEngineKey, Config.ConfigTypeString)
 
     def init(self):
+        super(GridEngineIntegrationAdapter, self).init()
         self.mr.registerListener(self)
 
     def manage(self):

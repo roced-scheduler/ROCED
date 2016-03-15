@@ -27,7 +27,7 @@ from RequirementAdapter.Requirement import RequirementAdapterBase
 
 class FakeRequirementAdapter(RequirementAdapterBase):
     def __init__(self):
-        RequirementAdapterBase.__init__(self)
+        super(FakeRequirementAdapter, self).__init__()
         self.curReq = 5
         self.completeJobs = False
         self.machinesRunningJobs = {}

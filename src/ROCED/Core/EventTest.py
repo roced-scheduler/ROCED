@@ -23,9 +23,13 @@ import Event
 import ScaleTest
 
 
+class EventPublisherTest(Event.EventPublisher):
+    pass
+
+
 class EventManagerTest(ScaleTest.ScaleTestBase):
     def test_publish(self):
-        emgr = Event.EventPublisher()
+        emgr = EventPublisherTest()
 
         self.wasCalled = False
 

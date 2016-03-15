@@ -117,7 +117,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
     torqKey = property(**torqKey())
 
     def __init__(self):
-        IntegrationAdapterBase.__init__(self)
+        super(TorqueIntegrationAdapter, self).__init__()
 
         self.mr = MachineRegistry.MachineRegistry()
         self.torqIp = None
@@ -129,7 +129,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
         self.torqNodeBootstrapUrl = None
 
     def init(self):
-        IntegrationAdapterBase.init(self)
+        super(TorqueIntegrationAdapter, self).init()
         self.mr.registerListener(self)
 
     def manage(self):

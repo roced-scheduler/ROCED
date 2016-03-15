@@ -29,7 +29,7 @@ from Core import MachineRegistry
 
 class FakeSiteAdapter(SiteAdapterBase):
     def __init__(self):
-        SiteAdapterBase.__init__(self)
+        super(FakeSiteAdapter, self).__init__()
 
         self.setConfig(self.ConfigSiteDescription, "A Fake Site with no backend to test the scale core.")
         self.setConfig(self.ConfigMachines, {"euca-default": {}})
