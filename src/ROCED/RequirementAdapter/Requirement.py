@@ -39,22 +39,26 @@ class Requirement(object):
 
 """
 
+import abc
+
 from Core.Adapter import AdapterBase, AdapterBoxBase
 
 
 class RequirementAdapterBase(AdapterBase):
+    __metaclass__ = abc.ABCMeta
     _machineType = None
     _curRequirement = 0
 
     ConfigReqName = "reqName"
 
     def __init__(self, machineType="default"):
-        AdapterBase.__init__(self)
+        super(RequirementAdapterBase, self).__init__()
 
         self._machineType = machineType
         self.setConfig(self.ConfigReqName, "DefaultReq")
 
     def init(self):
+        super(RequirementAdapterBase, self).init()
         self.exportMethod(self.setRequirement, "RequirementAdapterBase_setRequirement")
 
     def getCurrentRequirement(self):
@@ -75,7 +79,7 @@ class RequirementAdapterBase(AdapterBase):
 
 class RequirementBox(AdapterBoxBase):
     def __init__(self):
-        AdapterBoxBase.__init__(self)
+        super(RequirementBox, self).__init__()
         self.reqCache = {}
 
     def getMachineTypeRequirement(self, fromCache=False):

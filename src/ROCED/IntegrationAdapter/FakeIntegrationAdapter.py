@@ -29,7 +29,7 @@ from IntegrationAdapter.Integration import IntegrationAdapterBase
 
 class FakeIntegrationAdapter(IntegrationAdapterBase):
     def init(self):
-        IntegrationAdapterBase.init(self)
+        super(FakeIntegrationAdapter, self).init()
         self.mr = MachineRegistry.MachineRegistry()
         self.mr.registerListener(self)
 

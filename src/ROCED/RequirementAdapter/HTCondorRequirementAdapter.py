@@ -37,7 +37,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
     configCondorRequirement = "condor_requirement"
 
     def __init__(self):
-        RequirementAdapterBase.__init__(self)
+        super(HTCondorRequirementAdapter, self).__init__()
         self.curReq = None
         self.mr = MachineRegistry.MachineRegistry()
 

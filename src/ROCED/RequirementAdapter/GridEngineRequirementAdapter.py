@@ -33,7 +33,7 @@ class GridEngineRequirementAdapter(RequirementAdapterBase):
     ConfigQueueName = "queuename"
 
     def __init__(self):
-        RequirementAdapterBase.__init__(self)
+        super(GridEngineRequirementAdapter, self).__init__()
 
         self.addCompulsoryConfigKeys(self.ConfigQueueName, Config.ConfigTypeString)
 

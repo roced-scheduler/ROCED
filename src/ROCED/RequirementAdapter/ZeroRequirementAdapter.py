@@ -24,8 +24,8 @@ from RequirementAdapter.Requirement import RequirementAdapterBase
 
 
 class ZeroRequirementAdapter(RequirementAdapterBase):
-    def __init__(self):
-        RequirementAdapterBase.__init__(self)
+    def __init__(self, machineType="default"):
+        super(ZeroRequirementAdapter, self).__init__(machineType)
 
     def getCurrentRequirement(self):
         return 0

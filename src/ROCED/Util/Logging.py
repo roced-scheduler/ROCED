@@ -38,7 +38,7 @@ import time
 """
 
 
-class JsonLog:
+class JsonLog(object):
     # use class variables to share log among instances
     __jsonLog = {}
     __fileName = ""
@@ -82,7 +82,7 @@ class JsonLog:
         print str(int(time.time())) + ": " + str(JsonLog.__jsonLog)
 
 
-class JsonStats:
+class JsonStats(object):
     __jsonStats = {}
     __fileName = ""
 

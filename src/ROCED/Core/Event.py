@@ -19,14 +19,23 @@
 #
 # ===============================================================================
 
+import abc
 import logging
 
 
 class EventBase(object):
-    pass
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def __init__(self):
+        """
+        Abstract base event class
+        """
+        pass
 
 
 class EventPublisher(object):
+    __metaclass__ = abc.ABCMeta
     '''
     def __new__(self, *args):
         if not '_the_instance' in self.__dict__:
@@ -36,6 +45,9 @@ class EventPublisher(object):
     '''
 
     def __init__(self):
+        """
+        Abstract base event manager
+        """
         self.listener = []
 
     def listener():  # @NoSelf

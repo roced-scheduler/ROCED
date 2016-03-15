@@ -55,7 +55,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     regMachineCondorSlotStatus = "condor_slot_status"
 
     def __init__(self):
-        SiteAdapterBase.__init__(self)
+        super(FreiburgSiteAdapter, self).__init__()
 
         self.addCompulsoryConfigKeys(self.configFreiburgUser, Config.ConfigTypeString, "User name for bwForCluster")
         self.addCompulsoryConfigKeys(self.configFreiburgKey, Config.ConfigTypeString, "Password for bwForCluster")

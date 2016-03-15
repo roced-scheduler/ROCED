@@ -20,13 +20,15 @@
 # ===============================================================================
 
 
+import abc
 import logging
 import Config
 import json
 
 
-class NoDefaultSet():
-    pass
+class NoDefaultSet:
+    def __init__(self):
+        pass
 
 
 class AdapterBase(object):
@@ -36,6 +38,7 @@ class AdapterBase(object):
     Contains a list of ConfigKeys which must not be published outside
     the application borders, for example the REST API
     """
+    __metaclass__ = abc.ABCMeta
 
     def privateConfig():  # @NoSelf
         doc = """Docstring"""  # @UnusedVariable
@@ -105,11 +108,12 @@ class AdapterBase(object):
         self.privateConfig = []
 
     def init(self):
-        return
+        pass
 
     def terminate(self):
-        return
+        pass
 
+    @abc.abstractmethod
     def getDescription(self):
         return "AdapterBase"
 

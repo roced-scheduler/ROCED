@@ -59,7 +59,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         :return:
         """
 
-        IntegrationAdapterBase.__init__(self)
+        super(HTCondorIntegrationAdapter, self).__init__()
         self.mr = MachineRegistry.MachineRegistry()
         self.addOptionalConfigKeys(self.configIntLogger, Config.ConfigTypeString, description="logger name",
                                    default="HTC_Int")
@@ -87,6 +87,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         :return:
         """
+        super(HTCondorIntegrationAdapter, self).init()
         self.logger = logging.getLogger(self.getConfig(self.configIntLogger))
         self.mr.registerListener(self)
 

@@ -27,6 +27,7 @@ from Core import MachineRegistry
 import logging
 import copy
 from Core import Config
+import abc
 
 
 class SiteInformation(object):
@@ -142,8 +143,9 @@ class SiteInformation(object):
 
 class SiteAdapterBase(AdapterBase):
     """
-    This class is the prototype class for classes which implement a specific cloud site information.
+    Abstract base class for specific cloud site information.
     """
+    __metaclass__ = abc.ABCMeta
 
     ConfigSiteName = "site_name"
     ConfigSiteType = "site_type"
@@ -157,8 +159,9 @@ class SiteAdapterBase(AdapterBase):
 
     """ Override the following for your custom cloud implementation """
 
+    @abc.abstractmethod
     def __init__(self):
-        AdapterBase.__init__(self)
+        super(SiteAdapterBase, self).__init__()
 
         self.setConfig(self.ConfigSiteName, "default-site")
         self.setConfig(self.ConfigSiteDescription, "DefaultDescription")
@@ -178,6 +181,7 @@ class SiteAdapterBase(AdapterBase):
 
         self.logger = logging.getLogger('Site')
 
+    @abc.abstractmethod
     def spawnMachines(self, machineType, count):
         return
 

@@ -30,7 +30,7 @@ from Util import ScaleTools
 
 class TorqueRequirementAdapter(RequirementAdapterBase):
     def __init__(self):
-        RequirementAdapterBase.__init__(self)
+        super(TorqueRequirementAdapter, self).__init__()
 
         self.torqIp = None
         self.torqHostName = None

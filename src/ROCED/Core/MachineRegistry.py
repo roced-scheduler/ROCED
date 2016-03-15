@@ -19,6 +19,7 @@
 #
 # ===============================================================================
 
+import abc
 import logging
 import uuid
 import time, datetime
@@ -28,6 +29,11 @@ import Event
 from Util.Logging import JsonStats
 
 class MachineEvent(Event.EventBase):
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self):
+        super(MachineEvent, self).__init__()
+
     def id():  # @NoSelf
         doc = """Docstring"""  # @UnusedVariable
 
