@@ -86,7 +86,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         :return:
         """
-        SiteAdapterBase.__init__(self)
+        super(OpenStackSiteAdapter, self).__init__()
 
         # load Site Adapter name for ROCED output from config file
         self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
@@ -149,7 +149,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     def init(self):
 
         # if admin access is enabled, get number of max machines from number of hypervisors
-        if self.getConfig(self.configUseTime) == True:
+        if self.getConfig(self.configUseTime) is True:
             self.setConfig(self.configMaxMachines, self.getMaxMachines())
 
         # set name of Site Adapter for ROCED output

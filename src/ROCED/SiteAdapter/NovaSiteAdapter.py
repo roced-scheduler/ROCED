@@ -215,7 +215,7 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
     reg_site_euca_first_dead_check = "site_euca_first_dead_check"
 
     def __init__(self):
-        Site.SiteAdapterBase.__init__(self)
+        super(NovaSiteAdapter, self).__init__()
 
         self.mr = MachineRegistry.MachineRegistry()
 
@@ -233,8 +233,8 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
                     # TODO maybe use shutdown in between ?
                     self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
-    def getConfigAsDict(self):
-        new = AdapterBase.getConfigAsDict(self, True)
+    def getConfigAsDict(self, onlyPublic=False):
+        new = super(NovaSiteAdapter, self).getConfigAsDict(True)
         new.pop(self.ConfigMachines)
 
         return new
