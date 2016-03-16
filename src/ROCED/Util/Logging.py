@@ -1,6 +1,7 @@
 # ===============================================================================
 #
-# Copyright (c) 2010, 2011, 2015 by Georg Fleig, Thomas Hauth and Stephan Riedel
+# Copyright (c) 2010, 2011, 2015, 2016
+# by Frank Fischer, Georg Fleig, Thomas Hauth and Stephan Riedel
 #
 # This file is part of ROCED.
 #
@@ -35,116 +36,141 @@ from datetime import datetime
 """
 
 
-# TODO: Should config file "logfolder" be used?
-# TODO: "Logging" -> "Monitoring"?
+# TODO: Use config file "logfolder"
 
 class JsonLog(object):
     # use class variables to share log among instances
     __jsonLog = {}
     __fileName = ""
 
-    def __init__(self):
-        if not JsonLog.__fileName:
-            JsonLog.__fileName = "log/monitoring_" + str(datetime.today().strftime("%Y-%m-%d_%H-%M")) + ".json"
+    @classmethod
+    def __init__(cls, dir_="log", prefix="monitoring", suffix=""):
+        """
+        Initialize log folder and log file
+        """
+        # Existence check for log folder [log file creation requires existing folder]
+        if os.path.isdir(dir_.__str__()) is False:
+            try:
+                os.makedirs(dir_.__str__() + "/")
+            except OSError:
+                logging.error("Error when creating /log/ folder")
+        # Build log file name
+        if not cls.__fileName:
+            cls.__fileName = dir_.__str__() + "/" + prefix.__str__() + "_" + \
+                             str(datetime.today().strftime("%Y-%m-%d_%H-%M")) + \
+                             suffix.__str__() + ".json"
 
-    def addItem(self, site, key, value):
-        if site not in JsonLog.__jsonLog.keys():
-            JsonLog.__jsonLog[site] = {}
-        JsonLog.__jsonLog[site][key] = value
+    @classmethod
+    def addItem(cls, site, key, value):
+        if site not in cls.__jsonLog.keys():
+            cls.__jsonLog[site] = {}
+        cls.__jsonLog[site][key] = value
 
-    def writeLog(self):
+    @classmethod
+    def writeLog(cls):
         """
         Write current log into JSON file.
         """
         oldLog = {}
-        if os.path.isfile(JsonLog.__fileName):
+        if os.path.isfile(cls.__fileName):
             try:
-                jsonFile = open(JsonLog.__fileName, "r")
-                try:
-                    oldLog = json.load(jsonFile)
-                    oldLog[int(time.time())] = JsonLog.__jsonLog
-                except ValueError:
-                    logging.error("Could not parse JSON log!")
-                    oldLog = {int(time.time()): JsonLog.__jsonLog}
-                jsonFile.close()
+                with open(cls.__fileName, "r") as jsonFile:
+                    try:
+                        oldLog = json.load(jsonFile)
+                        oldLog[int(time.time())] = cls.__jsonLog
+                    except ValueError:
+                        logging.error("Could not parse JSON log!")
+                        oldLog = {int(time.time()): cls.__jsonLog}
             except IOError:
-                # TODO Why does this not create log folder in test mode?
                 logging.error("JSON file could not be opened for logging!")
+
         else:
-            oldLog = {int(time.time()): JsonLog.__jsonLog}
+            oldLog = {int(time.time()): cls.__jsonLog}
         try:
-            jsonFile = open(JsonLog.__fileName, "w")
-            json.dump(oldLog, jsonFile, sort_keys=True, indent=2)
-            jsonFile.close()
+            with open(cls.__fileName, "w") as jsonFile:
+                json.dump(oldLog, jsonFile, sort_keys=True, indent=2)
         except IOError:
             logging.error("JSON file could not be opened for logging!")
 
         # clear jsonLog for next cycle
-        JsonLog.__jsonLog = {}
+        cls.__jsonLog = {}
 
-    def printLog(self):
-        print str(int(time.time())) + ": " + str(JsonLog.__jsonLog)
+    @classmethod
+    def printLog(cls):
         """
         Print log to output device.
 
         Format: | Timestamp: Log Output
         """
+        print str(int(time.time())) + ": " + str(cls.__jsonLog)
 
 
 class JsonStats(object):
     __jsonStats = {}
     __fileName = ""
 
-    def __init__(self, dir="log", prefix="stats", suffix=""):
-        #if not JsonStats.__fileName:
-        JsonStats.__fileName = str(dir) + '/' +\
-                               prefix + '_' + str(datetime.today().strftime('%Y-%m-%d')) + str(suffix) + ".json"
-
-
-    def add_item(self, site, mid, value):
-        if site not in JsonStats.__jsonStats.keys():
-            JsonStats.__jsonStats[site] = {}
-        if mid not in JsonStats.__jsonStats[site].keys():
-            JsonStats.__jsonStats[site][str(mid)] = {}
-        JsonStats.__jsonStats[site][str(mid)] = value
-
-    def write_stats(self):
-        oldStats = {}
-        if os.path.isfile(JsonStats.__fileName):
+    @classmethod
+    def __init__(cls, dir_="log", prefix="stats", suffix=""):
+        """
+        Initialize log folder and log file
+        """
+        # Existence check for log folder [log file creation requires existing folder]
+        if os.path.isdir(dir_.__str__()) is False:
             try:
-                jsonFile = open(JsonStats.__fileName, "r")
-                try:
-                    oldStats = json.load(jsonFile)
-                    for site in JsonStats.__jsonStats.keys():
-                        if site not in oldStats.keys():
-                            oldStats[site] = {}
-                        for mid in JsonStats.__jsonStats[site].keys():
-                            if mid not in oldStats[site].keys():
-                                oldStats[site][mid] = []
-                            if JsonStats.__jsonStats[site][mid] not in oldStats[site][mid]:
-                                oldStats[site][mid].append(JsonStats.__jsonStats[site][mid])
-                except ValueError:
-                    logging.error("Could not parse JSON log!")
-                    for site in JsonStats.__jsonStats.keys():
-                        for mid in JsonStats.__jsonStats[site].keys():
-                            oldStats = {site: {mid: JsonStats.__jsonStats[mid]}}
-                jsonFile.close()
+                os.makedirs(dir_.__str__() + "/")
+            except OSError:
+                logging.error("Error when creating /log/ folder")
+        # Build log file name
+        if not cls.__fileName:
+            cls.__fileName = dir_.__str__() + "/" + prefix.__str__() + "_" + \
+                             str(datetime.today().strftime("%Y-%m-%d_%H-%M")) + \
+                             suffix.__str__() + ".json"
+
+    @classmethod
+    def add_item(cls, site, mid, value):
+        if site not in cls.__jsonStats.keys():
+            cls.__jsonStats[site] = {}
+        if mid not in cls.__jsonStats[site].keys():
+            cls.__jsonStats[site][str(mid)] = {}
+        cls.__jsonStats[site][str(mid)] = value
+
+    @classmethod
+    def write_stats(cls):
+        oldStats = {}
+        if os.path.isfile(cls.__fileName):
+            try:
+                with open(cls.__fileName, "r") as jsonFile:
+                    try:
+                        oldStats = json.load(jsonFile)
+                        for site in cls.__jsonStats.keys():
+                            if site not in oldStats.keys():
+                                oldStats[site] = {}
+                            for mid in cls.__jsonStats[site].keys():
+                                if mid not in oldStats[site].keys():
+                                    oldStats[site][mid] = []
+                                if cls.__jsonStats[site][mid] not in oldStats[site][mid]:
+                                    oldStats[site][mid].append(cls.__jsonStats[site][mid])
+                    except ValueError:
+                        logging.error("Could not parse JSON log!")
+                        for site in cls.__jsonStats.keys():
+                            for mid in cls.__jsonStats[site].keys():
+                                oldStats = {site: {mid: cls.__jsonStats[mid]}}
             except IOError:
                 logging.error("JSON file could not be opened for logging!")
         else:
             oldStats = {
-                JsonStats.__jsonStats.keys()[-1]: {
-                    JsonStats.__jsonStats[JsonStats.__jsonStats.keys()[-1]].keys()[-1]:
-                        [JsonStats.__jsonStats[JsonStats.__jsonStats.keys()[-1]].values()[-1]]
+                cls.__jsonStats.keys()[-1]: {
+                    cls.__jsonStats[cls.__jsonStats.keys()[-1]].keys()[-1]:
+                        [cls.__jsonStats[cls.__jsonStats.keys()[-1]].values()[-1]]
                 }
             }
         try:
-            jsonFile = open(JsonStats.__fileName, "w")
-            json.dump(oldStats, jsonFile, sort_keys=True, indent=2)
-            jsonFile.close()
+            with open(cls.__fileName, "w") as jsonFile:
+                json.dump(oldStats, jsonFile, sort_keys=True, indent=2)
         except IOError:
             logging.error("JSON file could not be opened for logging!")
 
-    def printStats(self):
-        for mid in JsonStats.__jsonStats.keys():
-            print str(mid) + ": " + str(JsonStats.__jsonStats[mid])
+    @classmethod
+    def printStats(cls):
+        for mid in cls.__jsonStats.keys():
+            print str(mid) + ": " + str(cls.__jsonStats[mid])
