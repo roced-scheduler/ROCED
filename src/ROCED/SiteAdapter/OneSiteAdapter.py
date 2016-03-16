@@ -44,7 +44,7 @@ class OneSiteAdapter(SiteAdapterBase):
     reg_gridengine_node_name = "gridengine_node_name"
 
     def __init__(self):
-        SiteAdapterBase.__init__(self)
+        super(OneSiteAdapter, self).__init__()
 
         #        self.setConfig( self.ConfigUser, open("one_auth","r").read()[0:7] ) #reads in the one user name stored locally in one_auth
         #        self.setConfig( self.ConfigPass, open("one_auth","r").read()[8:18] ) # reads in the one password stored locally in one_auth
@@ -100,12 +100,12 @@ class OneSiteAdapter(SiteAdapterBase):
 
         if action in actions:
             info = self.VMInfo(vm_id)
-            if info[0] == True:
+            if info[0] is True:
                 if info[1]["UID"] == self.getConfig(self.ConfigUID):  # machine is my machine
                     try:
                         vm_action = self.getProxy().one.vm.action(self.getOneSessionString(), action, vm_id)
                         print vm_action
-                        if vm_action[0] == True:
+                        if vm_action[0] is True:
                             logging.info("Action %s for VM ID %s successful!" % (action, vm_id))
                     except socket.error:
                         logging.debug(
@@ -138,7 +138,7 @@ class OneSiteAdapter(SiteAdapterBase):
             logging.debug("Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
             vm_info[0] = False
 
-        if vm_info[0] == True:
+        if vm_info[0] is True:
             info = [True, self.ParseVmInfo(vm_info)]
         else:
             info = [False]
@@ -162,7 +162,7 @@ class OneSiteAdapter(SiteAdapterBase):
             # vm.pool.info doesn't contain "IP_PUBLIC" and "MAC" in its response and have to be obtained via the vm.info method
             vm_info = self.VMInfo(int(info["ID"]))
 
-            if vm_info[0] == True:
+            if vm_info[0] is True:
                 info["IP_PUBLIC"] = vm_info[1]["IP_PUBLIC"]
                 info["MAC"] = vm_info[1]["MAC"]
 
@@ -182,7 +182,7 @@ class OneSiteAdapter(SiteAdapterBase):
         except socket.error:
             logging.debug("Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
 
-        if vm_pool_info[0] == True:
+        if vm_pool_info[0] is True:
             info = [True, self.ParseVMPoolInfo(vm_pool_info[1])]
         else:
             info = [False]
@@ -240,7 +240,7 @@ class OneSiteAdapter(SiteAdapterBase):
                 print myMachines[k]["vpn_ip"]
                 print myMachines[k]["vpn_cert_is_valid"]
                 print myMachines[k]["vpn_cert"]
-                if vm_info[0] == True:
+                if vm_info[0] is True:
 
                     if vm_info[1]["STATE"] == "3" and vm_info[1]["LCM_STATE"] == "3":
                         if self.checkIfMachineIsUp(k):
@@ -293,7 +293,7 @@ class OneSiteAdapter(SiteAdapterBase):
             machineConfigs = self.getConfig(self.ConfigMachines)
             info = self.VMAllocate(machineConfigs[machineType], node_name)
 
-            if info[0] == True:
+            if info[0] is True:
                 # mid = self.mr.newMachine()
                 self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
                 self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
@@ -340,7 +340,7 @@ class OneSiteAdapter(SiteAdapterBase):
                 if evt.newStatus == self.mr.statusDisintegrated:
                     # print int(self.mr.machines[evt.id].get(self.reg_site_one_vmid))
                     vm_action = self.VMAction("cancel", int(self.mr.machines[evt.id].get(self.reg_site_one_vmid)))
-                    if vm_action[0] == True:
+                    if vm_action[0] is True:
                         self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
     def isMachineTypeSupported(self, machineType):

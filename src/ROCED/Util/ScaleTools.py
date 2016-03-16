@@ -61,7 +61,8 @@ class ChangeNotifier(object):
     def cachedNotify(self, title, body):
         self.cached.append((title, body))
 
-    def notify(self, title, body):
+    @staticmethod
+    def notify(title, body):
         try:
             import pynotify
 
@@ -310,7 +311,7 @@ class Ssh(object):
         ip = machine.get(MachineRegistry.MachineRegistry.regHostname)
         key = machine.get(MachineRegistry.MachineRegistry.regSshKey) + ".private"
 
-        if machine.get(MachineRegistry.MachineRegistry.regUsesGateway, False) == True:
+        if machine.get(MachineRegistry.MachineRegistry.regUsesGateway, False) is True:
             ssh = Ssh(ip, "root", key, None, 1, \
                       machine.get(MachineRegistry.MachineRegistry.regGatewayIp), \
                       machine.get(MachineRegistry.MachineRegistry.regGatewayKey), \

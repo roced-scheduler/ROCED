@@ -108,7 +108,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
-            result = self.execCmdInFreiburg(
+            result = self.__execCmdInFreiburg(
                 "msub -l walltime=" + str(machineSettings["walltime"]) + ",mem=" + str(
                     machineSettings["memory"]) +
                 ",nodes=1:ppn=" + str(machineSettings["cores"]) + " startVM_0.2.py")
@@ -131,7 +131,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                         result[2]))
                 break
 
-    def rateWorkingMachines(self, machine):
+    def __rateWorkingMachines(self, machine):
         """
         Calculate score based on the utilization of a machine.
 
@@ -169,7 +169,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             # then get working machines and sort them by load (idle machines first) if requested
             workingMachines = self.getSiteMachines(self.mr.statusWorking, machineType)
             workingMachines = sorted(workingMachines.items(),
-                                     key=lambda v: self.rateWorkingMachines(v[1]))
+                                     key=lambda v: self.__rateWorkingMachines(v[1]))
             # merge both lists of tuples
             machinesToRemove = bootingMachines + workingMachines
         else:
@@ -195,7 +195,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             "Machines to drain (" + str(len(idsToDrain)) + "): " + ", ".join(idsToDrain))
 
         if idsToTerminate:
-            idsRemoved, idsInvalidated = self.cancelFreiburgMachines(idsToTerminate)
+            idsRemoved, idsInvalidated = self.__cancelFreiburgMachines(idsToTerminate)
 
         if idsToDrain:
             # TODO: connect to HTCondor collector and send drain command to nodes, most likely not needed.
@@ -233,7 +233,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         """
         # fall back to base method if required
         if self.getConfig(self.configIgnoreDrainingMachines) is True:
-            SiteAdapterBase.getRunningMachines(self)
+            super(FreiburgSiteAdapter, self).getRunningMachinesCount()
         else:
             # get all site machines
             mr = self.getSiteMachines()
@@ -282,7 +282,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
                 if evt.newStatus == self.mr.statusDisintegrated:
                     # cancel VM batch job in Freiburg
-                    self.cancelFreiburgMachines(
+                    self.__cancelFreiburgMachines(
                         [self.mr.machines[evt.id].get(self.regMachineJobId)])
                     self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
@@ -325,7 +325,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         frUser = self.getConfig(self.configFreiburgUser)
 
         # get list of completed jobs in Freiburg to see which machines failed to boot or died (job return code != 0)
-        frResult = self.execCmdInFreiburg("showq -c -w user=" + frUser)
+        frResult = self.__execCmdInFreiburg("showq -c -w user=" + frUser)
         if frResult[0] == 0:
             # returns a dict: {batch job id: return code/status, ..}
             frJobsCompleted = dict(
@@ -342,7 +342,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 + str(frResult[2]))
 
         # get list of running jobs in Freiburg to see which machines booted up
-        frResult = self.execCmdInFreiburg("showq -r -w user=" + frUser)
+        frResult = self.__execCmdInFreiburg("showq -r -w user=" + frUser)
         if frResult[0] == 0:
             # returns a tuple containing ids of all running batch jobs in Freiburg
             frJobsRunning = re.findall(r"^([0-9]+)[ \t]+R", frResult[1], re.MULTILINE)
@@ -465,7 +465,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                         len(self.getSiteMachines(status=self.mr.statusBooting)) +
                         len(self.getSiteMachines(status=self.mr.statusUp)))
 
-    def execCmdInFreiburg(self, cmd):
+    def __execCmdInFreiburg(self, cmd):
         """
         Execute command on Freiburg login node via SSH.
 
@@ -478,7 +478,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         frSsh = ScaleTools.Ssh(frServer, frUser, frKey)
         return frSsh.executeRemoteCommand(cmd)
 
-    def cancelFreiburgMachines(self, batchJobIds):
+    def __cancelFreiburgMachines(self, batchJobIds):
         """
         Cancel batch job (VM) in Freiburg
 
@@ -493,7 +493,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             batchJobIds = [batchJobIds]
         for batchJobId in batchJobIds:
             command += "mjobctl -c " + batchJobId + "; "
-        result = self.execCmdInFreiburg(command)
+        result = self.__execCmdInFreiburg(command)
 
         # catch 0:"successful" and 1:"invalid job id" return codes
         # the return code of the first cancellation command is returned here, we can handle them both to remove
