@@ -22,6 +22,7 @@
 
 
 import json
+import csv
 import logging
 import os
 import time
@@ -103,6 +104,34 @@ class JsonLog(object):
         Format: | Timestamp: Log Output
         """
         print str(int(time.time())) + ": " + str(cls.__jsonLog)
+
+
+class CsvStats:
+    __csvStats = []  # objects like [{"site":"site_name", "mid":"machine_id", "old_status":"old status", "new_status":"new status", "timestamp":"date.date.now()", "time_diff":"datetime.timediff()"},{},{},...]
+    __fileName = ""
+
+    def __init__(self, dir="log", prefix="stats", suffix=""):
+        CsvStats.__fileName = str(dir) + '/' + prefix + '_' + str(datetime.today().strftime('%Y-%m-%d')) + str(
+            suffix) + ".csv"
+
+    def add_item(self, site, mid, old_status, new_status, timestamp, time_diff):
+        CsvStats.__csvStats.append({"site":site, "mid":mid, "old_status":old_status, "new_status":new_status, "timestamp":timestamp, "time_diff":time_diff})
+
+    def write_stats(self):
+        fieldnames = ["site", "mid", "old_status", "new_status", "timestamp", "time_diff"]
+        if os.path.isfile(CsvStats.__fileName):
+            stats_file = open(CsvStats.__fileName, "a")
+            writer = csv.DictWriter(stats_file, fieldnames=fieldnames)
+        else:
+            stats_file = open(CsvStats.__fileName, "wb")
+            writer = csv.DictWriter(stats_file, fieldnames=fieldnames)
+            writer.writeheader()
+        for stat in xrange(len(CsvStats.__csvStats)):
+            writer.writerow(CsvStats.__csvStats.pop())
+
+    def printLog(self):
+        for stat in CsvStats.__csvStats:
+            print stat
 
 
 class JsonStats(object):
