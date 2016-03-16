@@ -52,7 +52,8 @@ class FakeSsh(object):
     def handleSshCall(self, call):
         return self.executeRemoteCommand(call)
 
-    def executeRemoteCommand(self, command):
+    @staticmethod
+    def executeRemoteCommand(command):
         logging.debug("ssh running %s" % command)
         FakeSsh.ranCommands.append(command)
 

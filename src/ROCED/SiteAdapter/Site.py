@@ -180,12 +180,35 @@ class SiteAdapterBase(AdapterBase):
 
     @abc.abstractmethod
     def spawnMachines(self, machineType, count):
-        return
+        """
+        Spawn machines on the corresponding cloud site.
+
+        :param machineType:
+        :param count:
+        :return:
+        """
+        pass
 
     def terminateMachines(self, machineType, count):
-        return
+        """
+        Terminate machine(s) on the corresponding site.
+
+        This *should* be redefined but doesn't /have to/. There are other ways to handle
+        termination (e.g.: automatic timeout/shutdown).
+
+        :param machineType:
+        :param count:
+        """
+        pass
 
     def getSiteMachines(self, status=None, machineType=None):
+        """
+        Return dictionary with machines running on this site.
+
+        :param status: optional filter on status
+        :param machineType: optional filter on machine type
+        :return {}:
+        """
         mr = MachineRegistry.MachineRegistry()
         return mr.getMachines(self.getSiteName(), status, machineType)
 
@@ -196,7 +219,9 @@ class SiteAdapterBase(AdapterBase):
             running_machines_count[machine_type] = len(running_machines[machine_type])
         return running_machines_count
 
-    """ All overrides done, the following functions will work and don't need to be overwritten """
+    ###
+    # All overrides done, the following functions will work and don't need to be overwritten """
+    ###
 
     def applyMachineDecision(self, decision):
 

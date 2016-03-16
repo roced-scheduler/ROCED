@@ -234,8 +234,8 @@ class Ec2BasedSiteAdapter(Site.SiteAdapterBase):
                     # TODO maybe use shutdown in between ?
                     self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
-    def getConfigAsDict(self):
-        new = AdapterBase.getConfigAsDict(self, True)
+    def getConfigAsDict(self, onlyPublic=False):
+        new = super(Ec2BasedSiteAdapter, self).getConfigAsDict(True)
         new.pop(self.ConfigMachines)
 
         return new

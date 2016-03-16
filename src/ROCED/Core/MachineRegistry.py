@@ -53,11 +53,13 @@ class MachineEvent(Event.EventBase):
 
 class NewMachineEvent(MachineEvent):
     def __init__(self, id):
+        super(NewMachineEvent, self).__init__()
         self.id = id
 
 
 class MachineRemovedEvent(MachineEvent):
     def __init__(self, id):
+        super(MachineRemovedEvent, self).__init__()
         self.id = id
 
 
@@ -95,6 +97,7 @@ class StatusChangedEvent(MachineEvent):
     newStatus = property(**newStatus())
 
     def __init__(self, id, oldStatus, newStatus):
+        super(StatusChangedEvent, self).__init__()
         self.newStatus = newStatus
         self.oldStatus = oldStatus
         self.id = id
@@ -133,10 +136,10 @@ class MachineRegistry(Event.EventPublisher):
     regVpnCert = "vpn_cert"
     regVpnCertIsValid = "vpn_cert_is_valid"
 
-    def __new__(self, *args):
-        if '_the_instance' not in self.__dict__:
-            self._the_instance = object.__new__(self)
-        return self._the_instance
+    def __new__(cls, *args):
+        if '_the_instance' not in cls.__dict__:
+            cls._the_instance = object.__new__(cls)
+        return cls._the_instance
 
     def __init__(self):
         self.logger = logging.getLogger('MachReg')
