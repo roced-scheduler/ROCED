@@ -74,8 +74,8 @@ class ScaleCoreTest(ScaleCoreTestBase):
         config.set(Config.GeneralSection, Config.GeneralBroker, 'default_broker')
 
         config.set(Config.GeneralSection, Config.GeneralSiteAdapters, 'fake_site1 fake_site2')
-        config.set(Config.GeneralSection, Config.GeneralIntAdapters, 'fake_req')
-        config.set(Config.GeneralSection, Config.GeneralReqAdapters, 'fake_int')
+        config.set(Config.GeneralSection, Config.GeneralIntAdapters, 'fake_int1 fake_int2')
+        config.set(Config.GeneralSection, Config.GeneralReqAdapters, 'fake_req1 fake_req2')
 
         # Broker
         config.add_section("default_broker")
@@ -93,12 +93,16 @@ class ScaleCoreTest(ScaleCoreTestBase):
         config.set("fake_site2", SiteAdapterBase.ConfigSiteDescription, 'my test description 2')
 
         # Integration
-        config.add_section("fake_int")
-        config.set("fake_int", Config.ConfigObjectType, 'FakeIntegrationAdapter')
+        config.add_section("fake_int1")
+        config.set("fake_int1", Config.ConfigObjectType, 'FakeIntegrationAdapter')
+        config.add_section("fake_int2")
+        config.set("fake_int2", Config.ConfigObjectType, 'FakeIntegrationAdapter')
 
         # Requirement
-        config.add_section("fake_req")
-        config.set("fake_req", Config.ConfigObjectType, 'FakeRequirementAdapter')
+        config.add_section("fake_req1")
+        config.set("fake_req1", Config.ConfigObjectType, 'FakeRequirementAdapter')
+        config.add_section("fake_req2")
+        config.set("fake_req2", Config.ConfigObjectType, 'FakeRequirementAdapter')
 
         fact = ScaleCoreFactory()
 

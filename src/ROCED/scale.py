@@ -93,7 +93,7 @@ class ScaleMain(object):
             logging.getLogger().setLevel(logging.INFO)
 
         self.logger.info("Loading config " + str(config_file_name))
-        config = ConfigParser.ConfigParser()
+        config = ConfigParser.SafeConfigParser()
         config.readfp(open(config_file_name))
 
         if config.has_option(Config.GeneralSection, Config.GeneralLogFolder):
