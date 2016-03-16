@@ -25,28 +25,21 @@ all module objects and runs the SiteBroker to handle
 Cloud utilization.
 """
 
+import importlib
 import logging
-from threading import Timer
 import shutil
-from datetime import datetime
 import simplejson
+from datetime import datetime
+from threading import Timer
 
-from IntegrationAdapter.Integration import IntegrationBox
-# TODO: Dynamically load required adapters. Look at config for required list.
-from IntegrationAdapter.FakeIntegrationAdapter import FakeIntegrationAdapter
-from IntegrationAdapter.HTCondorIntegrationAdapter import HTCondorIntegrationAdapter
-from RequirementAdapter.Requirement import RequirementBox
-from RequirementAdapter.FakeRequirementAdapter import FakeRequirementAdapter
-from RequirementAdapter.HTCondorRequirementAdapter import HTCondorRequirementAdapter
-from SiteAdapter.Site import SiteBox  # , EucaSiteAdapter, Ec2SiteAdapter,
-from SiteAdapter.OpenStackSiteAdapter import OpenStackSiteAdapter
-from SiteAdapter.FreiburgSiteAdapter import FreiburgSiteAdapter
-from SiteAdapter.FakeSiteAdapter import FakeSiteAdapter
 import Broker
 import Config
 import MachineRegistry
-from Util.Logging import JsonLog
 from Adapter import NoDefaultSet
+from IntegrationAdapter.Integration import IntegrationBox
+from RequirementAdapter.Requirement import RequirementBox
+from SiteAdapter.Site import SiteBox
+from Util.Logging import JsonLog
 
 logger = logging.getLogger('Core')
 
@@ -380,17 +373,33 @@ class ScaleCore(object):
 
 
 class ObjectFactory(object):
-    """
-    Create one instance of the object
+    __packages = {Config.GeneralReqAdapters: 'RequirementAdapter',
+                  Config.GeneralIntAdapters: 'IntegrationAdapter',
+                  Config.GeneralSiteAdapters: 'SiteAdapter',
+                  None: None}
 
-    Imports added module names(!) to the global parameter list.
-    If we receive the module's name as string, we instantiate one of these objects.
-    """
-    @staticmethod
-    # TODO Dynamic import here
-    def getObject(classname):
-        obj = globals()[classname]
-        return obj()
+    @classmethod
+    def getObject(cls, className, adapterType=None):
+        """
+        Dynamically load module(s) and instantiate an object(s).
+
+        The config file contains all necessary information which adapters
+        are _really_ required for the current execution.
+        This method loads the module with the help of importlib and instantiates
+        a single object which is returned to the caller.
+
+        :param className:
+        :param adapterType:
+        :return:
+        """
+        importName = cls.__packages[adapterType].__str__() + "." + className.__str__()
+        module_ = importlib.import_module(name=importName)
+
+        try:
+            class_ = getattr(module_, className)()
+            return class_
+        except AttributeError:
+            logging.error('Class %s does not exist' % className)
 
 class ScaleCoreFactory(object):
     def getCore(self, configuration, maximumInterval=None):
@@ -437,21 +446,19 @@ class ScaleCoreFactory(object):
 
     def getAdapterList(self, adapter_type, configuration):
 
-        site_adapters = []
+        adapters = []
 
-        for sa in configuration.get(Config.GeneralSection, adapter_type).split():
-
-            site_type = configuration.get(sa, Config.ConfigObjectType)
-            obj = ObjectFactory.getObject(site_type)
-
+        for adapter in configuration.get(Config.GeneralSection, adapter_type).split():
+            site_type = configuration.get(adapter, Config.ConfigObjectType)
+            obj = ObjectFactory.getObject(className=site_type, adapterType=adapter_type)
             if obj is None:
-                raise Exception("Adapter type " + site_type + " not found")
+                raise Exception("Adapter type %s not found" % site_type)
 
-            # transfer compulsary config
-            obj.loadConfigValue(obj.getCompulsoryConfigKeys(), configuration, False, sa, obj)
+            # transfer compulsory config
+            obj.loadConfigValue(obj.getCompulsoryConfigKeys(), configuration, False, adapter, obj)
             # transfer optional config
-            obj.loadConfigValue(obj.getOptionalConfigKeys(), configuration, True, sa, obj)
+            obj.loadConfigValue(obj.getOptionalConfigKeys(), configuration, True, adapter, obj)
 
-            site_adapters += [obj]
+            adapters += [obj]
 
-        return site_adapters
+        return adapters

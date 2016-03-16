@@ -20,15 +20,13 @@
 # ===============================================================================
 
 
+import abc
+import copy
+import logging
+
+from Core import Config
 from Core import MachineRegistry
 from Core.Adapter import AdapterBase, AdapterBoxBase
-
-# from EucaUtil import EucaUtil
-# from EucaUtil import Ec2Util
-import logging
-import copy
-from Core import Config
-import abc
 
 
 class SiteInformation(object):
