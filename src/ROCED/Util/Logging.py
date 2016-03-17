@@ -183,6 +183,7 @@ class CsvStats(object):
     #   "new_status":"new status", "timestamp":"date.date.now()",
     #   "time_diff":"datetime.timediff()"},{},{},...]
     __fileName = ""
+    __fieldnames = ["site", "mid", "old_status", "new_status", "timestamp", "time_diff"]
 
     @classmethod
     def __init__(cls, dir_="log", prefix="stats", suffix=""):
@@ -196,6 +197,12 @@ class CsvStats(object):
             datetime.today().strftime('%Y-%m-%d')) + str(
             suffix) + ".csv"
 
+        # Existence check for log file
+        if not os.path.isfile(cls.__fileName):
+            with open(cls.__fileName, "wb") as stats_file:
+                writer = csv.DictWriter(stats_file, fieldnames=cls.__fieldnames)
+                writer.writeheader()
+
     @classmethod
     def add_item(cls, site, mid, old_status, new_status, timestamp, time_diff):
         cls.__csvStats.append(
@@ -204,16 +211,10 @@ class CsvStats(object):
 
     @classmethod
     def write_stats(cls):
-        fieldnames = ["site", "mid", "old_status", "new_status", "timestamp", "time_diff"]
-        if os.path.isfile(cls.__fileName):
-            with open(cls.__fileName, "a") as stats_file:
-                writer = csv.DictWriter(stats_file, fieldnames=fieldnames)
-        else:
-            with open(cls.__fileName, "wb") as stats_file:
-                writer = csv.DictWriter(stats_file, fieldnames=fieldnames)
-                writer.writeheader()
-        for stat in xrange(len(cls.__csvStats)):
-            writer.writerow(cls.__csvStats.pop())
+        with open(cls.__fileName, "a") as stats_file:
+            writer = csv.DictWriter(stats_file, fieldnames=cls.__fieldnames)
+            for stat in xrange(len(cls.__csvStats)):
+                writer.writerow(cls.__csvStats.pop())
 
     @classmethod
     def printLog(cls):
