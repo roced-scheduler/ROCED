@@ -1,6 +1,7 @@
 ### ROCED ###
 
 src/ROCED/log/
+src/ROCED/mconfig.cfg
 
 ### Operating system ###
 *~
