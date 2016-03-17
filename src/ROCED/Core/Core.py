@@ -375,8 +375,7 @@ class ScaleCore(object):
 class ObjectFactory(object):
     __packages = {Config.GeneralReqAdapters: 'RequirementAdapter',
                   Config.GeneralIntAdapters: 'IntegrationAdapter',
-                  Config.GeneralSiteAdapters: 'SiteAdapter',
-                  None: None}
+                  Config.GeneralSiteAdapters: 'SiteAdapter'}
 
     @classmethod
     def getObject(cls, className, adapterType=None):
@@ -449,8 +448,13 @@ class ScaleCoreFactory(object):
         adapters = []
 
         for adapter in configuration.get(Config.GeneralSection, adapter_type).split():
+            if adapter == "None":
+                break
             site_type = configuration.get(adapter, Config.ConfigObjectType)
-            obj = ObjectFactory.getObject(className=site_type, adapterType=adapter_type)
+            try:
+                obj = ObjectFactory.getObject(className=site_type, adapterType=adapter_type)
+            except ImportError:
+                obj = None
             if obj is None:
                 raise Exception("Adapter type %s not found" % site_type)
 
