@@ -26,9 +26,8 @@ import re
 from collections import defaultdict
 
 from Core import MachineRegistry, Config
-from Util import ScaleTools
-
 from Integration import IntegrationAdapterBase
+from Util import ScaleTools
 
 
 class HTCondorIntegrationAdapter(IntegrationAdapterBase):
@@ -63,20 +62,26 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         super(HTCondorIntegrationAdapter, self).__init__()
         self.mr = MachineRegistry.MachineRegistry()
-        self.addOptionalConfigKeys(self.configIntLogger, Config.ConfigTypeString, description="logger name",
+        self.addOptionalConfigKeys(self.configIntLogger, Config.ConfigTypeString,
+                                   description="logger name",
                                    default="HTC_Int")
         self.addCompulsoryConfigKeys(self.configCondorRequirement, Config.ConfigTypeString,
                                      description="requirement for condor")
-        self.addCompulsoryConfigKeys(self.configCondorUser, Config.ConfigTypeString, description="username")
-        self.addCompulsoryConfigKeys(self.configCondorKey, Config.ConfigTypeString, description="ssh key")
-        self.addCompulsoryConfigKeys(self.configCondorServer, Config.ConfigTypeString, description="server")
+        self.addCompulsoryConfigKeys(self.configCondorUser, Config.ConfigTypeString,
+                                     description="username")
+        self.addCompulsoryConfigKeys(self.configCondorKey, Config.ConfigTypeString,
+                                     description="ssh key")
+        self.addCompulsoryConfigKeys(self.configCondorServer, Config.ConfigTypeString,
+                                     description="server")
         self.addCompulsoryConfigKeys(self.configCondorName, Config.ConfigTypeString,
                                      description="site name")
         self.addOptionalConfigKeys(self.configCondorWaitPD, Config.ConfigTypeInt,
-                                   description="wait for x mintues before changing to disintegrating", default=0)
+                                   description="wait for x mintues before changing to disintegrating",
+                                   default=0)
         # self.addCompulsoryConfigKeys(self.configCondorIgnoreWaitPD, Config.ConfigTypeBoolean)
         self.addOptionalConfigKeys(self.configCondorWaitWorking, Config.ConfigTypeInt,
-                                   description="wait for x minutes befor changing to pending disintegration", default=0)
+                                   description="wait for x minutes befor changing to pending disintegration",
+                                   default=0)
         # self.addCompulsoryConfigKeys(self.configCondorIgnoreWaitWorking, Config.ConfigTypeBoolean)
         self.addCompulsoryConfigKeys(self.configCondorDeadline, Config.ConfigTypeInt,
                                      description="deadline for dying machines")
@@ -141,11 +146,12 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                 # check if machine is stuck on booting, up or integrating
                 if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting or \
                                 self.mr.machines[mid][self.mr.regStatus] == self.mr.statusUp or \
-                                self.mr.machines[mid][self.mr.regStatus] == self.mr.statusIntegrating:
+                                self.mr.machines[mid][
+                                    self.mr.regStatus] == self.mr.statusIntegrating:
                     # check the time since its last status update and compare it to deadline
                     if datetime.datetime.now() > (self.mr.machines[mid][self.mr.regStatusLastUpdate]
                                                       + datetime.timedelta(
-                                minutes=self.getConfig(self.configCondorDeadline))):
+                            minutes=self.getConfig(self.configCondorDeadline))):
                         # if the machine is stuck in this state for more than (deadline) minutes, run the shutdown cycle
                         self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
 
@@ -153,7 +159,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                     # TODO: this is kind of strange... Does this do anything different than the lines above?
                     if datetime.datetime.now() > (self.mr.machines[mid][self.mr.regStatusLastUpdate]
                                                       + datetime.timedelta(
-                                minutes=self.getConfig(self.configCondorDeadline))):
+                            minutes=self.getConfig(self.configCondorDeadline))):
                         self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
                 # check if machines integerating are completely started up
@@ -162,31 +168,38 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                     if self.mr.machines[mid][self.reg_site_server_condor_name] in condor_machines:
                         self.mr.updateMachineStatus(mid, self.mr.statusWorking)
                         # update condor slot status in machine registry
-                        self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[self.mr.machines[mid][self.reg_site_server_condor_name]]
+                        self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
+                            self.mr.machines[mid][self.reg_site_server_condor_name]]
 
                 # check if machines with status pending disintegration can be shut down
                 if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusPendingDisintegration:
                     # check if machine is still listed in condor machines
                     if self.reg_site_server_condor_name in self.mr.machines[mid]:
-                        if self.mr.machines[mid][self.reg_site_server_condor_name] in condor_machines:
+                        if self.mr.machines[mid][
+                            self.reg_site_server_condor_name] in condor_machines:
                             # update condor slot status in machine registy
-                            self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[self.mr.machines[mid][self.reg_site_server_condor_name]]
+                            self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
+                                self.mr.machines[mid][self.reg_site_server_condor_name]]
                             cores_claimed = 0.0
                             # loop over all slots and check wether they are claimed (busy) or unclaimed (idle)
-                            for core in xrange(len(self.mr.machines[mid][self.reg_site_condor_status])):
-                                if self.mr.machines[mid][self.reg_site_condor_status][core][0] == self.condorStatusClaimed:
+                            for core in xrange(
+                                    len(self.mr.machines[mid][self.reg_site_condor_status])):
+                                if self.mr.machines[mid][self.reg_site_condor_status][core][
+                                    0] == self.condorStatusClaimed:
                                     cores_claimed += 1
                             # machine load represents the percentage of claimed cores
                             self.mr.machines[mid][self.mr.regMachineLoad] = cores_claimed / len(
-                                    self.mr.machines[mid][self.reg_site_condor_status])
-                            self.mr.machines[mid][self.mr.regMachineLoad] = self.mr.machines[mid][self.mr.regMachineLoad]
+                                self.mr.machines[mid][self.reg_site_condor_status])
+                            self.mr.machines[mid][self.mr.regMachineLoad] = self.mr.machines[mid][
+                                self.mr.regMachineLoad]
                             # if the time passed since the last machine status update is higher than the time it should stay
                             # in thie state (it can sometimes happen, that condor needs quite some time to distribute jobs
                             # to unclaimed slots/cores
-                            if (datetime.datetime.now() > (self.mr.machines[mid][self.reg_status_last_update] + \
-                                                                   datetime.timedelta(
-                                                                           minutes=self.getConfig(
-                                                                                   self.configCondorWaitPD)))):
+                            if (datetime.datetime.now() > (
+                                self.mr.machines[mid][self.reg_status_last_update] + \
+                                    datetime.timedelta(
+                                        minutes=self.getConfig(
+                                            self.configCondorWaitPD)))):
                                 # if the machine load is higher than zero, it means at least one slot is claimed and
                                 # therefore the machine should be update to status working
                                 if self.mr.machines[mid][self.mr.regMachineLoad] > 0.1:
@@ -205,36 +218,44 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                             self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                                 self.mr.machines[mid][self.reg_site_server_condor_name]]
                         except KeyError:
-                            self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[mid]
+                            self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
+                                mid]
                         cores_claimed = 0.0
                         # go over all slots and check if they are claimed or unclaimed
                         for core in xrange(len(self.mr.machines[mid][self.reg_site_condor_status])):
-                            if self.mr.machines[mid][self.reg_site_condor_status][core][0] == self.condorStatusClaimed:
+                            if self.mr.machines[mid][self.reg_site_condor_status][core][
+                                0] == self.condorStatusClaimed:
                                 cores_claimed = cores_claimed + 1
                                 # set a timestamp on this event
-                                self.mr.machines[mid][self.reg_status_last_update] = datetime.datetime.now()
+                                self.mr.machines[mid][
+                                    self.reg_status_last_update] = datetime.datetime.now()
                         # update the machine load in machine registry with the newly calculated machine load
                         self.mr.machines[mid][self.mr.regMachineLoad] = cores_claimed / len(
-                                self.mr.machines[mid][self.reg_site_condor_status])
-                        self.mr.machines[mid][self.mr.regMachineLoad] = self.mr.machines[mid][self.mr.regMachineLoad]
+                            self.mr.machines[mid][self.reg_site_condor_status])
+                        self.mr.machines[mid][self.mr.regMachineLoad] = self.mr.machines[mid][
+                            self.mr.regMachineLoad]
                         self.mr.machines[mid][self.reg_site_condor_status] = self.mr.machines[mid][
                             self.reg_site_condor_status]
                         # if the time passed since the last machine status change (timestamp) is longer than the time it
                         # should wait in this status for new jobs and also the machine load is smaller than 0.1:
                         # change the machine state to pending disintegration
-                        if (datetime.datetime.now() > (self.mr.machines[mid][self.reg_status_last_update] + \
-                                                               datetime.timedelta(minutes=self.getConfig(
-                                                                       self.configCondorWaitWorking)))):
+                        if (datetime.datetime.now() > (
+                            self.mr.machines[mid][self.reg_status_last_update] + \
+                                datetime.timedelta(minutes=self.getConfig(
+                                    self.configCondorWaitWorking)))):
                             if self.mr.machines[mid][self.mr.regMachineLoad] <= 0.1:
-                                self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
-                                self.mr.machines[mid][self.reg_status_last_update] = datetime.datetime.now()
+                                self.mr.updateMachineStatus(mid,
+                                                            self.mr.statusPendingDisintegration)
+                                self.mr.machines[mid][
+                                    self.reg_status_last_update] = datetime.datetime.now()
                     else:
                         self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
 
                 # if a machine is in status disintegrating it is shutting down right now
                 # if it is not listed in condor it is done shutting down so the status is set to disintegrated
                 if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDisintegrating:
-                    if self.mr.machines[mid][self.reg_site_server_condor_name] not in condor_machines:
+                    if self.mr.machines[mid][
+                        self.reg_site_server_condor_name] not in condor_machines:
                         self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
         self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
@@ -288,7 +309,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         # get a list of the condor machines via ssh connection
         condor_result = condor_ssh.executeRemoteCommand(
-                "condor_status -constraint '" + condor_requirement + "' -autoformat: Machine State Activity")
+            "condor_status -constraint '" + condor_requirement + "' -autoformat: Machine State Activity")
         self.ssh_debug("EKP-manage", condor_result)
 
         # condor_result is invalid if there was a connection problem
@@ -298,7 +319,8 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             valid_condor_info = False
 
         # prepare list of condor machines
-        tmp_condor_machines = re.findall(ur'([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)', condor_result[1], re.MULTILINE)
+        tmp_condor_machines = re.findall(ur'([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)',
+                                         condor_result[1], re.MULTILINE)
 
         # transform list into dictionary with one list per slot {mid/OpenStackName : [[state, activity], [state, activity], ..]}
         condor_machines = defaultdict(list)

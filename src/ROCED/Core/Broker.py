@@ -22,6 +22,7 @@
 import abc
 import logging
 from datetime import datetime
+from operator import attrgetter
 
 
 class SiteBrokerBase(object):
@@ -107,20 +108,10 @@ class StupidBroker(SiteBrokerBase):
                 machinesToSpawn[mname] = delta
 
         # machinesToSpawn contains the wishlist of machines, distribute this to the cloud
-        # TODO Recheck "cost" implementation [cost per what?]
-        # Siteinfo has the following attributes:
-        # siteName
-        # baselineMachines
-        # maxMachines
-        # supportedMachineTypes
-        # cost
-        # isAvailable
-        # -> Sort by cost by using sorted(siteInfo, key=attrgetter('cost'), reverse=True)
-
         # spawn, cheap sites first...
-        cheapFirst = sorted(siteInfo, lambda x, y: x.cost - y.cost)
+        cheapFirst = sorted(siteInfo, key=attrgetter('cost'), reverse=False)
         # shutdown, expensive sites first...
-        expensiveFirst = sorted(siteInfo, lambda x, y: y.cost - x.cost)
+        expensiveFirst = sorted(siteInfo, key=attrgetter('cost'), reverse=True)
 
         siteOrders = dict()
 

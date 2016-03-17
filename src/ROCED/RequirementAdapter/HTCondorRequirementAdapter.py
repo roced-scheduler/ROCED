@@ -89,7 +89,8 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                     elif int(job[0]) == 2:  # 2: running
                         n_jobs_running += 1
             self.logger.debug(
-                "HTCondor queue (" + str(n_jobs_idle) + "+" + str(n_jobs_running) + ") [Status, Cpus]:\n" + str(
+                "HTCondor queue (" + str(n_jobs_idle) + "+" + str(
+                    n_jobs_running) + ") [Status, Cpus]:\n" + str(
                     condor_jobs))
 
             # this requires the machines variable to be listed twice in the config file
@@ -104,7 +105,8 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
             return self.curReq
         else:
-            self.logger.warning("Could not get HTCondor queue status! " + str(result[0]) + ": " + str(result[2]))
+            self.logger.warning(
+                "Could not get HTCondor queue status! " + str(result[0]) + ": " + str(result[2]))
             return None
 
     def setCurrentRequirement(self, c):
