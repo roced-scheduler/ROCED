@@ -86,7 +86,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         :return:
         """
-
         super(OpenStackSiteAdapter, self).__init__()
 
         # load Site Adapter name for ROCED output from config file
@@ -183,7 +182,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
     def getSiteInformation(self):
         """
-        Get inromations about running site
+        Get information about running site
         :return: site_info (SiteInformation class)
         """
 
@@ -208,7 +207,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         return self.mr.getMachines(self.getSiteName(), status, machineType)
 
     def getRunningMachines(self):
-        """Returns a dictionary containing all running machines
+        """
+        Returns a dictionary containing all running machines
 
         The number of running machines needs to be recalculated when using status integrating and pending
         disintegration. Machines pending disintegration are still running an can accept new jobs. Machines integrating
@@ -226,13 +226,13 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # filter for machines in status booting, up, integrating, working or pending disintegration
         for (k, v) in myMachines.iteritems():
-            if (v.get(self.mr.regStatus) == self.mr.statusBooting) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusUp) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusIntegrating) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusWorking) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusDisintegrating) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusDisintegrated):
+            if v.get(self.mr.regStatus) == self.mr.statusBooting or \
+                    v.get(self.mr.regStatus) == self.mr.statusUp or \
+                    v.get(self.mr.regStatus) == self.mr.statusIntegrating or \
+                    v.get(self.mr.regStatus) == self.mr.statusWorking or \
+                    v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration or \
+                    v.get(self.mr.regStatus) == self.mr.statusDisintegrating or \
+                    v.get(self.mr.regStatus) == self.mr.statusDisintegrated:
                 # will later hold specific information, like id, ip etc
                 machineList[v[self.mr.regMachineType]].append(k)
 
@@ -304,7 +304,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                             str(requested + len(self.getSiteMachines())) + ">" + str(
                                 int(self.getConfig(self.configMaxMachines) * self.getConfig(
                                     self.configMachinePercentage))) +
-                            ")! Will spawn " + str(int(
+                            ")! ")
+                        self.logger.info("Will spawn " + str(int(
                                 (self.getConfig(self.configMaxMachines) * self.getConfig(
                                     self.configMachinePercentage)) - len(
                                     self.getSiteMachines()))) +
@@ -319,7 +320,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.logger.info(
                     "Request exceeds maximum number of allowed machines per cycle on this site (" +
                     str(requested) + ">" + str(
-                        self.getConfig(self.configMaxMachinesPerCycle)) + ")! Will spawn " +
+                        self.getConfig(self.configMaxMachinesPerCycle)) + ")!")
+                self.logger.info("Will spawn " +
                     str(self.getConfig(self.configMaxMachinesPerCycle)) + " machines")
                 # set requested equals the number of machines per cycle
                 requested = self.getConfig(self.configMaxMachinesPerCycle)
@@ -441,8 +443,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                             to_terminate = mid
                         # prefer machines booting and not ones working
                         if self.mr.machines[mid][self.mr.regStatus] in [self.mr.statusUp,
-                                                                   self.mr.statusBooting,
-                                                                   self.mr.statusIntegrating]:
+                                                                        self.mr.statusBooting,
+                                                                        self.mr.statusIntegrating]:
                             to_terminate = mid
                             break
                         # if all machines are working, get the least one used
@@ -492,8 +494,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
             # status handled by Integration Adapter
             if self.mr.machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating,
-                                                       self.mr.statusWorking,
-                                                       self.mr.statusPendingDisintegration]:
+                                                            self.mr.statusWorking,
+                                                            self.mr.statusPendingDisintegration]:
                 del nova_machines[mid]
 
             # if status is down, machine is terminated at OpenStack, so remove it from machine registry

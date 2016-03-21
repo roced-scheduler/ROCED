@@ -242,7 +242,8 @@ class SiteAdapterBase(AdapterBase):
                     self.logger.info(
                         "Request exceeds maximum number of allowed machines on this site (" +
                         str(decision[machine_type] + n_running_machines) + ">" + str(max_machines) +
-                        ")! Will spawn " + str(
+                        ")! ")
+                    self.logger.info("Will spawn " + str(
                             max(0, max_machines - n_running_machines)) + " machines.")
                     decision[machine_type] = max_machines - n_running_machines
                     # is the new decision valid?
