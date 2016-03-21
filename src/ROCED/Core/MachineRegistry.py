@@ -25,7 +25,7 @@ import logging
 import uuid
 
 import Event
-from Util.Logging import JsonStats, CsvStats
+from Util.Logging import CsvStats
 
 
 class MachineEvent(Event.EventBase):
@@ -197,16 +197,15 @@ class MachineRegistry(Event.EventPublisher):
         )
 
         if (id in self.machines) and (len(self.machines[id][self.statusChangeHistory]) > 0):
-            csv_stats = CsvStats()
-            if str("site") not in self.machines[id].keys():
-                self.machines[id]["site"] = "site"
-            csv_stats.add_item(site=self.machines[id]["site"], mid=id,
-                               old_status=self.machines[id][self.statusChangeHistory][-1]["old_status"],
-                               new_status=self.machines[id][self.statusChangeHistory][-1]["new_status"],
-                               timestamp=self.machines[id][self.statusChangeHistory][-1]["timestamp"],
-                               time_diff=self.machines[id][self.statusChangeHistory][-1]["time_diff"])
-            csv_stats.write_stats()
-            del csv_stats
+            with CsvStats() as csv_stats:
+                if str("site") not in self.machines[id].keys():
+                    self.machines[id]["site"] = "site"
+                csv_stats.add_item(site=self.machines[id]["site"], mid=id,
+                                   old_status=self.machines[id][self.statusChangeHistory][-1]["old_status"],
+                                   new_status=self.machines[id][self.statusChangeHistory][-1]["new_status"],
+                                   timestamp=self.machines[id][self.statusChangeHistory][-1]["timestamp"],
+                                   time_diff=self.machines[id][self.statusChangeHistory][-1]["time_diff"])
+                csv_stats.write_stats()
 
         self.logger.info(
             "updating status of " + str(id) + ": " + str(oldStatus) + " -> " + newStatus)

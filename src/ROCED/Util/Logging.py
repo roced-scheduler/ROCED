@@ -204,6 +204,14 @@ class CsvStats(object):
                 writer.writeheader()
 
     @classmethod
+    def __enter__(cls):
+        return cls
+
+    @classmethod
+    def __exit__(cls, exc_type, exc_val, exc_tb):
+        pass
+
+    @classmethod
     def add_item(cls, site, mid, old_status, new_status, timestamp, time_diff):
         cls.__csvStats.append(
             {"site": site, "mid": mid, "old_status": old_status, "new_status": new_status,

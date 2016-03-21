@@ -29,7 +29,7 @@ from novaclient.v1_1.hypervisors import HypervisorManager
 
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase, SiteInformation
-from Util.Logging import JsonLog, JsonStats
+from Util.Logging import JsonLog
 
 
 class OpenStackSiteAdapter(SiteAdapterBase):
@@ -575,14 +575,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         :param mid: id of machine with changed status
         :return:
         """
-
-        if (mid.id in self.mr.machines) and (
-                    len(self.mr.machines[mid.id][self.reg_status_change_history]) > 0):
-            json_stats = JsonStats()
-            json_stats.add_item(self.mr.machines[mid.id][self.mr.regSite], mid.id,
-                                self.mr.machines[mid.id][self.reg_status_change_history][-1])
-            json_stats.write_stats()
-            del json_stats
 
         # check correct site etc...
         if isinstance(mid, MachineRegistry.StatusChangedEvent):
