@@ -74,6 +74,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
     oao_state = "state"
     oao_name = "name"
 
+    # keywords for server status in 1and1 API
     oao_state_deploying = "DEPLOYING"
     oao_state_powered_on = "POWERED_ON"
     oao_state_powered_off = "POWERED_OFF"
@@ -92,7 +93,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
         :return:
         """
-        SiteAdapterBase.__init__(self)
+        super(OneAndOneSiteAdapter, self).__init__()
 
         # load SiteAdapter name
         self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
@@ -144,6 +145,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):
+        super(OneAndOneSiteAdapter, self).init()
+
         # disable urllib3 logging
         urllib3_logger = logging.getLogger("requests")
         urllib3_logger.setLevel(logging.CRITICAL)
@@ -156,10 +159,12 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         :return: OneAndOneService()
         """
 
+        # Try initializing the 1and1 client ant return it
         try:
             client = OneAndOneService(self.getConfig(self.configApiToken))
+        # If initializing failed return nothing
         except Exception as e:
-            self.logger.warning("Could not establish connection to 1&1 Cloud Site")
+            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR:")
             self.logger.warning(str(e))
             return
 
@@ -171,21 +176,27 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         :return: client.list_servers()
         """
 
-        client = self.getOneAndOneClient()
+        # Try getting a list of all machines running on 1and1
         try:
+            client = self.getOneAndOneClient()
             tmp = client.list_servers()
+        # if it fails raise exception and return nothing
         except Exception as e:
-            self.logger.warning("Could not establish connection to 1&1. ERROR:")
+            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR:")
             self.logger.warning(str(e))
             return
 
+        # build a dictionary containing the machines
         servers = {}
         for server in tmp:
+            # set ID as keyword
             servers[server[self.oao_id]] = {}
             for key in server.keys():
+                # add all information to dict if it is not the ID
                 if key is not self.oao_id:
                     servers[server[self.oao_id]][key] = server[key]
 
+        # return the dictionary
         return servers
 
     def getIndex(self, servers, requested):
@@ -202,24 +213,31 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             number_found = re.findall(r"roced-([0-9]+)$", servers[server][self.oao_name])
             if len(number_found) > 0:
                 used_indices.append(int(number_found[0]))
+
+        # generate a list of unesed indices if there are used ones
         if len(used_indices) > 0:
             i = 0
             new_indices = []
             while requested > 0:
+                # if index is already used move on with the next index
                 if i in used_indices:
                     i += 1
+                # else add index to new indices and move on with the next index
                 else:
                     new_indices.append(i)
                     used_indices.append(i)
                     requested -= 1
-
+                    i += 1
+        # otherwise generate a list [0..(requested-1)]
         else:
             new_indices = range(requested)
 
+        # return the unused indices
         return new_indices
 
     def getRunningMachines(self):
-        """Returns a dictionary containing all running machines
+        """
+        Returns a dictionary containing all running machines
 
         The number of running machines needs to be recalculated when using status integrating and pending
         disintegration. Machines pending disintegration are still running an can accept new jobs. Machines integrating
@@ -228,21 +246,21 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         :return: machineList
         """
 
+        # get all machines running on site
         myMachines = self.getSiteMachines()
         machineList = dict()
 
+        # generate empty list for machines running on 1and1
         machineList[self.getConfig(self.configMachines).keys()[0]] = []
-        # for i in self.getConfig(self.configMachines).keys():
-        #    machineList[i] = []
 
         # filter for machines in status booting, up, integrating, working or pending disintegration
         for (k, v) in myMachines.iteritems():
-            if (v.get(self.mr.regStatus) == self.mr.statusBooting) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusUp) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusIntegrating) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusWorking) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration):
-                # will later hold specific information, like id, ip etc
+            if v.get(self.mr.regStatus) == self.mr.statusBooting or \
+                    v.get(self.mr.regStatus) == self.mr.statusUp or \
+                    v.get(self.mr.regStatus) == self.mr.statusIntegrating or \
+                    v.get(self.mr.regStatus) == self.mr.statusWorking or \
+                    v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration:
+                # add machine to previously defined list
                 machineList[v[self.mr.regMachineType]].append(k)
 
         return machineList
@@ -255,15 +273,21 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         :return: count
         """
 
+        # check if machine type is requested machine type
         if not machineType == self.getConfig(self.configMachines).keys()[0]:
             return 0
 
+        # get 1and1 client and machine list
         client = self.getOneAndOneClient()
         servers = self.getOneAndOneMachines()
 
+        # find all unused indices to spawn machines
         index = self.getIndex(servers, requested)
+        # loop over all requested machines
         for count in xrange(requested):
+            # set machine name
             vm_name = "roced-" + "{0:0>3}".format(index.pop(0))  # str(index.pop(0))
+            # create machine with all required information
             server = Server(name=vm_name,
                             appliance_id=self.getConfig(self.configAppliance),
                             vcore=self.getConfig(self.configVcores),
@@ -272,11 +296,14 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                             firewall_policy_id=self.getConfig(self.configFirewallPolicy),
                             monitoring_policy_id=self.getConfig(self.configMonitoringPolicy))
 
+            # create HDD with requested size
             hdd = Hdd(size=self.getConfig(self.configHddSize), is_main=True)
             hdds = [hdd]
 
+            # try booting up the machine
             try:
                 vm = client.create_server(server=server, hdds=hdds)
+            # if it failes raise exception and continue with next machine
             except Exception as e:
                 self.logger.warning("Could not start server on OneAndOne Cloud Service")
                 self.logger.warning(str(e))
@@ -293,32 +320,45 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.reg_site_server_id] = vm[self.oao_id]
             self.mr.machines[mid][self.reg_site_server_status] = vm[self.oao_status][self.oao_state]
 
+            # update machine status
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
         # all machines booted
-        # return count
+        # return
         return
 
     def modifyMachineStatus(self, mid, action, method=oao_method_software):
+        """
+        This function modifies the machine status on 1and1 Cloud site.
 
+        :param mid:
+        :param action: shut down or delete
+        :param method: hardware method or software method
+        :return:
+        """
+
+        # get 1and1 client
         client = self.getOneAndOneClient()
 
+        # check if machine status is on or off, if so shut down the machine
         if action in [self.oao_state_power_on, self.oao_state_power_off]:
             client.modify_server_status(server_id=self.mr.machines[mid][self.reg_site_server_id], action=action,
                                         method=method)
-            print "shut me down!!!"
+        # check if machine should be deleted
         if action == self.oao_delete:
+            # if so, try to delete the machine on 1and1 Cloud Site
             try:
                 client.delete_server(server_id=self.mr.machines[mid][self.reg_site_server_id])
+            # else raise exception
+            # this could happen, if machine is arleady deleted
             except Exception as e:
                 self.logger.info(
                     "Machine " + str(self.mr.machines[mid][self.reg_site_server_name]) + " already deleted")
                 # self.logger.warning("Could not establish connection to 1&1 Cloud Site")
                 self.logger.warning(str(e))
 
-        # sh** happens with oneandone...
-        time.sleep(2)
-
+        # wait 1 second with the next action due to 1and1's firewall policies (1 request/second)
+        time.sleep(1)
         return
 
     def terminateMachines(self, machineType, count):
@@ -361,28 +401,37 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         oao_machines = self.getOneAndOneMachines()
 
         # if something fails while receiving response from 1and1 a type none will be returned
-        if (oao_machines == None):  # or (len(oao_machines) == 0):
+        if oao_machines is None:  # or (len(oao_machines) == 0):
             return
 
+        # loop over all machines on 1and1 Cloud Site and already in machine registry
         for mid in self.mr.getMachines(self.getSiteName()):
+            # TODO: is this needed?
             # check if machine is already deleted on site
-            if (self.mr.machines[mid][self.reg_site_server_id] not in oao_machines):
-                if self.mr.machines[mid][self.mr.regStatus] is not self.mr.statusDown:
+            if not self.mr.machines[mid][self.reg_site_server_id] in oao_machines:
+                if self.mr.machines[mid][self.mr.regStatus] != self.mr.statusDown:
+                    # if so remove machine from machine registry
                     self.mr.removeMachine(mid)
                     continue
 
             # down -> removed from machine registry
+            # if machine status in machine registry is down
             if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDown:
-                if self.mr.machines[mid][self.reg_site_server_id] not in oao_machines:
+                # if machine is not in 1and1 Cloud Site list
+                if not self.mr.machines[mid][self.reg_site_server_id] in oao_machines:
+                    # remove machine from machine registry
                     self.mr.removeMachine(mid)
                     continue
+                # else check if machine is still in 1and1 Cloud Site list
+                # TODO: could be handled by else condition?
                 elif self.mr.machines[mid][self.reg_site_server_id] in oao_machines:
+                    # delete machine on 1and1 Cloud Site
                     self.modifyMachineStatus(mid, self.oao_delete)
                     del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
 
             # check if condor name is set
-            if self.reg_site_server_condor_name not in self.mr.machines[mid]:
-                # if not check if ip is available
+            if not self.reg_site_server_condor_name in self.mr.machines[mid]:
+                # if not check if ip is already available
                 if (oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"] is not None) and (
                             oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"] is not None):
                     # if so, set ip as condor name, remove "." from ip
@@ -395,23 +444,36 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                 del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
 
             # booting -> up
+            # check if machine status is booting
             if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting:
+                # check if machine status on 1and1 Cloud Site is already powered on
                 if oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status][
                     self.oao_state] == self.oao_state_powered_on:
+                    # if so, update machine registry status to up
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
+                    # and write 1and1 Cloud Site status to machine registry
+                    # TODO: is this needed by any other function?
                     self.mr.machines[mid][self.reg_site_server_status] = \
                         oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status]
                 # remove from 1and1 machine list
                 del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
 
+            # disintegrating
+            # check if machine is in status disintegrating
             if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDisintegrating:
+                # if so, power off machine
+                # machine gets moved to disintegrated when it dissappears from condor list
+                # -> handled by IntegrationAdapter
                 self.modifyMachineStatus(mid, self.oao_state_power_off)
                 del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
 
             # disintegrated -> down
+            # check if machine is disintegrated
             if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDisintegrated:
+                # if so, check if machine is already powered off on 1and1 Cloud Site
                 if oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status][
                     self.oao_state] == self.oao_state_powered_off:
+                    # if so, update machine status to down
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
                 del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
 
