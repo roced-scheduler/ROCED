@@ -69,6 +69,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
     # name, id and status of VMs at OpenStack
     reg_site_server_name = "reg_site_server_name"
+    reg_site_server_condor_name = "reg_site_server_condor_name"
     reg_site_server_id = "reg_site_server_id"
     reg_site_server_status = "reg_site_server_status"
     reg_site_server_hypervisor = "reg_site_server_hypervisor"
@@ -343,6 +344,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
                 self.mr.machines[mid][self.reg_site_server_id] = vm.id
                 self.mr.machines[mid][self.reg_site_server_status] = vm.status
+                self.mr.machines[mid][self.reg_site_server_condor_name] = mid
+                self.mr.machines[mid][self.reg_site_server_name] = mid
                 # if admin account is set, also set the hypervisor
                 if self.getConfig(self.configUseTime):
                     # time.sleep(1)
@@ -484,6 +487,10 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.removeMachine(mid)
                 continue
 
+            # check if condor name is set
+            if not self.reg_site_server_condor_name in self.mr.machines[mid]:
+                self.mr.machines[self.reg_site_server_condor_name] = mid
+
             # if machine is in error state, move it to disintegrating
             if nova_machines[mid][self.reg_site_server_status] in [
                 self.reg_site_server_status_error,
@@ -540,6 +547,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                     self.reg_site_server_id]
                 self.mr.machines[new][self.reg_site_server_status] = nova_machines[mid][
                     self.reg_site_server_status]
+                self.mr.machines[new][self.reg_site_server_name] = mid
+                self.mr.machines[new][self.reg_site_server_condor_name] = mid
                 # self.mr.machines[new][self.mr.regMachineCores] = self.getConfig(self.configMachineType)["vm-default"][
                 #    "cores"]
 

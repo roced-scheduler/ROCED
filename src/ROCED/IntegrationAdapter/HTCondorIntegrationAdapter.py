@@ -214,12 +214,8 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                 # if so the machine is unclaimed and the machine can be set to pending disintegration
                 if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusWorking:
                     if mid in condor_machines:
-                        try:
-                            self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
-                                self.mr.machines[mid][self.reg_site_server_condor_name]]
-                        except KeyError:
-                            self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
-                                mid]
+                        self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
+                            self.mr.machines[mid][self.reg_site_server_condor_name]]
                         cores_claimed = 0.0
                         # go over all slots and check if they are claimed or unclaimed
                         for core in xrange(len(self.mr.machines[mid][self.reg_site_condor_status])):
