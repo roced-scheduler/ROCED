@@ -32,6 +32,7 @@ import sys
 import argparse
 import ConfigParser
 import datetime
+import os
 
 from Core.Core import ScaleCoreFactory
 
@@ -98,6 +99,12 @@ class ScaleMain(object):
 
         if config.has_option(Config.GeneralSection, Config.GeneralLogFolder):
             log_folder = config.get(Config.GeneralSection, Config.GeneralLogFolder)
+            # Existence check for log folder [log file creation requires existing folder]
+            if os.path.isdir(log_folder.__str__()) is False:
+                try:
+                    os.makedirs(log_folder.__str__() + "/")
+                except OSError:
+                    logging.error("Error while creating /log/ folder")
             fname = log_folder + "/roced-" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")) + ".log"
             self.logger.info("Writing to log file " + fname)
             # create file logging handler with format settings
