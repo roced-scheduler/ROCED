@@ -1,6 +1,7 @@
 # ===============================================================================
 #
-# Copyright (c) 2010, 2011, 2015 by Georg Fleig, Thomas Hauth and Stephan Riedel
+# Copyright (c) 2010, 2011, 2015, 2016 by Georg Fleig, Frank Fischer,
+# Thomas Hauth and Stephan Riedel
 #
 # This file is part of ROCED.
 #
@@ -199,27 +200,20 @@ class SiteAdapterBase(AdapterBase):
         """
         pass
 
+    ###
+    # The following functions shouldn't be required to be overwritten
+    ###
     def getSiteMachines(self, status=None, machineType=None):
+        # type: (str, str) -> Dict
         """
-        Return dictionary with machines running on this site.
+        Return dictionary with machines running on this site (Machine registry).
 
-        :param status: optional filter on status
-        :param machineType: optional filter on machine type
-        :return {}:
+        :param status: (optional) filter on machine status
+        :param machineType: (optional) filter on machine type
+        :return {machine_id: {a:b,c:d,e:f}, machine_id: {a:b,c:d,e:f}, ...}:
         """
         mr = MachineRegistry.MachineRegistry()
         return mr.getMachines(self.getSiteName(), status, machineType)
-
-    def getRunningMachinesCount(self):
-        running_machines = self.getRunningMachines()
-        running_machines_count = dict()
-        for machine_type in running_machines:
-            running_machines_count[machine_type] = len(running_machines[machine_type])
-        return running_machines_count
-
-    ###
-    # All overrides done, the following functions will work and don't need to be overwritten """
-    ###
 
     def applyMachineDecision(self, decision):
 
@@ -227,7 +221,7 @@ class SiteAdapterBase(AdapterBase):
         running_machines_count = self.getRunningMachinesCount()
         max_machines = self.getConfig(self.ConfigMaxMachines)
 
-        for (machine_type, n_machines) in decision.iteritems():
+        for (machine_type, n_machines) in decision.items():
             # calc relative value when there are already machines running
             n_running_machines = 0
             if machine_type in running_machines_count:
@@ -236,8 +230,9 @@ class SiteAdapterBase(AdapterBase):
 
             # spawn
             if decision[machine_type] > 0:
-                # respect site limit for max machines for spawning but don't remove machines when above limit
-                # this limit is currently implemented per machine type, not per site!
+                # TODO: Implement max_machines per site, not per machine type!!!
+                # respect site limit for max machines for spawning but don't remove machines when
+                # above limit this limit is currently implemented per machine type, not per site!
                 if max_machines and (decision[machine_type] + n_running_machines) > max_machines:
                     self.logger.info(
                         "Request exceeds maximum number of allowed machines on this site (" +
@@ -256,40 +251,75 @@ class SiteAdapterBase(AdapterBase):
             elif decision[machine_type] < 0:
                 self.terminateMachines(machine_type, abs(decision[machine_type]))
 
-    # returns all machine which occupy computing resources on the cloud
-    def getSiteMachinesAsDict(self):
+    def getSiteMachinesAsDict(self, statusFilter=None):
+        # type: (List) -> Dict
+        """Retrieve machines running at a site. Optionally can filter on a status list.
+
+        :return dictionary {machine_type: [machine ID, machine ID, ...], ...} :
+        """
+        if statusFilter is None:
+            statusFilter = []
+
         myMachines = self.getSiteMachines()
         machineList = dict()
 
         for i in self.getConfig(self.ConfigMachines):
             machineList[i] = []
 
-        for (k, v) in myMachines.iteritems():
-            machineList[v[self.mr.regMachineType]].append(k)
+        for mid, machine in myMachines.items():
+            if statusFilter:  # empty list returns false in this statement
+                if machine.get(MachineRegistry.MachineRegistry.regStatus) in statusFilter:
+                    machineList[machine[MachineRegistry.MachineRegistry.regMachineType]].append(mid)
+            else:
+                machineList[machine[MachineRegistry.MachineRegistry.regMachineType]].append(mid)
 
         return machineList
 
-    # returns all machine which occupy computing resources on the cloud
+    def getRunningMachines(self):
+        """Returns a dictionary of machines running at a specific site.
+
+        :return dictionary {machine_type: [machine ID, machine ID, ...], ...} :
+        """
+        statusFilter = [MachineRegistry.MachineRegistry.statusBooting,
+                        MachineRegistry.MachineRegistry.statusUp,
+                        MachineRegistry.MachineRegistry.statusIntegrating,
+                        MachineRegistry.MachineRegistry.statusWorking,
+                        MachineRegistry.MachineRegistry.statusPendingDisintegration]
+        return self.getSiteMachinesAsDict(statusFilter)
+
+    def getRunningMachinesCount(self):
+        """Return dictionary with number of machines running at a site.
+
+        :return {machine_type: integer, ...}:
+        """
+        running_machines = self.getRunningMachines()
+        running_machines_count = dict()
+        for machine_type, midList in running_machines.item():
+            running_machines_count[machine_type] = len(midList)
+        return running_machines_count
+
     def getCloudOccupyingMachines(self):
-        myMachines = self.getSiteMachines()
-        machineList = dict()
+        """Return all machines which occupy computing resources on the cloud.
 
-        for i in self.getConfig(self.ConfigMachines):
-            machineList[i] = []
+        Same behaviour as getRunningMachines, just with other status filtering.
 
-        for (k, v) in myMachines.iteritems():
-            if not v.get(self.mr.regStatus) == self.mr.statusDown:
-                # will later hold specific information, like id, ip etc
-                try:
-                    machineList[v[self.mr.regMachineType]].append(k)
-                except KeyError:
-                    pass
-
-        return machineList
+        :return dictionary {machine_type: [machine ID, machine ID, ...], ...} :
+        """
+        statusFilter = [MachineRegistry.MachineRegistry.statusBooting,
+                        MachineRegistry.MachineRegistry.statusUp,
+                        MachineRegistry.MachineRegistry.statusIntegrating,
+                        MachineRegistry.MachineRegistry.statusWorking,
+                        MachineRegistry.MachineRegistry.statusPendingDisintegration,
+                        MachineRegistry.MachineRegistry.statusDisintegrating,
+                        MachineRegistry.MachineRegistry.statusDisintegrated]
+        return self.getSiteMachinesAsDict(statusFilter)
 
     def getCloudOccupyingMachinesCount(self):
-        return reduce(lambda v, (k, inp): v + len(inp),
-                      self.getCloudOccupyingMachines().iteritems(), 0)
+        """Return total number of machines occupying computing resources on a site."""
+        sum_ = 0
+        for machineType, midList in self.getCloudOccupyingMachines().items():
+            sum_ += len(midList)
+        return sum_
 
     def isMachineTypeSupported(self, machineType):
         return machineType in self.getConfig(self.ConfigMachines)
@@ -309,27 +339,6 @@ class SiteAdapterBase(AdapterBase):
         sinfo.isAvailable = self.getConfig(self.ConfigIsAvailable)
 
         return sinfo
-
-    def getRunningMachines(self):
-        """ Return machines running at a specific site
-
-        :return dictionary {machine: status} :
-        """
-
-        myMachines = self.getSiteMachines()
-        machineList = dict()
-
-        for i in self.getConfig(self.ConfigMachines):
-            machineList[i] = []
-
-        for (k, v) in myMachines.iteritems():
-            if (v.get(self.mr.regStatus) == self.mr.statusBooting) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusUp) or \
-                    (v.get(self.mr.regStatus) == self.mr.statusWorking):
-                # will later hold specific information, like id, ip etc
-                machineList[v[self.mr.regMachineType]].append(k)
-
-        return machineList
 
     def getSiteName(self):
         return self.getConfig(self.ConfigSiteName)
@@ -384,18 +393,3 @@ class SiteBox(AdapterBoxBase):
             all_[s.getSiteName()] = s.getSiteInformation()
 
         return all_
-
-# def getMachineCount(self, machineType):
-#     return reduce(lambda x, y: x + y.getMachineCount("machineType"),
-#                   self.adapterList, 0)
-#
-#
-# def spawnMachines(self, machineType, count):
-#     supported = filter(lambda x: x.isMachineTypeSupported(machineType), self.adapterList)
-#
-#     if len(supported) == 0:
-#         logging.error("MachineType " + machineType + " not supported by any Spawn adapter")
-#         return 0
-#
-#     # take cost and free slots into consideration
-#     return supported[0].spawnMachines(machineType, count)

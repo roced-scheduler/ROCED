@@ -1,6 +1,6 @@
 # ==============================================================================
 #
-# Copyright (c) 2015 by Georg Fleig
+# Copyright (c) 2015, 2016 by Georg Fleig, Frank Fischer
 #
 # This file is part of ROCED.
 #
@@ -19,76 +19,67 @@
 #
 # ==============================================================================
 
-
-import datetime
 import logging
-import math
 import re
-from collections import defaultdict
 
 from Core import MachineRegistry, Config
+from IntegrationAdapter.HTCondorIntegrationAdapter import HTCondorIntegrationAdapter as HTCondor
 from SiteAdapter.Site import SiteAdapterBase
 from Util import ScaleTools
 from Util.Logging import JsonLog
 
 
 class FreiburgSiteAdapter(SiteAdapterBase):
-    """
-    Site Adapter for Freiburg bwForCluster ENM OpenStack setup.
-    """
+    """Site Adapter for Freiburg bwForCluster ENM OpenStack setup."""
 
-    # TODO: possible improvements:
-    # - use new HTCondor integration adapter for status changes (minimize manage function)
-    # - possibly use machine load calculation from HTCondor integration adapter
-
+    configSiteLogger = "logger_name"
     configFreiburgUser = "freiburg_user"
+    configFreiburgUserGroup = "freiburg_user_group"
     configFreiburgKey = "freiburg_key"
     configFreiburgServer = "freiburg_server"
     configMaxMachinesPerCycle = "max_machines_per_cycle"
     configIgnoreDrainingMachines = "ignore_draining_machines"
     configDrainWorkingMachines = "drain_working_machines"
-    configCondorUser = "condor_user"
-    configCondorKey = "condor_key"
-    configCondorServer = "condor_server"
 
+    reg_site_server_condor_name = HTCondor.reg_site_server_condor_name
     regMachineJobId = "batch_job_id"
-    regMachineCondorSlotStatus = "condor_slot_status"
+
+    __condorNamePrefix = "moab-vm-"
+    __vmStartScript = "startVM.py"
 
     def __init__(self):
         super(FreiburgSiteAdapter, self).__init__()
 
+        self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
+                                   description="Logger name of Site Adapter", default="FRSite")
         self.addCompulsoryConfigKeys(self.configFreiburgUser, Config.ConfigTypeString,
                                      "User name for bwForCluster")
+        self.addOptionalConfigKeys(self.configFreiburgUserGroup, Config.ConfigTypeString,
+                                   description="User group for bwForCluster. Used when querying "
+                                               "for running/completed jobs.", default=None)
         self.addCompulsoryConfigKeys(self.configFreiburgKey, Config.ConfigTypeString,
-                                     "Password for bwForCluster")
-        self.addCompulsoryConfigKeys(self.configFreiburgServer, Config.ConfigTypeString,
                                      "SSH Key for bwForCluster")
+        self.addCompulsoryConfigKeys(self.configFreiburgServer, Config.ConfigTypeString,
+                                     "SSH Server for bwForCluster")
         self.addCompulsoryConfigKeys(self.configMaxMachinesPerCycle, Config.ConfigTypeInt,
                                      "Maximum number of machines to boot in a management cycle")
-        self.addCompulsoryConfigKeys(self.configIgnoreDrainingMachines, Config.ConfigTypeBoolean,
-                                     ("Draining (pending-disintegration) machines are counted as "
-                                      "working machines (True) or are only partially counted, "
-                                      "depending on their slot occupation (False)"))
-        self.addCompulsoryConfigKeys(self.configDrainWorkingMachines, Config.ConfigTypeBoolean,
-                                     ("In case a working machine should get terminated, set it to "
-                                      "drain mode (True) or do nothing (False)"))
-        self.addCompulsoryConfigKeys(self.configCondorUser, Config.ConfigTypeString,
-                                     "User name for HTCondor host")
-        self.addCompulsoryConfigKeys(self.configCondorKey, Config.ConfigTypeString,
-                                     "SSH Key for HTCondor host")
-        self.addCompulsoryConfigKeys(self.configCondorServer, Config.ConfigTypeString,
-                                     "Password for HTCondor host")
-
-        self.logger = logging.getLogger("FRSite")
+        self.addOptionalConfigKeys(self.configIgnoreDrainingMachines, Config.ConfigTypeBoolean,
+                                   description="Draining (pending-disintegration) machines are "
+                                               "counted as working machines (True) or are only "
+                                               "partially counted, depending on their slot "
+                                               "occupation (False)", default=False),
+        self.addOptionalConfigKeys(self.configDrainWorkingMachines, Config.ConfigTypeBoolean,
+                                   description="Should ROCED set working machines to drain mode, "
+                                               "if it has to terminate machines?", default=False)
 
         self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):
         self.mr.registerListener(self)
+        self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
 
     def spawnMachines(self, machineType, count):
-        """
-        Request machines in Freiburg via batch job containing startVM script.
+        """Request machines in Freiburg via batch job containing startVM script.
 
         Batch job configuration is done via config file.
         All OpenStack parameters (user login, image name, ..) are set in startVM script.
@@ -108,73 +99,64 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
-            result = self.__execCmdInFreiburg(
-                "msub -l walltime=" + str(machineSettings["walltime"]) + ",mem=" + str(
-                    machineSettings["memory"]) +
-                ",nodes=1:ppn=" + str(machineSettings["cores"]) + " startVM_0.2.py")
-            # ScaleTools.sshDebugOutput(self.logger, "FR-spawn", result)
+            result = self.__execCmdInFreiburg("msub -l walltime=" + str(
+                machineSettings["walltime"]) + ",mem=" + str(machineSettings["memory"]) +
+                                              ",nodes=1:ppn=" + str(
+                machineSettings["cores"]) + " " +
+                                              self.__vmStartScript.__str__())
 
+            # std_out = batch job id
             if result[0] == 0 and result[1].strip().isdigit():
                 mid = self.mr.newMachine()
                 self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
                 self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
-                self.mr.machines[mid][self.regMachineJobId] = result[
-                    1].strip()  # get batch job id from SSH result
+                # TODO Test: is moab-vm* required here?
+                self.mr.machines[mid][self.regMachineJobId] = result[1].strip()
+                self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
+                    result[1].strip())
                 self.mr.updateMachineStatus(mid, self.mr.statusBooting)
-                # TODO: remove if there is no need to be aware of number of slots of machines
+                # TODO: Remove "cores". Slots of a machine = cores
                 self.mr.machines[mid][self.mr.regMachineCores] = machineSettings["cores"]
             else:
                 self.logger.warning(
-                    "A (connection) problem occurred while requesting a new VM via msub in Freiburg, stop requesting new machines for now." +
-                    " (" + str(result[0]) + "): stdout: " + str(result[1]) + ", stderr:" + str(
-                        result[2]))
+                    "A (connection) problem occurred while requesting a new VM via msub in "
+                    "Freiburg. Stopping requesting new machines for now." + " (" + str(result[0]) +
+                    "): stdout: " + str(result[1]) + ", stderr:" + str(result[2]))
                 break
 
-    def __rateWorkingMachines(self, machine):
-        """
-        Calculate score based on the utilization of a machine.
-
-        This is used to select suitable machines for termination (drain mode).
-        The more slots on a machine are in use, the less likely it is to get drained.
-
-        :param machine:
-        :return: -1 (idle) and 0 (fully loaded)
-        """
-        nSlotsFree = 0
-        nSlotsTotal = 0
-        if self.regMachineCondorSlotStatus in machine.keys():
-            for state, activity in machine[self.regMachineCondorSlotStatus]:
-                nSlotsTotal += 1
-                if state == "Unclaimed":
-                    nSlotsFree += 1
-        return 0 if nSlotsTotal == 0 else -nSlotsFree / float(nSlotsTotal)
-
     def terminateMachines(self, machineType, count):
-        """
-        Terminate (booting) machines in Freiburg. Working machines untouched by default, but they
-        could get put into drain mode.
+        """Terminate (booting) machines in Freiburg.
+
+        Working machines are untouched by default, but they may get put into drain mode if
+        the configuration is set accordingly.
 
         :param machineType:
         :param count:
         :return:
         """
+        ###
         # get a list of tuples of suitable machines that can be terminated
-        # first select booting machines and sort them by request time (new machines first)
+        ###
+        # booting machines, sorted by request time (newest first)
         bootingMachines = self.getSiteMachines(self.mr.statusBooting, machineType)
         bootingMachines = sorted(bootingMachines.items(),
                                  key=lambda v: (v[1][self.mr.regStatusLastUpdate]),
                                  reverse=True)
-        if self.getConfig(self.configDrainWorkingMachines):
-            # then get working machines and sort them by load (idle machines first) if requested
+
+        # Also drain working machines? -> merge both lists
+        if self.getConfig(self.configDrainWorkingMachines) is True:
+            # get working machines, sorted by load (idle first)
+            # This is used to select suitable machines for termination (drain mode).
+            # The more slots on a machine are in use, the less likely it is to get drained.
             workingMachines = self.getSiteMachines(self.mr.statusWorking, machineType)
             workingMachines = sorted(workingMachines.items(),
-                                     key=lambda v: self.__rateWorkingMachines(v[1]))
-            # merge both lists of tuples
+                                     key=lambda machine_: HTCondor.calcMachineLoad(machine_[1]),
+                                     reverse=True)
             machinesToRemove = bootingMachines + workingMachines
         else:
             machinesToRemove = bootingMachines
-        # only pick the needed amount of machines
+        # get needed amount of machines
         machinesToRemove = machinesToRemove[0:count]
 
         # prepare list of machine ids to terminate/drain
@@ -189,8 +171,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             elif self.getConfig(self.configDrainWorkingMachines):
                 # working machines should be set to drain mode
                 idsToDrain.append(machine[1][self.regMachineJobId])
-        self.logger.debug("Machines to terminate (" + str(len(idsToTerminate)) + "): " + ", ".join(
-            idsToTerminate))
+        self.logger.debug("Machines to terminate (" + str(len(idsToTerminate)) + "): " +
+                          ", ".join(idsToTerminate))
         self.logger.debug(
             "Machines to drain (" + str(len(idsToDrain)) + "): " + ", ".join(idsToDrain))
 
@@ -198,177 +180,105 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             idsRemoved, idsInvalidated = self.__cancelFreiburgMachines(idsToTerminate)
 
         if idsToDrain:
-            # TODO: connect to HTCondor collector and send drain command to nodes, most likely not needed.
+            # TODO: Connect to HTCondor collector and send drain command to nodes; not needed now.
             self.logger.warning("Send draining command to VM not yet implemented")
-            pass
 
         if len(idsRemoved + idsInvalidated) > 0:
             mr = self.getSiteMachines()
 
-            # loop over machine registry and set status of terminated (cancelled and invalid) machines to shutdown
+            # set status of terminated (cancelled and invalid) machines to shutdown
             for mid in mr:
                 if mr[mid][self.regMachineJobId] in idsRemoved + idsInvalidated:
-                    self.mr.updateMachineStatus(mid, self.mr.statusShutdown)
-
-    def getSiteMachines(self, status=None, machineType=None):
-        """
-        Get machines running at Freiburg site
-
-        :param status:
-        :param machineType:
-        :return: machine_registry
-        """
-        return self.mr.getMachines(self.getSiteName(), status, machineType)
+                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
 
     def getRunningMachinesCount(self):
-        """
-        Recalculate number of machines running in Freiburg (optional).
+        """Return dictionary with number of machines running at Freiburg. Depending on config file
+        this may account for draining slots (claimed|retiring = working vs. claimed|idle = offline).
 
-        The number of running machines needs to be recalculated when taking draining slots into account.
-        Remove idle draining slots from running machines and recalculate the actual number of running machines.
-        Claimed but retiring slots are still being counted as working slots and thus contributing to the number of
-        running machines.
+        The number of running machines needs to be recalculated when accounting for draining slots.
+        Claimed but retiring slots are still being counted as working slots and thus contributing
+        to the number of running machines -> remove idle draining slots from running machines
+        and recalculate the actual number of running machines.
 
-        :return: runningMachinesCount
+        :return {machine_type: integer, ...}:
         """
         # fall back to base method if required
         if self.getConfig(self.configIgnoreDrainingMachines) is True:
-            super(FreiburgSiteAdapter, self).getRunningMachinesCount()
+            return super(FreiburgSiteAdapter, self).getRunningMachinesCount()
         else:
-            # get all site machines
-            mr = self.getSiteMachines()
-            runningMachines = dict()
-
-            # create dict containing running machines grouped by machine_type
-            for i in self.getConfig(self.ConfigMachines):
-                runningMachines[i] = dict()
-
-            # fill dict with running machines
-            for (k, v) in mr.iteritems():
-                if (v.get(self.mr.regStatus) == self.mr.statusBooting) or \
-                        (v.get(self.mr.regStatus) == self.mr.statusUp) or \
-                        (v.get(self.mr.regStatus) == self.mr.statusWorking) or \
-                        (v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration):
-                    runningMachines[v[self.mr.regMachineType]][k] = v
-
+            runningMachines = self.getRunningMachines()
             runningMachinesCount = dict()
             for machineType in runningMachines:
                 # calculate number of drained slots (idle and not accepting new jobs -> not usable)
                 nDrainedSlots = 0
-                for (mid, machine) in runningMachines[machineType].iteritems():
-                    for slot in machine.get(self.regMachineCondorSlotStatus, []):
-                        if slot[0] == "Drained":
-                            nDrainedSlots += 1
+
+                for mid in runningMachines[machineType]:
+                    nDrainedSlots += HTCondor.calcDrainStatus(self.mr.machines[mid])[0]
                 nCores = self.getConfig(self.ConfigMachines)[machineType]["cores"]
                 nMachines = len(runningMachines[machineType])
                 # calculate the actual number of machines available to run jobs
-                runningMachinesCount[machineType] = int(
-                    math.floor(nMachines - nDrainedSlots / float(nCores)))
+                runningMachinesCount[machineType] = (nMachines - nDrainedSlots) // nCores
                 if nDrainedSlots is not 0:
                     self.logger.debug(
-                        str(machineType) + ": running: " + str(nMachines) + ", drained slots: "
-                        + str(nDrainedSlots) + " -> recalculated running machines count: "
-                        + str(runningMachinesCount[machineType]))
+                        str(machineType) + ": running: " + str(nMachines) + ", drained slots: " +
+                        str(nDrainedSlots) + " -> recalculated running machines count: " +
+                        str(runningMachinesCount[machineType]))
             return runningMachinesCount
 
     def onEvent(self, evt):
-        """
-        Event handler: handles disintegrated machines.
+        # type: (MachineRegistry.StatusChangedEvent)
+        """Event handler: Handles machine status changes.
+
+        Freiburg has some special logic here, since machines shutdown themselves after a 5 minute
+        delay. This means we only have to cancel jobs, if we change to "Disintegrated" outside the
+        regular execution.
 
         :param evt:
+        :type evt: MachineRegistry.StatusChangedEvent
         :return:
         """
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
             if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
                 if evt.newStatus == self.mr.statusDisintegrated:
-                    # cancel VM batch job in Freiburg
-                    self.__cancelFreiburgMachines(
-                        [self.mr.machines[evt.id].get(self.regMachineJobId)])
+                    if evt.oldStatus is not self.mr.statusDisintegrating:
+                        # cancel VM batch job in Freiburg
+                        self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
+                            self.regMachineJobId)])
                     self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
+                elif evt.newStatus == self.mr.statusDown:
+                    self.mr.removeMachine(evt.id)
 
     def manage(self):
-        """
-        Manages all status changes of machines by checking running and completed jobs in Freiburg
-        and machines listed in HTCondor
+        """Manages status changes of machines by checking  jobs in Freiburg.
+
+        Booting = Freiburg batch job for machine was submitted
+        Up      = Freiburg batch job is running, VM is Booting,
+                  HTCondorIntegrationAdapter automatically switches this to "integrating"
+                   and later to booting.
+
+        HTCondorIntegrationAdapter is responsible for handling Integrating, Working,
+        PendingDisintegration
 
         :return:
         """
-        # TODO: use HTCondorIntegrationAdapter for this part)
 
-        # get list of running machines via condor status
-        condorServer = self.getConfig(self.configCondorServer)
-        condorUser = self.getConfig(self.configCondorUser)
-        condorKey = self.getConfig(self.configCondorKey)
-        condorSsh = ScaleTools.Ssh(condorServer, condorUser, condorKey)
-        condorResult = condorSsh.executeRemoteCommand(
-            "condor_status -constraint 'CLOUD_SITE == \"BWFORCLUSTER\"' -autoformat: Machine State Activity")
-        ScaleTools.sshDebugOutput(self.logger, "EKP-manage", condorResult)
-
-        # condor info is invalid if there was a connection problem
-        validCondorInfo = True
-        if not condorResult[0] == 0:
-            self.logger.warning("SSH connection to HTCondor collector could not be established.")
-            validCondorInfo = False
-
-        # prepare list of condor machines
-        tmpCondorMachines = re.findall(r"([0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)$", condorResult[1],
-                                       re.MULTILINE)
-
-        # transform list into dictionary with one list per slot {job_id : [[state, activity], [state, activity], ..]}
-        condorMachines = defaultdict(list)
-        if len(tmpCondorMachines) > 1 and any(tmpCondorMachines[0]):
-            for jobId, state, activity in tmpCondorMachines:
-                condorMachines[jobId].append([state, activity])
-        self.logger.debug("List of condor machines:\n" + str(condorMachines))
-
-        # Freiburg login credentials
-        frUser = self.getConfig(self.configFreiburgUser)
-
-        # get list of completed jobs in Freiburg to see which machines failed to boot or died (job return code != 0)
-        frResult = self.__execCmdInFreiburg("showq -c -w user=" + frUser)
-        if frResult[0] == 0:
-            # returns a dict: {batch job id: return code/status, ..}
-            frJobsCompleted = dict(
-                re.findall(r"^([0-9]+)[ \t]+[A-Z]+[ \t]+([-A-Z0-9\(\)]+)", frResult[1],
-                           re.MULTILINE))
-        elif frResult[0] == 255:
-            frJobsCompleted = dict()
-            self.logger.warning("SSH connection to Freiburg (showq -c) could not be established.")
-        else:
-            frJobsCompleted = dict()
-            self.logger.warning(
-                "Problem running remote command in Freiburg (showq -c) (return code " + str(
-                    frResult[0]) + "):\n"
-                + str(frResult[2]))
-
-        # get list of running jobs in Freiburg to see which machines booted up
-        frResult = self.__execCmdInFreiburg("showq -r -w user=" + frUser)
-        if frResult[0] == 0:
-            # returns a tuple containing ids of all running batch jobs in Freiburg
-            frJobsRunning = re.findall(r"^([0-9]+)[ \t]+R", frResult[1], re.MULTILINE)
-        elif frResult[0] == 255:
-            frJobsRunning = []
-            self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
-        else:
-            frJobsRunning = []
-            self.logger.warning(
-                "Problem running remote command in Freiburg (showq -r) (return code " + str(
-                    frResult[0]) + "):\n"
-                + str(frResult[2]))
-
-        # get list of machines from machine registry
+        frJobsRunning, frJobsCompleted = self.__getJobList()
         mr = self.getSiteMachines()
-
-        # loop over machines in machine registry
-        # if everything is fine with a machine it gets removed from the condor_machines list!
-        # all machines left in the condor list will be added to the machine registry later
         for mid in mr:
             batchJobId = mr[mid][self.regMachineJobId]
-            # find machines that failed to boot, died, got canceled (job return code != 0) and set their status to down
-            # this way ROCED is aware of failed VM requests and will ask for new ones that will hopefully boot up
-            # sometimes a machine failes to boot but return code is 0. those machines get set to shutdown quietly since
-            # this could also be a regular shutdown
-            if mr[mid][self.mr.regStatus] is not self.mr.statusShutdown:
+            # status handled by Integration Adapter
+            if self.mr.machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating,
+                                                            self.mr.statusWorking,
+                                                            self.mr.statusPendingDisintegration]:
+                try:
+                    frJobsRunning.remove(batchJobId)
+                    continue
+                except ValueError:
+                    pass
+            # Machines which failed to boot/died/got canceled (return code != 0) -> down
+            # -> ROCED becomes aware of failed VM requests and asks for new ones.
+            # A machine MAY fail to boot with return code 0. Could be regular shutdown -> shutdown
+            if mr[mid][self.mr.regStatus] not in [self.mr.statusDown]:
                 if str(batchJobId) in frJobsCompleted:
                     if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
                         self.logger.info("VM (" + str(batchJobId) + ") failed to boot!")
@@ -377,85 +287,29 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                             self.logger.info("VM (" + str(batchJobId) + ") died!")
                         else:
                             self.logger.debug("VM (" + str(batchJobId) + ") died with status 0!")
-                    self.mr.updateMachineStatus(mid, self.mr.statusShutdown)
+                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
 
-            # change machine status to up when status of batch job is running
+            # batch job running: machine -> up
             if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
                 if batchJobId in frJobsRunning:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
+                    frJobsRunning.remove(batchJobId)
 
-            # all following inspections only make sense when the condor_status command was successful.
-            if validCondorInfo:
-                if mr[mid][self.mr.regStatus] == self.mr.statusPendingDisintegration:
-                    # remove machine from registry if it was draining and is now gone
-                    if batchJobId not in condorMachines:
-                        self.mr.updateMachineStatus(mid, self.mr.statusShutdown)
-                    else:
-                        # update slot status and remove it from condor list for now
-                        self.mr.machines[mid][self.regMachineCondorSlotStatus] = condorMachines[
-                            batchJobId]
-                        del condorMachines[batchJobId]
-
-                if mr[mid][self.mr.regStatus] == self.mr.statusWorking:
-                    # remove machine from registry if it is not listed in valid condor list but status is working
-                    if batchJobId not in condorMachines:
-                        self.mr.updateMachineStatus(mid, self.mr.statusShutdown)
-                    # machine is in both lists, so update slot status, set it to drain status if needed
-                    # and remove it from condor list for now
-                    else:
-                        self.mr.machines[mid][self.regMachineCondorSlotStatus] = condorMachines[
-                            batchJobId]
-                        # set machine status to draining if either slot activity or state indicate draining
-                        # even tough there might be jobs running the machine will not enter in the decision of
-                        # the broker resulting in a new machine getting requested -> it's better to have too many
-                        # machines than too few
-                        for slot in self.mr.machines[mid][self.regMachineCondorSlotStatus]:
-                            if slot[0] == "Drained" or slot[1] == "Retiring":
-                                self.mr.updateMachineStatus(mid,
-                                                            self.mr.statusPendingDisintegration)
-                                break  # one match is enough
-                        # remove it from condor list for now
-                        del condorMachines[batchJobId]
-
-                if mr[mid][self.mr.regStatus] == self.mr.statusUp:
-                    # change status from up to working if machine shows up in condor list
-                    if batchJobId in condorMachines:
-                        self.mr.updateMachineStatus(mid, self.mr.statusWorking)
-                        # update slot status
-                        self.mr.machines[mid][self.regMachineCondorSlotStatus] = condorMachines[
-                            batchJobId]
-                        # remove it from condor list for now
-                        del condorMachines[batchJobId]
-                    # assume machine has connection problems when it stays in status up too long
-                    elif (mr[mid][self.mr.regStatusLastUpdate] +
-                              datetime.timedelta(minutes=6)) < datetime.datetime.now():
-                        self.logger.warning(
-                            "Batch job in Freiburg is running but machine not listed in HTCondor..")
-                        self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
-
-                if mr[mid][self.mr.regStatus] == self.mr.statusShutdown:
-                    # if machine has status "shutdown" and is still listed in condor, remove it form condor list for now
-                    # and wait until it is also gone in condor
-                    if batchJobId in condorMachines:
-                        del condorMachines[batchJobId]
-                    # finally remove machine from machine registry when it is also gone in condor
-                    else:
-                        self.mr.removeMachine(mid)
-
-        # add working condor machines + information to registry if they were not listed there before
-        for batchJobId in condorMachines:
+        # Handles machines manually started.
+        for batchJobId in frJobsRunning:
             mid = self.mr.newMachine()
             self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
             self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
             # TODO: handle different machine types
             self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
             self.mr.machines[mid][self.regMachineJobId] = batchJobId
-            self.mr.machines[mid][self.regMachineCondorSlotStatus] = condorMachines[batchJobId]
-            self.mr.updateMachineStatus(mid, self.mr.statusWorking)
+            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
+                batchJobId)
+            self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
         self.logger.info(
             "Machines using resources in Freiburg: " + str(self.getCloudOccupyingMachinesCount()))
-        self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
+
         jsonLog = JsonLog()
         jsonLog.addItem(self.getSiteName(), "condor_nodes",
                         len(self.getSiteMachines(status=self.mr.statusWorking)))
@@ -466,11 +320,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                         len(self.getSiteMachines(status=self.mr.statusUp)))
 
     def __execCmdInFreiburg(self, cmd):
-        """
-        Execute command on Freiburg login node via SSH.
+        """Execute command on Freiburg login node via SSH.
+
+        Login to server and perform the corresponding SSH command.
+        The command's output is returned as a tuple.
 
         :param cmd:
-        :return: (return code, stdout, stderr)
+        :return: Tuple: (return_code, std_out, std_err)
         """
         frServer = self.getConfig(self.configFreiburgServer)
         frUser = self.getConfig(self.configFreiburgUser)
@@ -479,13 +335,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return frSsh.executeRemoteCommand(cmd)
 
     def __cancelFreiburgMachines(self, batchJobIds):
-        """
-        Cancel batch job (VM) in Freiburg
+        """Cancel batch job (VM) in Freiburg
 
-        It is also possible to use just one single command with multiple ids, but no machine gets cancelled if
-        a single id is invalid! This can happen when the VM fails to boot due to network problems.
+        It is also possible to use just one single command with multiple ids, but no machine gets
+        cancelled if a single id is invalid! This can happen when the VM fails to boot due to
+        network problems.
 
         :param batchJobIds:
+        :type batchJobIds: list
         :return: [idsRemoved], [idsInvalidated]
         """
         command = ""
@@ -496,8 +353,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         result = self.__execCmdInFreiburg(command)
 
         # catch 0:"successful" and 1:"invalid job id" return codes
-        # the return code of the first cancellation command is returned here, we can handle them both to remove
-        # cancelled and invalid machines
+        # the return code of the first cancellation command is returned here, we can handle them
+        # both to remove cancelled and invalid machines
         idsRemoved = []
         idsInvalidated = []
         if result[0] <= 1:
@@ -513,12 +370,71 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                         idsInvalidated))
             if (len(idsRemoved) + len(idsInvalidated)) == 0:
                 self.logger.warning(
-                    "A problem occurred while canceling VMs in Freiburg (return code " + str(
-                        result[0]) + "):\n"
-                    + str(result[2]))
+                    "A problem occurred while canceling VMs in Freiburg (return code " +
+                    str(result[0]) + "):\n" + str(result[2]))
         else:
             self.logger.warning(
-                "A problem occurred while canceling VMs in Freiburg (return code " + str(
-                    result[0]) + "):\n"
-                + str(result[2]))
+                "A problem occurred while canceling VMs in Freiburg (return code " +
+                str(result[0]) + "):\n" + str(result[2]))
         return idsRemoved, idsInvalidated
+
+    @classmethod
+    def __getCondorName(cls, batchJobId):
+        """Build condor name for communication with HTCondorIntegrationAdapter.
+
+        Machine registry value "reg_site_server_condor_name" is used to communicate with
+        HTCondorIntegrationAdapter. In Freiburg this name is built from the batch job id."""
+        return cls.__condorNamePrefix + str(batchJobId)
+
+    def __getJobList(self):
+        # type: () -> Tuple(List,Dict)
+        """Get list of running and completed batch jobs, filtered by user ID."""
+        frUser = self.getConfig(self.configFreiburgUser)
+        frGroup = self.getConfig(self.configFreiburgUserGroup)
+
+        # get list of running jobs in Freiburg to see which machines booted up
+        if frGroup is None:
+            frResult = self.__execCmdInFreiburg("showq -r -w user=" + frUser)
+        else:
+            frResult = self.__execCmdInFreiburg("showq -r -w group=" + frGroup)
+
+        if frResult[0] == 0:
+            # returns a list containing all running batch jobs in Freiburg
+            frJobsRunning = re.findall(r"^([0-9]+)[\s]+R", frResult[1], re.MULTILINE)
+        elif frResult[0] == 255:
+            frJobsRunning = []
+            self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
+        else:
+            frJobsRunning = []
+            self.logger.warning(
+                "Problem running remote command in Freiburg (showq -r) (return code " +
+                str(frResult[0]) + "):\n" + str(frResult[2]))
+
+        # get list of completed jobs in Freiburg to see which machines failed to boot/died
+        if frGroup is None:
+            frResult = self.__execCmdInFreiburg("showq -c -w user=" + frUser)
+        else:
+            frResult = self.__execCmdInFreiburg("showq -c -w group=" + frGroup)
+
+        if frResult[0] == 0:
+            # returns a dict: {batch job id: return code/status, ..}
+            frJobsCompleted = {k: v for k, v in
+                               re.findall(r"""
+                               ^            # Match at the beginning of lines
+                               ([0-9]+)     # Search for batch job id = result 1
+                               (?:[\s]+     # start of non-capturing group with whitespace/tab
+                               [CV]         # job state: completed or vacated
+                               [\s]+)       # whitespace/tab
+                               ([A-Z0-9]+)  # Return-code = result 2: 0/1 or CNCLD
+                               (?:[\s]+.+)  # useless rest
+                               """, frResult[1], re.MULTILINE | re.VERBOSE)}
+        elif frResult[0] == 255:
+            frJobsCompleted = {}
+            self.logger.warning("SSH connection to Freiburg (showq -c) could not be established.")
+        else:
+            frJobsCompleted = {}
+            self.logger.warning(
+                "Problem running remote command in Freiburg (showq -c) (return code " +
+                str(frResult[0]) + "):\n" + str(frResult[2]))
+
+        return frJobsRunning, frJobsCompleted
