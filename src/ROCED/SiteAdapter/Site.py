@@ -294,7 +294,7 @@ class SiteAdapterBase(AdapterBase):
         """
         running_machines = self.getRunningMachines()
         running_machines_count = dict()
-        for machine_type, midList in running_machines.item():
+        for machine_type, midList in running_machines.items():
             running_machines_count[machine_type] = len(midList)
         return running_machines_count
 
