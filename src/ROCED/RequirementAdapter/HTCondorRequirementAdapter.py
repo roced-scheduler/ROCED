@@ -38,7 +38,6 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
     def __init__(self):
         super(HTCondorRequirementAdapter, self).__init__()
-        self.curReq = None
         self.mr = MachineRegistry.MachineRegistry()
 
         self.setConfig(self.configMachines, dict())
@@ -51,28 +50,39 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         self.logger = logging.getLogger('HTCondorReq')
 
     def init(self):
-        # self.exportMethod(self.setCurrentRequirement, "HTCondor_setCurrentRequirement")
-        pass
+        super(HTCondorRequirementAdapter, self).init()
 
-    def getCurrentRequirement(self):
+    @property
+    def description(self):
+        return "HTCondorRequirementAdapter"
+
+    @property
+    def requirement(self):
         server = self.getConfig(self.configCondorServer)
         user = self.getConfig(self.configCondorUser)
         key = self.getConfig(self.configCondorKey)
-        requirement = self.getConfig(self.configCondorRequirement)
+        requirement_string = self.getConfig(self.configCondorRequirement)
         ssh = ScaleTools.Ssh(server, user, key)
 
-        # get running and idling jobs and the number of requested cpus
+        # get running and idling jobs and the number of requested CPUs
         # job status ids: https://htcondor-wiki.cs.wisc.edu/index.cgi/wiki?p=MagicNumbers
-        # this is not done with -constraints since "Requirements" can not be used for selection specific jobs
+        # this is not done with -constraints since "Requirements" can not be used for
+        # selecting specific jobs.
         # grep is the solution here
-        cmd = "condor_q -constraint 'JobStatus == 1 || JobStatus == 2' -format '%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements | grep '" + requirement + "' |  awk -F',' '{print $1\",\"$2}'"
-        result = ssh.executeRemoteCommand(cmd)
 
-        # get number of idle jobs with requirements that allow them to run on a specific site (using -slotads)
-        # cmd_idle = "condor_q -constraint 'JobStatus == 1' -slotads slotads_bwforcluster -analyze:summary,reverse | tail -n1 | awk -F ' ' '{print $3 "\n" $4}'| sort -n | head -n1"
-        # get number of running jobs in Freiburg
-        # cmd_run = "condor_q -run | grep bwforcluster | wc -l"
-        # result = ssh.executeRemoteCommand(cmd_idle + " && echo , && " + cmd_run)
+        # TODO: Install condor_q on the system and perform the command reomote.
+        # TODO: Long term we want to run ROCED on the server running the condor scheduler
+        cmd = "condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' " \
+              "-format '%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements | " \
+              "grep '" + requirement_string + "' |  awk -F',' '{print $1\",\"$2}'"
+
+        result = ssh.handleSshCall(call=cmd, quiet=True)
+
+        # get number of idle jobs with requirements that allow them to run on
+        # a specific site (using -slotads)
+        # cmd_idle = "condor_q -constraint 'JobStatus == 1' -slotads slotads_bwforcluster " \
+        #            "-analyze:summary,reverse | tail -n1 | awk -F ' ' " \
+        #            "'{print $3 "\n" $4}'| sort -n | head -n1"
 
         if result[0] == 0:
             condor_jobs = result[1].strip()
@@ -88,38 +98,29 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                         n_jobs_idle += 1
                     elif int(job[0]) == 2:  # 2: running
                         n_jobs_running += 1
-            self.logger.debug(
-                "HTCondor queue (" + str(n_jobs_idle) + "+" + str(
-                    n_jobs_running) + ") [Status, Cpus]:\n" + str(
-                    condor_jobs))
+            self.logger.debug("HTCondor queue (" + str(n_jobs_idle) + "+" + str(n_jobs_running) +
+                              ") [Status, CPUs]:\n" + str(condor_jobs))
 
             # this requires the machines variable to be listed twice in the config file
             n_cores = self.getConfig(self.configMachines)[self.getNeededMachineType()]["cores"]
 
             # calculate the number of machines needed
-            self.curReq = int(math.ceil(n_slots / float(n_cores)))
+            self._curRequirement = int(math.ceil(n_slots / float(n_cores)))
 
-            json_log = Logging.JsonLog()
-            json_log.addItem(self.getNeededMachineType(), 'jobs_idle', n_jobs_idle)
-            json_log.addItem(self.getNeededMachineType(), 'jobs_running', n_jobs_running)
+            with Logging.JsonLog() as json_log:
+                json_log.addItem(self.getNeededMachineType(), 'jobs_idle', n_jobs_idle)
+                json_log.addItem(self.getNeededMachineType(), 'jobs_running', n_jobs_running)
 
-            return self.curReq
+            return self._curRequirement
         else:
             self.logger.warning(
                 "Could not get HTCondor queue status! " + str(result[0]) + ": " + str(result[2]))
             return None
 
-    def setCurrentRequirement(self, c):
-        self.curReq = c
-        # to avoid the None problem with XML RPC
-        return 23
-
     def getNeededMachineType(self):
-        machineType = self.getConfig(self.configMachines).keys()[0]
+        # TODO: Handle multiple machine types!
+        machineType = list(self.getConfig(self.configMachines).keys())[0]
         if machineType:
             return machineType
         else:
             self.logger.error("No machine type defined for requirement.")
-
-    def getDescription(self):
-        return "HTCondorRequirementAdapter"

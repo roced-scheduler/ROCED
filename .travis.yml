@@ -1,9 +1,10 @@
 language: python
 python:
   - "2.7"
-install: 
-  - "pip install simplejson m3-libxml2-python"
-script: 
-  - cd src/ROCED
-  - ./scale.py test
-  - ./scale.py --iterations 10 --config roced_fake.config standalone
+  - "3.5"
+install:
+  - "pip install future"
+  - "pip3 install future"
+script:
+  - ./src/ROCED/scale.py test
+  - ./src/ROCED/scale.py --iterations 10 --config roced_fake.config standalone

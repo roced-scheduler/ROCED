@@ -19,8 +19,8 @@
 #
 # ===============================================================================
 
-import Event
-import ScaleTest
+from . import Event
+from . import ScaleTest
 
 
 class EventPublisherTest(Event.EventPublisher):

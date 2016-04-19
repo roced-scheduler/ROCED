@@ -21,7 +21,6 @@
 
 
 import logging
-import math
 import subprocess
 
 from RequirementAdapter.Requirement import RequirementAdapterBase
@@ -36,109 +35,12 @@ class TorqueRequirementAdapter(RequirementAdapterBase):
         self.torqHostName = None
         self.torqKey = None
         self.torqQName = "batch"
-
+        # this number is subtracted from the actual q size to be able
+        # to only start machines at a certain size
         self.qsizeOffset = 0
         self.qsizeDivider = 1
 
         self.curReq = None
-
-    # this number is substracted from the actual q size to be able
-    # to only start machines at a certain size
-    def qsizeOffset():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._qsizeOffset
-
-        def fset(self, value):
-            self._qsizeOffset = value
-
-        def fdel(self):
-            del self._qsizeOffset
-
-        return locals()
-
-    qsizeOffset = property(**qsizeOffset())
-
-    def qsizeDivider():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._qsizeDivider
-
-        def fset(self, value):
-            self._qsizeDivider = value
-
-        def fdel(self):
-            del self._qsizeDivider
-
-        return locals()
-
-    qsizeDivider = property(**qsizeDivider())
-
-    def torqHostName():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqHostName
-
-        def fset(self, value):
-            self._torqHostName = value
-
-        def fdel(self):
-            del self._torqHostName
-
-        return locals()
-
-    torqHostName = property(**torqHostName())
-
-    def torqIp():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqIp
-
-        def fset(self, value):
-            self._torqIp = value
-
-        def fdel(self):
-            del self._torqIp
-
-        return locals()
-
-    torqIp = property(**torqIp())
-
-    def torqKey():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqKey
-
-        def fset(self, value):
-            self._torqKey = value
-
-        def fdel(self):
-            del self._torqKey
-
-        return locals()
-
-    torqKey = property(**torqKey())
-
-    def torqQName():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqQName
-
-        def fset(self, value):
-            self._torqQName = value
-
-        def fdel(self):
-            del self._torqQName
-
-        return locals()
-
-    torqQName = property(**torqQName())
 
     def init(self):
         self.exportMethod(self.setCurrentRequirement, "Torq_setCurrentRequirement")
@@ -146,12 +48,10 @@ class TorqueRequirementAdapter(RequirementAdapterBase):
     # qstat | egrep "Q batch|R batch" | wc -l
     def countLocalQ(self, cmd):
         p1 = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-        return (0, p1.communicate()[0])
+        return 0, p1.communicate()[0]
 
-    def getCurrentRequirement(self):
-        if self.curReq is not None:
-            return self.curReq
-
+    @property
+    def requirement(self):
         cmd = "qstat | egrep \"Q %s|R %s\" | wc -l" % (self.torqQName, self.torqQName)
 
         if self.torqKey is None:
@@ -163,29 +63,23 @@ class TorqueRequirementAdapter(RequirementAdapterBase):
         # dangerous, if not all instances are run by us...
 
         if res1 == 0:
-            overall = int(count1) - self.qsizeOffset
+            self._curRequirement = int(count1) - self.qsizeOffset
 
-            if overall < 0:
-                overall = 0
+            if self._curRequirement < 0:
+                self._curRequirement = 0
 
             # apply divider
-            overall = int(math.floor(float(overall) / float(self.qsizeDivider)))
+            self._curRequirement //= self.qsizeDivider
 
-            logging.info("torq needs " + str(overall) + " nodes. qsizeoffset is " + str(self.qsizeOffset))
-            return overall
+            logging.info("torq needs " + str(self._curRequirement) +
+                         " nodes. qsizeoffset is " + str(self.qsizeOffset))
+            return self._curRequirement
         else:
-            return None  # todo: None means: no information available
-
-    def setCurrentRequirement(self, c):
-        if (c < 0):
-            self.curReq = None
-        else:
-            self.curReq = c
-        # to avoid the None problem with XML RPC
-        return 23
+            return None
 
     def getNeededMachineType(self):
         return "euca-default"
 
-    def getDescription(self):
+    @property
+    def description(self):
         return "TorqueRequirementAdapter"

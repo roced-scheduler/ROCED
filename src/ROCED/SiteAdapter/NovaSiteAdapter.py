@@ -26,174 +26,15 @@ import logging
 import datetime
 import sys
 
+# see http://docs.pythonboto.org/
 import boto.exception
-import Site
+from .Site import SiteAdapterBase
 from Core import MachineRegistry
 from Util import ScaleTools
 
 
-class NovaSiteAdapter(Site.SiteAdapterBase):
+class NovaSiteAdapter(SiteAdapterBase):
     class Ec2MachineConfig(object):
-        def get_imageName(self):
-            return self._imageName
-
-        def set_imageName(self, r):
-            self._imageName = r
-
-        imageName = property(get_imageName, set_imageName)
-
-        def get_userData(self):
-            return self._userData
-
-        def set_userData(self, r):
-            self._userData = r
-
-        userData = property(get_userData, set_userData)
-
-        def addressingType():  # @NoSelf
-            doc = """Docstring"""  # @UnusedVariable
-
-            def fget(self):
-                return self._addressingType
-
-            def fset(self, value):
-                self._addressingType = value
-
-            def fdel(self):
-                del self._addressingType
-
-            return locals()
-
-        addressingType = property(**addressingType())
-
-        def kernelId():  # @NoSelf
-            doc = """Docstring"""  # @UnusedVariable
-
-            def fget(self):
-                return self._kernelId
-
-            def fset(self, value):
-                self._kernelId = value
-
-            def fdel(self):
-                del self._kernelId
-
-            return locals()
-
-        kernelId = property(**kernelId())
-
-        def ramdiskId():  # @NoSelf
-            doc = """Docstring"""  # @UnusedVariable
-
-            def fget(self):
-                return self._ramdiskId
-
-            def fset(self, value):
-                self._ramdiskId = value
-
-            def fdel(self):
-                del self._ramdiskId
-
-            return locals()
-
-        ramdiskId = property(**ramdiskId())
-
-        def securityGroup():  # @NoSelf
-            doc = """Docstring"""  # @UnusedVariable
-
-            def fget(self):
-                return self._securityGroup
-
-            def fset(self, value):
-                self._securityGroup = value
-
-            def fdel(self):
-                del self._securityGroup
-
-            return locals()
-
-        securityGroup = property(**securityGroup())
-
-        def get_instanceType(self):
-            return self._instanceType
-
-        def set_instanceType(self, r):
-            self._instanceType = r
-
-        instanceType = property(get_instanceType, set_instanceType)
-
-        def get_instanceKey(self):
-            return self._instanceKey
-
-        def set_instanceKey(self, r):
-            self._instanceKey = r
-
-        instanceKey = property(get_instanceKey, set_instanceKey)
-
-        def gatewayIp():  # @NoSelf
-            doc = """Docstring"""  # @UnusedVariable
-
-            def fget(self):
-                return self._gatewayIp
-
-            def fset(self, value):
-                self._gatewayIp = value
-
-            def fdel(self):
-                del self._gatewayIp
-
-            return locals()
-
-        gatewayIp = property(**gatewayIp())
-
-        def gatewayUser():  # @NoSelf
-            doc = """Docstring"""  # @UnusedVariable
-
-            def fget(self):
-                return self._gatewayUser
-
-            def fset(self, value):
-                self._gatewayUser = value
-
-            def fdel(self):
-                del self._gatewayUser
-
-            return locals()
-
-        gatewayUser = property(**gatewayUser())
-
-        def gatewayKey():  # @NoSelf
-            doc = """Docstring"""  # @UnusedVariable
-
-            def fget(self):
-                return self._gatewayKey
-
-            def fset(self, value):
-                self._gatewayKey = value
-
-            def fdel(self):
-                del self._gatewayKey
-
-            return locals()
-
-        gatewayKey = property(**gatewayKey())
-
-        def usesGateway():  # @NoSelf
-            doc = """Docstring"""  # @UnusedVariable
-
-            def fget(self):
-                return self._usesGateway
-
-            def fset(self, value):
-                self._usesGateway = value
-
-            def fdel(self):
-                del self._usesGateway
-
-            return locals()
-
-        usesGateway = property(**usesGateway())
-
         def __init__(self):
             self.imageName = None
             self.userData = ""
@@ -225,7 +66,7 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
 
     def onEvent(self, evt):
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
-            if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
+            if self.mr.machines[evt.id].get(self.mr.regSite) == self.siteName:
                 # check correct site etc...
                 if evt.newStatus == self.mr.statusDisintegrated:
                     # ha, machine to kill
@@ -240,7 +81,8 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
         return new
 
     def getMachineByEucaId(self, machineList, euca_id):
-        m = filter(lambda (k, v): v.get(self.reg_site_euca_instance_id) == euca_id, machineList.iteritems())
+        m = [machineList[mid] for (mid, machine) in machineList.items()
+             if machine.get(self.reg_site_euca_instance_id) == euca_id]
         if len(m) == 0:
             # raise LookupError("Machine with euca id " + str(euca_id) + " not found in scale machine repository")
             return None
@@ -319,8 +161,8 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
 
         mconf = self.getConfig(self.ConfigMachines)[machineType]
 
-        self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
-        self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
+        self.mr.machines[mid][self.mr.regSite] = self.siteName
+        self.mr.machines[mid][self.mr.regSiteType] = self.siteType
         self.mr.machines[mid][self.mr.regMachineType] = machineType
         self.mr.machines[mid][self.reg_site_euca_instance_id] = euca_inst.id
 
@@ -345,7 +187,7 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
             self.mr.updateMachineStatus(mid, self.mr.statusShutdown)
 
     def getMachineTypeByImageName(self, imageName):
-        for (mtype, machine) in self.getConfig(self.ConfigMachines).iteritems():
+        for (mtype, machine) in self.getConfig(self.ConfigMachines).items():
             if machine.imageName == imageName:
                 return mtype
 
@@ -362,26 +204,15 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
             return 0
 
     def terminateMachines(self, machineType, count):
-        # a tuple is returned here
-        toRemove = filter(lambda (k, v): (v[self.mr.regStatus] == self.mr.statusWorking or v[
-            self.mr.regStatus] == self.mr.statusBooting) and \
-                                         v[self.mr.regSite] == self.getSiteName() and \
-                                         v[self.mr.regMachineType] == machineType, \
-                          self.mr.machines.iteritems())
+        booting = list(self.getSiteMachines(machineType=machineType, status=self.mr.statusBooting))
+        working = list(self.getSiteMachines(machineType=machineType, status=self.mr.statusWorking))
 
-        # booting machines first, less overhead
-        toRemove = sorted(toRemove, lambda (k1, v1), (k2, v2): (v1[self.mr.regStatus] == self.mr.statusWorking) * 2 - 1)
-
-        # only pick the needed amount
+        toRemove = booting + working
         toRemove = toRemove[0:count]
-        # dont shutdown machines yet, only trigger the deregister process
-        map(lambda (k, v): self.mr.updateMachineStatus(k, self.mr.statusPendingDisintegration), toRemove)
+
+        [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration) for mid in toRemove]
 
         return len(toRemove)
-
-    '''
-    event on completion
-    '''
 
     def spawnMachines(self, machineType, count):
         if not self.isMachineTypeSupported(machineType):
@@ -390,11 +221,11 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
         # ensure we dont overstep the site quota
         if not self.getConfig(self.ConfigMaxMachines) is None:
             # returns a dict of machine types
-            machineCount = self.getCloudOccupyingMachinesCount()
+            machineCount = self.cloudOccupyingMachinesCount
             slotsLeft = self.getConfig(self.ConfigMaxMachines) - machineCount
 
             if slotsLeft < count:
-                logging.warn("Site " + self.getSiteName() + " reached MaxMachines, truncating to " + str(
+                logging.warn("Site " + self.siteName + " reached MaxMachines, truncating to " + str(
                     slotsLeft) + " new machines")
                 count = max(0, slotsLeft)
 
@@ -436,5 +267,6 @@ class NovaSiteAdapter(Site.SiteAdapterBase):
     def getNova(self):
         return
 
-    def getDescription(self):
+    @property
+    def description(self):
         return "EucaSpawnAdapter runs machines inside an eucalyptus cloud"

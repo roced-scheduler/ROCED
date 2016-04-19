@@ -23,20 +23,6 @@
 """
 The RequirementAdapters check the state of the queues and tell the broker the current requirements.
 The broker then decides how many machines have to be started.
-
-class Requirement(object):
-
-    _need = 0
-
-    def __init__(self, need = 0):
-        self._hasNeed = need
-
-    def hasNeed(self):
-        return self._need > 0
-
-    def getNeed(self):
-        return self._need
-
 """
 
 import abc
@@ -46,35 +32,47 @@ from Core.Adapter import AdapterBase, AdapterBoxBase
 
 class RequirementAdapterBase(AdapterBase):
     __metaclass__ = abc.ABCMeta
-    _machineType = None
-    _curRequirement = 0
 
     ConfigReqName = "reqName"
 
     def __init__(self, machineType="default"):
         super(RequirementAdapterBase, self).__init__()
-
+        self._curRequirement = 0
         self._machineType = machineType
         self.setConfig(self.ConfigReqName, "DefaultReq")
 
     def init(self):
         super(RequirementAdapterBase, self).init()
-        self.exportMethod(self.setRequirement, "RequirementAdapterBase_setRequirement")
+        self.exportMethod(lambda requirement_: self.__setattr__(name="requirement",
+                          value=requirement_), type(self).__name__ + "_setRequirement")
 
-    def getCurrentRequirement(self):
+    @property
+    def name(self):
+        return self.getConfig(self.ConfigReqName)
+
+    @property
+    @abc.abstractmethod
+    def description(self):
+        return "RequirementAdapterBase"
+
+    @property
+    @abc.abstractmethod
+    def requirement(self):
+        """Return numbers of machine(s) required (integer) or None (Bool) if error."""
         return self._curRequirement
 
-    def setRequirement(self, req):
-        self._curRequirement = req
+    @requirement.setter
+    def requirement(self, requirement_):
+        """External "Set requirement". Primarily intended for RPC API.
+
+        Number of required machines should never be lower than 0, otherwise it's some sort
+        of connection/request/calculation problem."""
+        if requirement_ < 0:
+            requirement_ = None
+        self._curRequirement = requirement_
 
     def getNeededMachineType(self):
         return self._machineType
-
-    def getName(self):
-        return self.getConfig(self.ConfigReqName)
-
-    def getDescription(self):
-        return "RequirementAdapterBase"
 
 
 class RequirementBox(AdapterBoxBase):
@@ -83,21 +81,20 @@ class RequirementBox(AdapterBoxBase):
         self.reqCache = {}
 
     def getMachineTypeRequirement(self, fromCache=False):
-
         if fromCache is True:
             return self.reqCache
 
         needDict = dict()
 
-        for a in self.adapterList:
-            if a.getNeededMachineType() not in needDict:
-                needDict[a.getNeededMachineType()] = 0
+        for adapter in self._adapterList:
+            if adapter.getNeededMachineType() not in needDict:
+                needDict[adapter.getNeededMachineType()] = 0
 
-            curReq = a.getCurrentRequirement()
+            curReq = adapter.requirement
             if curReq is not None:
-                needDict[a.getNeededMachineType()] += int(curReq)
+                needDict[adapter.getNeededMachineType()] += int(curReq)
             else:
-                needDict[a.getNeededMachineType()] = None
+                needDict[adapter.getNeededMachineType()] = None
 
         self.reqCache = needDict
 

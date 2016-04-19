@@ -25,20 +25,17 @@ import subprocess
 
 from Core import MachineRegistry
 
-"""
-    stores the following to a csv file
-
-    machine requirement
-
-    site availablity
-    site running instances
-
-    overall running machine types
-
-"""
-
 
 class StateLogger(object):
+    """ store information in a CSV file
+
+        machine requirement
+
+        site availability
+        site running instances
+
+        overall running machine types
+    """
     pass
 
 
@@ -49,12 +46,11 @@ class ChangeNotifier(object):
         self.cached = []
 
     def onEvent(self, evt):
+        # type (MachineRegistry.StatusChangedEvent)
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
             s = "Machine type %s on site %s changed status from %s to %s" % \
-                (self.mr.machines[evt.id].get(self.mr.reg_machine_type), \
-                 self.mr.machines[evt.id].get(self.mr.reg_site), \
-                 evt.oldStatus,
-                 evt.newStatus)
+                (self.mr.machines[evt.id].get(self.mr.reg_machine_type),
+                 self.mr.machines[evt.id].get(self.mr.reg_site), evt.oldStatus, evt.newStatus)
 
             self.cachedNotify("scale Status changed", s)
 
@@ -80,8 +76,8 @@ class ChangeNotifier(object):
 
         newBody = ""
 
-        for tuple in self.cached:
-            newBody += "%s\n%s\n\n" % tuple
+        for tuple_ in self.cached:
+            newBody += "%s\n%s\n\n" % tuple_
 
         self.notify("scale", newBody)
         self.cached = []
@@ -90,13 +86,12 @@ class ChangeNotifier(object):
 class Shell(object):
     @staticmethod
     def executeCommand(command, environment=None):
-
         logging.info("running shell command: " + str(command) + " on localhost")
 
         #        if splitCmd == True:
         #            command = shlex.split( command )
 
-        p = subprocess.Popen(command, \
+        p = subprocess.Popen(command,
                              bufsize=0, executable=None,
                              shell=True,
                              stdin=None,
@@ -113,141 +108,12 @@ class Shell(object):
             logging.info("command: " + str(command) + " on localhost")
             logging.info("Shell Done: " + str(p.returncode))
 
-        return (p.returncode, res[0])
+        return p.returncode, res[0]
 
 
 class Ssh(object):
-    def username():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._username
-
-        def fset(self, value):
-            self._username = value
-
-        def fdel(self):
-            del self._username
-
-        return locals()
-
-    username = property(**username())
-
-    def password():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._password
-
-        def fset(self, value):
-            self._password = value
-
-        def fdel(self):
-            del self._password
-
-        return locals()
-
-    password = property(**password())
-
-    def key():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._key
-
-        def fset(self, value):
-            self._key = value
-
-        def fdel(self):
-            del self._key
-
-        return locals()
-
-    key = property(**key())
-
-    def host():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._host
-
-        def fset(self, value):
-            self._host = value
-
-        def fdel(self):
-            del self._host
-
-        return locals()
-
-    host = property(**host())
-
-    def timeout():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._timeout
-
-        def fset(self, value):
-            self._timeout = value
-
-        def fdel(self):
-            del self._timeout
-
-        return locals()
-
-    timeout = property(**timeout())
-
-    def gatewayIp():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._gatewayIp
-
-        def fset(self, value):
-            self._gatewayIp = value
-
-        def fdel(self):
-            del self._gatewayIp
-
-        return locals()
-
-    gatewayIp = property(**gatewayIp())
-
-    def gatewayUser():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._gatewayUser
-
-        def fset(self, value):
-            self._gatewayUser = value
-
-        def fdel(self):
-            del self._gatewayUser
-
-        return locals()
-
-    gatewayUser = property(**gatewayUser())
-
-    def gatewayKey():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._gatewayKey
-
-        def fset(self, value):
-            self._gatewayKey = value
-
-        def fdel(self):
-            del self._gatewayKey
-
-        return locals()
-
-    gatewayKey = property(**gatewayKey())
-
     def __init__(self, host, username, key, password=None, timeout=3, gatewayip=None,
-                 gatewaykey=None,
-                 gatewayuser=None, ):
+                 gatewaykey=None, gatewayuser=None, ):
         self.host = host
         self.username = username
         self.key = key
@@ -262,31 +128,34 @@ class Ssh(object):
         return self.handleSshCall("uname -a", quiet)[0] == 0
 
     def copyToRemote(self, localFileName, remoteFileName=""):
-        p = subprocess.Popen(["scp", \
-                              "-o ConnectTimeout=" + str(self.timeout), \
-                              "-o UserKnownHostsFile=/dev/null", \
-                              "-o StrictHostKeyChecking=no", \
-                              "-o PasswordAuthentication=no", \
-                              "-i", self.key, \
-                              localFileName, \
-                              "%s@%s:%s" % (self.username, self.host, remoteFileName)], \
+        p = subprocess.Popen(["scp",
+                              "-o ConnectTimeout=" + str(self.timeout),
+                              "-o UserKnownHostsFile=/dev/null",
+                              "-o StrictHostKeyChecking=no",
+                              "-o PasswordAuthentication=no",
+                              "-i", self.key,
+                              localFileName,
+                              "%s@%s:%s" % (self.username, self.host, remoteFileName)],
                              bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE)
         p.wait()
         res = p.stdout.read()
-        return (p.returncode, res)
+        return p.returncode, res
 
     def handleSshCall(self, call, quiet=False):
+        # type (str, bool) -> Tuple(int, str, str)
+        """Perform SSH command on remote server.
 
+        :param call:
+        :param quiet:
+        :return res: SSH call result. Consists of return-code, output, error
+        :rtype res: Tuple(int, str, str)
+        """
         if self.gatewayIp is not None:
-            # use the gateway...
             # wrap ssh command in another ssh call
-            call = "ssh -i %s %s@%s '%s'" % (
-                self.gatewayKey, self.gatewayUser, self.gatewayIp, call)
-        else:
-            # dont use the gateway
-            pass
+            call = "ssh -i %s %s@%s '%s'" % (self.gatewayKey, self.gatewayUser, self.gatewayIp,
+                                             call)
 
-        res = self.executeRemoteCommand(call)
+        res = self.__executeRemoteCommand(call)
 
         if not quiet:
             if res[0] == 255:
@@ -312,30 +181,40 @@ class Ssh(object):
         key = machine.get(MachineRegistry.MachineRegistry.regSshKey) + ".private"
 
         if machine.get(MachineRegistry.MachineRegistry.regUsesGateway, False) is True:
-            ssh = Ssh(ip, "root", key, None, 1, \
-                      machine.get(MachineRegistry.MachineRegistry.regGatewayIp), \
-                      machine.get(MachineRegistry.MachineRegistry.regGatewayKey), \
+            ssh = Ssh(ip, "root", key, None, 1,
+                      machine.get(MachineRegistry.MachineRegistry.regGatewayIp),
+                      machine.get(MachineRegistry.MachineRegistry.regGatewayKey),
                       machine.get(MachineRegistry.MachineRegistry.regGatewayUser))
         else:
             ssh = Ssh(ip, "root", key, None, 1)
         return ssh
 
     # private
-    def executeRemoteCommand(self, command):
+    def __executeRemoteCommand(self, command):
+        # type (str) -> Tuple(int, str, str)
+        """Perform SSH command on remote server. Don't call directly. Use handleSshCall.
 
-        p = subprocess.Popen(["ssh", \
-                              "-o ConnectTimeout=" + str(self.timeout), \
-                              "-o UserKnownHostsFile=/dev/null", \
-                              "-o StrictHostKeyChecking=no", \
-                              "-o PasswordAuthentication=no", \
-                              "-o LogLevel=quiet", \
-                              "-i", self.key, \
-                              self.username + "@" + self.host, \
-                              command], \
+        :param command:
+        :returns:
+        :rtype returncode: int
+        :rtype stdout: str
+        :rtype stderr: str
+        """
+        p = subprocess.Popen(["ssh",
+                              "-o ConnectTimeout=" + str(self.timeout),
+                              "-o UserKnownHostsFile=/dev/null",
+                              "-o StrictHostKeyChecking=no",
+                              "-o PasswordAuthentication=no",
+                              "-o LogLevel=quiet",
+                              "-i", self.key,
+                              self.username + "@" + self.host,
+                              command],
                              bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
-        return (p.returncode, stdout, stderr)
+        return (p.returncode,
+                stdout.decode(encoding="utf-8"),
+                stderr.decode(encoding="utf-8"))
 
 
 def sshDebugOutput(logger, scope, result):
@@ -345,21 +224,23 @@ def sshDebugOutput(logger, scope, result):
         logger.debug("[" + scope + "] SSH stderr: " + str(result[2].strip()))
 
 
-class Vpn():
+class Vpn(object):
     """
-    TODO: - Check if there is already a valid certificate with the same name
           --> new var in machreg: cert_is_valid = None (by default)
                                                         True (on first generation)
                                                         False (after revocation)
           - new var in machreg: vpn_ip
     """
 
+    # TODO: - Check if there is already a valid certificate with the same name
+
     def __init__(self):
         pass
 
     def makeCertificate(self, cert_name):
-        """generates a new certificate on openvpn host machine with pkitool.
-        pkitool is a wrapper script for openssl and is included in openvpn easy-rsa.
+        """Generates a new certificate on OpenVPN host machine with pkitool.
+
+        pkitool is a wrapper script for OpenSSL and is included in OpenVPN easy-rsa.
         """
 
         logging.info("creating certificate...")
@@ -370,22 +251,23 @@ class Vpn():
                 ./pkitool --pkcs12 --batch %s" %(cert_name)
         """
 
-        cmd = "/etc/openvpn/vpn.sh -new_cert %s" % (cert_name)
+        cmd = "/etc/openvpn/vpn.sh -new_cert %s" %cert_name
 
         ssh = Ssh("ekpvpn", "root", "<user ssh key>", None, 1)
-        (res1, count1) = ssh.handleSshCall(cmd)
+        (res1, count1, err1) = ssh.handleSshCall(cmd)
 
-        if (res1 == 0):
-            logging.info("certificate \"%s\" successfully created!" % (cert_name))
+        if res1 == 0:
+            logging.info("certificate \"%s\" successfully created!" %cert_name)
         else:
-            logging.error("creation of certificate \"%s\" failed!" % (cert_name))
+            logging.error("creation of certificate \"%s\" failed!" %cert_name)
 
         return res1
 
     def copyCertificate(self, cert_name, machine):
         """copies certificate to machine on public ip.
-        For this method, passwordless login on vpn client must be enabled (ssh key) otherwise
-        scp will throw an error!
+
+        For this method, passwordless login on vpn client must be enabled (ssh key).
+        Otherwise scp will throw an error!
         --> useful command: ssh-copy-id -i ~/.ssh/id_rsa.pub user@server
         """
 
@@ -402,21 +284,21 @@ class Vpn():
         #     -o PasswordAuthentication=no \
         #     -i ~/.ssh/id_rsa %s.p12 root@%s:/etc/openvpn/certs/." % (cert_name, ip)
 
-
         cmd = "/etc/openvpn/vpn.sh -copy_cert %s %s" % (cert_name, ip)
 
         ssh = Ssh("ekpvpn", "root", "<user ssh key>", None, 1)
-        (res1, count1) = ssh.handleSshCall(cmd)
+        (res1, count1, err1) = ssh.handleSshCall(cmd)
 
-        if (res1 == 0):
-            logging.info("\"%s.p12\" successfully copied!" % (cert_name))
+        if res1 == 0:
+            logging.info("\"%s.p12\" successfully copied!" %cert_name)
         else:
-            logging.error("failed to copy \"%s.p12\"!" % (cert_name))
+            logging.error("failed to copy \"%s.p12\"!" %cert_name)
 
         return res1
 
     def revokeCertificate(self, cert_name):
         """Revokes certificate with cert_name.
+
         After revocation the machine stays connected.
         Once the connection is closed, it can't connect again with the same cert.
         """
@@ -427,42 +309,43 @@ class Vpn():
         #         source ./vars && \
         #         ./revoke-full %s" % (cert_name)
 
-        cmd = "/etc/openvpn/vpn.sh -revoke_cert %s" % (cert_name)
+        cmd = "/etc/openvpn/vpn.sh -revoke_cert %s" % cert_name
 
         ssh = Ssh("ekpvpn", "root", "<user ssh key>", None, 1)
-        (res1, count1) = ssh.handleSshCall(cmd)
+        (res1, count1, err1) = ssh.handleSshCall(cmd)
 
-        if (res1 == 0):
-            logging.info("certificate \"%s\" successfully revoked!" % (cert_name))
+        if res1 == 0:
+            logging.info("certificate \"%s\" successfully revoked!" %cert_name)
         else:
-            logging.error("revocation of certificate \"%s\" failed!" % (cert_name))
+            logging.error("revocation of certificate \"%s\" failed!" %cert_name)
 
         return res1
 
     def deleteCertificate(self, cert_name):
-        """delete certificate after revocation
-        """
+        """delete certificate after revocation"""
 
         logging.info("deleting certificate...")
 
         # cmd = "cd /etc/openvpn/easy-rsa/2.0/keys && \
         #         rm -rf %s.*" % (cert_name)
 
-        cmd = "/etc/openvpn/vpn.sh -delete_cert %s" % (cert_name)
+        cmd = "/etc/openvpn/vpn.sh -delete_cert %s" %cert_name
 
         ssh = Ssh("ekpvpn", "root", "<user ssh key>", None, 1)
-        (res1, count1) = ssh.handleSshCall(cmd)
+        (res1, count1, err1) = ssh.handleSshCall(cmd)
 
-        if (res1 == 0):
-            logging.info("certificate \"%s\" successfully deleted!" % (cert_name))
+        if res1 == 0:
+            logging.info("certificate \"%s\" successfully deleted!" %cert_name)
         else:
-            logging.error("deleting certificate \"%s\" failed!" % (cert_name))
+            logging.error("deleting certificate \"%s\" failed!" %cert_name)
 
         return res1
 
     def connectVPN(self, cert_name, machine):
         """Connects machine to the openvpn server.
-        All configurations for the connection are done via a config file (different for server & client)
+
+        All configurations for the connection are done via a config file (different for server
+        & client).
         """
 
         logging.info("connecting to vpn server...")
@@ -471,12 +354,12 @@ class Vpn():
         #                 --config /etc/openvpn/c2n.client.conf \
         #                 --pkcs12 /etc/openvpn/certs/%s.p12" % (cert_name)
 
-        cmd = "killall openvpn; sleep 5; /etc/openvpn/vpn.sh -connect %s; sleep 5" % (cert_name)
+        cmd = "killall openvpn; sleep 5; /etc/openvpn/vpn.sh -connect %s; sleep 5" % cert_name
 
         ssh = Ssh.getSshOnMachine(machine)
-        (res1, count1) = ssh.handleSshCall(cmd)
+        (res1, count1, err1) = ssh.handleSshCall(cmd)
 
-        if (res1 == 0):
+        if res1 == 0:
             logging.info("client successfully connected to vpn server!")
         else:
             logging.error("connecting to vpn server failed!")
@@ -484,8 +367,8 @@ class Vpn():
         return res1
 
     def disconnectVPN(self, machine):
-        """Disconnects the vpn connection by killing the openvpn process.
-        By killing the connection, the openvpn server receives a message, that the client
+        """Disconnects the vpn connection by killing the OpenVPN process.
+        By killing the connection, the OpenVPN server receives a message, that the client
         no longer exists. This avoids error messages.
         """
 
@@ -496,9 +379,9 @@ class Vpn():
         cmd = "/etc/openvpn/vpn.sh -disconnect"
 
         ssh = Ssh.getSshOnMachine(machine)
-        (res1, count1) = ssh.handleSshCall(cmd)
+        (res1, count1, err1) = ssh.handleSshCall(cmd)
 
-        if (res1 == 0):
+        if res1 == 0:
             logging.info("client successfully disconnected from vpn server!")
         else:
             logging.error("disconnecting from vpn server failed!")
@@ -506,19 +389,17 @@ class Vpn():
         return res1
 
     def getIP(self, machine):
-        """returns vpn ip of the machine
-        """
+        """returns vpn ip of the machine"""
 
         # filter ifconfig output
         cmd = "ifconfig tap0 2> /dev/null | sed -rn \'s/.*r:([^ ]+) .*/\\1/p\'"
 
         ssh = Ssh.getSshOnMachine(machine)
 
-        (res1, ip) = ssh.handleSshCall(cmd)
+        (res1, ip, err1) = ssh.handleSshCall(cmd)
 
-        return (res1, ip.rstrip())
+        return res1, ip.rstrip()
 
     def disableSsh(self):
-        """disable ssh connnections for public ips
-        """
+        """disable ssh connections for public ips"""
         pass

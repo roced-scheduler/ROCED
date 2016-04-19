@@ -18,6 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
+from __future__ import unicode_literals
 
 import abc
 import logging
@@ -47,32 +48,19 @@ class EventPublisher(object):
         """
         Abstract base event manager
         """
-        self.listener = []
-
-    def listener():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._listener
-
-        def fset(self, value):
-            self._listener = value
-
-        def fdel(self):
-            del self._listener
-
-        return locals()
-
-    listener = property(**listener())
+        self.__listener = []
 
     def publishEvent(self, evt):
-        map(lambda x: x.onEvent(evt), self.listener)
+        [listener.onEvent(evt) for listener in self.__listener]
 
     def registerListener(self, new_listener):
-        logging.info("Registering new event listener: " + str(new_listener))
-
-        if new_listener not in self.listener:
-            self.listener.append(new_listener)
+        """Register a class as event listener. This class' method "onEvent" may be triggered."""
+        if new_listener not in self.__listener:
+            if not hasattr(new_listener, "onEvent"):
+                logging.error("Can't register listener " + type(new_listener).__name__ +
+                              ". Method \"onEvent\" is missing.")
+            logging.info("Registering new event listener: " + type(new_listener).__name__)
+            self.__listener.append(new_listener)
 
     def clearListeners(self):
-        self.listener = []
+        self.__listener = []

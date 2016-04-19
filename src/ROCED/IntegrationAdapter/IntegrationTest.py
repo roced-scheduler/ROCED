@@ -24,7 +24,7 @@ import logging
 
 from Core import MachineRegistry
 from IntegrationAdapter import Integration
-import IntegrationAdapter.TorqueIntegrationAdapter
+from IntegrationAdapter import TorqueIntegrationAdapter
 from Util import ScaleTools
 from Core import ScaleTest
 
@@ -60,7 +60,7 @@ class FakeSsh(object):
         if command in FakeSsh.predefCommands:
             return FakeSsh.predefCommands[command]
         else:
-            return (0, "")
+            return 0, ""
 
 
 class TorqueIntegrationAdapterTest(ScaleTest.ScaleTestBase):
@@ -70,12 +70,12 @@ class TorqueIntegrationAdapterTest(ScaleTest.ScaleTestBase):
         FakeSsh.clear()
 
     def test_disintegrate(self):
-        int = IntegrationAdapter.TorqueIntegrationAdapter.TorqueIntegrationAdapter()
+        integration = TorqueIntegrationAdapter.TorqueIntegrationAdapter()
 
         mid = self.mr.newMachine()
         self.mr.machines[mid][self.mr.regSite] = "cloud-site"
         self.mr.updateMachineStatus(mid, self.mr.statusWorking)
-        self.mr.machines[mid][int.reg_torque_node_name] = "cloud-001"
+        self.mr.machines[mid][integration.reg_torque_node_name] = "cloud-001"
 
         mid_notorque = self.mr.newMachine()
         self.mr.machines[mid_notorque][self.mr.regSite] = "cloud_site"
@@ -86,7 +86,7 @@ class TorqueIntegrationAdapterTest(ScaleTest.ScaleTestBase):
         # FakeSsh.predefCommands[ "pbsnodes -x cloud-001"] = (0, "<Data><Node><name>cloud-001</name><state>offline, job-exclusive</state><np>1</np><ntype>cluster</ntype><status>opsys=linux,uname=Linux localhost.localdomain 2.6.31-14-server #48-Ubuntu SMP Fri Oct 16 15:07:34 UTC 2009 x86_64,sessions=? 15201,nsessions=? 15201,nusers=0,idletime=4945,totmem=2056456kb,availmem=1950652kb,physmem=2056456kb,ncpus=1,loadave=0.02,netload=2353631,state=free,jobs=,varattr=,rectime=1270214759</status></Node><Node><name>ekp-cloud-pbs</name><state>down</state><np>1</np><ntype>cluster</ntype></Node></Data>" )
 
         # registers the event listener on MachineRegistry
-        # int.init()
+        # integration.init()
         # self.mr.updateMachineStatus(mid, self.mr.StatusPendingDisintegration)
 
         # self.assertTrue( "pbsnodes -o cloud-001" in FakeSsh.ranCommands )
@@ -97,13 +97,13 @@ class TorqueIntegrationAdapterTest(ScaleTest.ScaleTestBase):
         # self.assertEqual( self.mr.machines[mid_notorque][self.mr.reg_status], self.mr.StatusDisintegrated )
 
         # no shutdown allowed yet
-        # int.manage()
+        # integration.manage()
         # self.assertFalse( "python torqconf.py del_node cloud-001" in FakeSsh.ranCommands )
         # self.assertEqual( self.mr.machines[mid][self.mr.reg_status], self.mr.StatusDisintegrating )
 
         # FakeSsh.predefCommands[ "pbsnodes -x cloud-001"] = (0, "<Data><Node><name>cloud-001</name><state>offline</state><np>1</np><ntype>cluster</ntype><status>opsys=linux,uname=Linux localhost.localdomain 2.6.31-14-server #48-Ubuntu SMP Fri Oct 16 15:07:34 UTC 2009 x86_64,sessions=? 15201,nsessions=? 15201,nusers=0,idletime=4945,totmem=2056456kb,availmem=1950652kb,physmem=2056456kb,ncpus=1,loadave=0.02,netload=2353631,state=free,jobs=,varattr=,rectime=1270214759</status></Node><Node><name>ekp-cloud-pbs</name><state>down</state><np>1</np><ntype>cluster</ntype></Node></Data>" )
 
         # shutdownyet
-        # int.manage()
+        # integration.manage()
         # self.assertTrue( "python torqconf.py del_node cloud-001" in FakeSsh.ranCommands )
         # self.assertEqual( self.mr.machines[mid][self.mr.reg_status], self.mr.StatusDisintegrated )

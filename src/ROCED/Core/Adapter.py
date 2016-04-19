@@ -18,16 +18,18 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
+from __future__ import print_function, unicode_literals
 
 import abc
 import json
 import logging
 
-import Config
+import xmlrpc.server
+
+from . import Config
 
 
-class NoDefaultSet:
+class NoDefaultSet(object):
     def __init__(self):
         pass
 
@@ -38,22 +40,6 @@ class AdapterBase(object):
     the application borders, for example the REST API
     """
     __metaclass__ = abc.ABCMeta
-
-    def privateConfig():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._privateConfig
-
-        def fset(self, value):
-            self._privateConfig = value
-
-        def fdel(self):
-            del self._privateConfig
-
-        return locals()
-
-    privateConfig = property(**privateConfig())
 
     def getOptionalConfigKeys(self):
         return self.configKeysToLoadOptional
@@ -68,22 +54,22 @@ class AdapterBase(object):
     def addCompulsoryConfigKeys(self, key, datatype, description=None):
         self.configKeysToLoad += [(key, datatype, NoDefaultSet())]
 
-    def get_configDict(self):
+    @property
+    def configDict(self):
         return self._configDict
 
-    def set_configDict(self, r):
-        self._configDict = r
-
-    configDict = property(get_configDict, set_configDict)
+    @configDict.setter
+    def configDict(self, dict_):
+        self._configDict = dict_
 
     def applyConfigDict(self, newConfig):
-        self.configDict.update(newConfig)
+        self._configDict.update(newConfig)
 
     # returns the Configuration containing only dicts
     def getConfigAsDict(self, onlyPublic=False):
         strippedConf = {}
 
-        for (k, v) in self.configDict.iteritems():
+        for (k, v) in self._configDict.items():
             if k not in self.privateConfig:
                 strippedConf[k] = v
 
@@ -91,18 +77,18 @@ class AdapterBase(object):
 
     # Methods    
     def getConfig(self, key):
-        return self.configDict.get(key, None)
+        return self._configDict.get(key, None)
 
     def setConfig(self, key, value):
-        self.configDict[key] = value
+        self._configDict[key] = value
 
     def __init__(self):
-        self.configDict = dict()
+        self._configDict = dict()
 
         # config keys whose values MUST be set before starting
         # format ( keyname, type )
         self.configKeysToLoad = []
-        # config keys whose valuese CAN be set before staring
+        # config keys whose values CAN be set before staring
         self.configKeysToLoadOptional = []
 
         self.privateConfig = []
@@ -113,8 +99,9 @@ class AdapterBase(object):
     def terminate(self):
         pass
 
+    @property
     @abc.abstractmethod
-    def getDescription(self):
+    def description(self):
         return "AdapterBase"
 
     def manage(self):
@@ -126,14 +113,13 @@ class AdapterBase(object):
         if self._rpcServer is not None:
             self._rpcServer.register_function(meth, name)
         else:
-            logging.warn("Can't register method " + name + " with rpc, _rpcServer not set")
+            logging.warning("Can't register method " + name + ". RPCServer not set.")
 
     def loadConfigValue(self, key_list, configuration, optional, section, new_obj):
-
         for (config_key, config_type, opt_val) in key_list:
             if not configuration.has_option(section, config_key) and optional:
                 if isinstance(opt_val, NoDefaultSet):
-                    logger.error(
+                    logging.error(
                         "Config key " + config_key + " not defined and no default value set")
                     exit(0)
                 else:
@@ -150,73 +136,42 @@ class AdapterBase(object):
                 elif config_type == Config.ConfigTypeDictionary:
                     val = json.loads(configuration.get(section, config_key))
                 else:
-                    print "Config data type " + config_type + " not supported"
+                    print("Config data type " + config_type + " not supported")
                     exit(0)
 
             new_obj.setConfig(config_key, val)
 
-        # old code fragment - remove when new one works
-        # for (config_key, config_type) in key_list:
-        #     if optional:
-        #         if not configuration.has_option(section, config_key):
-        #             continue
-        #
-        #     if config_type == Config.ConfigTypeString:
-        #         val = configuration.get(section, config_key)
-        #     elif config_type == Config.ConfigTypeInt:
-        #         val = configuration.getint(section, config_key)
-        #     elif config_type == Config.ConfigTypeFloat:
-        #         val = configuration.getfloat(section, config_key)
-        #     elif config_type == Config.ConfigTypeBoolean:
-        #         val = configuration.getboolean(section, config_key)
-        #     elif config_type == Config.ConfigTypeDictionary:
-        #         val = json.loads(configuration.get(section, config_key))
-        #     else:
-        #         print "Config data type " + config_type + " not supported"
-        #         exit(0)
-        #
-        #     new_obj.setConfig(config_key, val)
-
 
 class AdapterBoxBase(object):
-    """ Properties """
-
-    def get_rpcServer(self):
+    @property
+    def rpcServer(self):
         return self._rpcServer
 
-    def set_rpcServer(self, r):
-        self._rpcServer = r
+    @rpcServer.setter
+    def rpcServer(self, server):
+        self._rpcServer = xmlrpc.server.ServerProxy(server)
 
-    rpcServer = property(get_rpcServer, set_rpcServer)
-
-    def get_adapterList(self):
+    @property
+    def adapterList(self):
         return self._adapterList
 
-    def set_adapterList(self, r):
-        self._adapterList = r
-
-    adapterList = property(get_adapterList, set_adapterList)
+    @property
+    def content(self):
+        con = ""
+        for adapter in self._adapterList:
+            con += adapter.description + "\n"
+        return con
 
     def __init__(self):
-        self.adapterList = []
+        self._adapterList = []
+        self._rpcServer = None
+        # self.rpcServer = "https://localhost:8000"
 
     def addAdapter(self, a):
-        self.adapterList.append(a)
-
-    def manage(self):
-        map(lambda x: x.manage(), self.adapterList)
+        self._adapterList.append(a)
 
     def addAdapterList(self, alist):
-        self.adapterList += alist
+        self._adapterList += alist
 
-    def exportMethod(self, meth, name):
-        if self._rpcServer is not None:
-            self._rpcServer.register_function(meth, name)
-        else:
-            logging.warn("Can't register method " + name + " with rpc, self._rpcServer not set")
-
-    def getBoxContent(self):
-        con = ""
-        for a in self.adapterList:
-            con += a.getDescription() + "\n"
-        return con
+    def manage(self):
+        [adapter.manage() for adapter in self._adapterList]

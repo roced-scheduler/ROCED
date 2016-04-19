@@ -51,13 +51,12 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
         """called every manage cycle"""
 
         # only nodes which are set to drain/delete are in this list
-        disint = filter(lambda (k, v): v.get(self.mr.regStatus) == self.mr.statusDisintegrating,
-                        self.mr.machines.iteritems())
+        disint = self.mr.getMachines(status=self.mr.statusDisintegrating)
 
         if len(disint) != 0:
-            for k in disint:
+            for mid, machine in disint:
 
-                machine_name = k[1][self.reg_gridengine_node_name]
+                machine_name = machine[self.reg_gridengine_node_name]
                 command = "/opt/sge6.2u5/bin/lx24-x86/qstat -f -q cloud.q@%s -u \"*\" -xml" % machine_name
                 environment = {"SGE_ROOT": "/opt/sge6.2u5"}
 
@@ -69,10 +68,10 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
                     slots_reserved = int(xmldoc.getElementsByTagName("slots_resv")[0].firstChild.data)
 
                     if (slots_used == 0) and (slots_reserved == 0):  # node has all jobs finished
-                        self.disintegrateNode(k[0])
-                        self.disintegrateWithGridEngine(k[0])
+                        self.disintegrateNode(mid)
+                        self.disintegrateWithGridEngine(mid)
 
-                        self.mr.updateMachineStatus(k[0], self.mr.statusDisintegrated)
+                        self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
     def drainNode(self, machine_id):
 
@@ -85,9 +84,9 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
         ssh = ScaleTools.Ssh.getSshOnMachine(self.mr.machines[machine_id])
 
         paramList = self.getConfig(self.ConfigGridEngineHostname) + \
-                    " " + self.getConfig(self.ConfigGridEngineIp) + \
-                    " " + self.mr.machines[machine_id][self.reg_gridengine_node_name] + \
-                    " " + self.mr.machines[machine_id][self.mr.regVpnIp]
+            " " + self.getConfig(self.ConfigGridEngineIp) + \
+            " " + self.mr.machines[machine_id][self.reg_gridengine_node_name] + \
+            " " + self.mr.machines[machine_id][self.mr.regVpnIp]
 
         ssh.copyToRemote("gridengineconf.py")
 
@@ -102,14 +101,14 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
     def integrateWithGridEngine(self, machine_id):
 
         paramList = self.mr.machines[machine_id][self.reg_gridengine_node_name] + \
-                    " " + self.mr.machines[machine_id][self.mr.regVpnIp]
+            " " + self.mr.machines[machine_id][self.mr.regVpnIp]
 
         return self.runCommandOnGridEngineServer("python gridengineconf.py register_node " + paramList)
 
     def disintegrateWithGridEngine(self, machine_id):
 
         paramList = self.mr.machines[machine_id][self.reg_gridengine_node_name] + \
-                    " " + self.mr.machines[machine_id][self.mr.regVpnIp]
+            " " + self.mr.machines[machine_id][self.mr.regVpnIp]
 
         return self.runCommandOnGridEngineServer("python gridengineconf.py unregister_node " + paramList)
 
@@ -134,7 +133,7 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
                 res_ge = self.integrateWithGridEngine(evt.id)
                 res_node = self.integrateNode(evt.id)
 
-                if (res_ge[0] == 0 and res_node[0] == 0):  # check if ssh commands were successful
+                if res_ge[0] == 0 and res_node[0] == 0:  # check if ssh commands were successful
                     self.mr.updateMachineStatus(evt.id, self.mr.statusWorking)
 
             if evt.newStatus == self.mr.statusPendingDisintegration:
@@ -147,5 +146,6 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
 
                 logging.info("Draining node " + self.mr.machines[evt.id][self.reg_gridengine_node_name])
 
-    def getDescription(self):
+    @property
+    def description(self):
         return "GridEngineIntegrationAdapter"

@@ -23,8 +23,6 @@
 The IntegrationAdapters are responsible for adding and removing cloud machines
 to batch servers or other scheduling infrastructure
 """
-# TODO: try to get node names from existing nodes
-# TODO: clean up torque sever on scale start
 
 
 import abc
@@ -35,44 +33,19 @@ from Core import Adapter
 class IntegrationAdapterBase(Adapter.AdapterBase):
     __metaclass__ = abc.ABCMeta
 
-    def nodeBootstrapFile():  # @NoSelf
-        """ Contains the name of the file which should be copied to new nodes """
-        doc = """Docstring"""  # @UnusedVariable
+    # def nodeBootstrapFile():  # @NoSelf
+    #     """ Contains the name of the file which should be copied to new nodes """
+    #     doc = """Docstring"""  # @UnusedVariable
+    #
+    # def nodeBootstrapCall():  # @NoSelf
+    #     """
+    #     Contains shell command which is executed on new nodes AFTER bootstrap file has
+    #     been uploaded. Shell parameters contain specific information about the node
+    #     """
 
-        def fget(self):
-            return self._nodeBootstrapFile
-
-        def fset(self, value):
-            self._nodeBootstrapFile = value
-
-        def fdel(self):
-            del self._nodeBootstrapFile
-
-        return locals()
-
-    nodeBootstrapFile = property(**nodeBootstrapFile())
-
-    def nodeBootstrapCall():  # @NoSelf
-        """
-        Contains shell command which is executed on new nodes AFTER bootstrap file has
-        been uploaded. Shell parameters contain specific information about the node
-        """
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._nodeBootstrapCall
-
-        def fset(self, value):
-            self._nodeBootstrapCall = value
-
-        def fdel(self):
-            del self._nodeBootstrapCall
-
-        return locals()
-
-    nodeBootstrapCall = property(**nodeBootstrapCall())
-
-    def getDescription(self):
+    @property
+    @abc.abstractmethod
+    def description(self):
         return "IntegrationAdapterBase"
 
     @abc.abstractmethod

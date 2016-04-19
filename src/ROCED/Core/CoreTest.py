@@ -20,14 +20,16 @@
 # ===============================================================================
 
 
-import ConfigParser
+import logging
 
-import ScaleTest
-from Broker import StupidBroker, SiteBrokerBase
-from Core import Config
-from Core import MachineStatus, ScaleCore, ScaleCoreFactory
+import configparser
+
 from RequirementAdapter.Requirement import RequirementAdapterBase
 from SiteAdapter.Site import SiteAdapterBase, SiteInformation
+from . import Config
+from . import ScaleTest
+from .Broker import StupidBroker, SiteBrokerBase
+from .Core import MachineStatus, ScaleCore, ScaleCoreFactory
 
 
 class SiteBrokerTest(SiteBrokerBase):
@@ -44,6 +46,31 @@ class SiteAdapterTest(SiteAdapterBase):
 
     def spawnMachines(self, machineType, count):
         return
+
+    @property
+    def siteName(self):
+        return super(SiteAdapterTest, self).siteName
+
+    @siteName.setter
+    def siteName(self, value_):
+        self.setConfig(self.ConfigSiteName, value_)
+
+
+class RequirementAdapterTest(RequirementAdapterBase):
+    @property
+    def description(self):
+        return "Test requirement adapter for unit-test"
+
+    @property
+    def requirement(self):
+        """Return numbers of machine(s) required (integer) or None (Bool) if error."""
+        return super(RequirementAdapterBase, self)._curRequirement
+
+    @requirement.setter
+    def requirement(self, requirement_):
+        if requirement_ < 0:
+            requirement_ = None
+        self._curRequirement = requirement_
 
 
 class ScaleCoreTestBase(ScaleTest.ScaleTestBase):
@@ -67,7 +94,7 @@ class ScaleCoreTestBase(ScaleTest.ScaleTestBase):
 
 class ScaleCoreTest(ScaleCoreTestBase):
     def test_factory(self):
-        config = ConfigParser.RawConfigParser()
+        config = configparser.RawConfigParser()
 
         # general
         config.add_section(Config.GeneralSection)
@@ -104,29 +131,31 @@ class ScaleCoreTest(ScaleCoreTestBase):
         config.add_section("fake_req2")
         config.set("fake_req2", Config.ConfigObjectType, 'FakeRequirementAdapter')
 
+        logging.debug("=======Testing Core=======")
+
         fact = ScaleCoreFactory()
 
         core = fact.getCore(config)
         self.assertFalse(core is None)
         self.assertFalse(core.broker is None)
 
-        self.assertEqual(len(core.siteBox.get_adapterList()), 2)
+        self.assertEqual(len(core.siteBox.adapterList), 2)
 
     def test_manage(self):
+        logging.debug("=======Testing Management=======")
         broker = SiteBrokerTest()
         broker.decide = lambda machineTypes, siteInfo: dict({"site1": dict({"machine1": 1})})
 
-        req = RequirementAdapterBase()
-        req.getCurrentRequirement = lambda: 1
-        # req.getNeededMachineType = lambda xself: "machine1"
+        req = RequirementAdapterTest()
+        req.requirement = 1
 
         site1 = SiteAdapterTest()
-        site1.getSiteName = lambda: "site1"
+        site1.siteName = "site1"
         site1.getSiteInformation = lambda: self.getDefaultSiteInfo()
         site1.getRunningMachines = lambda: dict({"machine1": [None], "machine2": [None, None]})
 
         site2 = SiteAdapterTest()
-        site2.getSiteName = lambda: "site2"
+        site2.siteName = "site2"
         site2.getSiteInformation = lambda: self.getDefaultSiteInfo()
         site2.getRunningMachines = lambda: dict({"machine1": [None]})
 
@@ -135,9 +164,11 @@ class ScaleCoreTest(ScaleCoreTestBase):
 
 class StupidBrokerTest(ScaleCoreTestBase):
     def test_decide(self):
+        logging.debug("=======Testing Broker=======")
         broker = StupidBroker(20, 0)
         broker.shutdownDelay = 0
-        mtypes = {"machine1": MachineStatus(), "machine2": MachineStatus(),
+        mtypes = {"machine1": MachineStatus(),
+                  "machine2": MachineStatus(),
                   "machine3": MachineStatus()}
 
         mtypes["machine1"].required = 2

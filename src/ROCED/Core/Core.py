@@ -18,7 +18,8 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
+from __future__ import unicode_literals, absolute_import, print_function
+from builtins import str
 """
 This file contains the ScaleCore class which contains
 all module objects and runs the SiteBroker to handle
@@ -26,16 +27,16 @@ Cloud utilization.
 """
 
 import importlib
+import json
 import logging
 import shutil
-import simplejson
+from functools import reduce
 from datetime import datetime
 from threading import Timer
 
-import Broker
-import Config
-import MachineRegistry
-from Adapter import NoDefaultSet
+from . import Broker
+from . import Config
+from . import MachineRegistry
 from IntegrationAdapter.Integration import IntegrationBox
 from RequirementAdapter.Requirement import RequirementBox
 from SiteAdapter.Site import SiteBox
@@ -49,137 +50,7 @@ class MachineStatus(object):
         self.required = required
         self.actual = actual
 
-    def required():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._required
-
-        def fset(self, value):
-            self._required = value
-
-        def fdel(self):
-            del self._required
-
-        return locals()
-
-    required = property(**required())
-
-    def actual():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._actual
-
-        def fset(self, value):
-            self._actual = value
-
-        def fdel(self):
-            del self._actual
-
-        return locals()
-
-    actual = property(**actual())
-
-    # baseline, max, priority
-
-
 class ScaleCore(object):
-    def broker():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._broker
-
-        def fset(self, value):
-            self._broker = value
-
-        def fdel(self):
-            del self._broker
-
-        return locals()
-
-    broker = property(**broker())
-
-    def manageInterval():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._manageInterval
-
-        def fset(self, value):
-            self._manageInterval = value
-
-        def fdel(self):
-            del self._manageInterval
-
-        return locals()
-
-    manageInterval = property(**manageInterval())
-
-    def reqBox():  # @NoSelf
-        """Contains the RequirementBox which holds all available RequirementAdapter"""
-
-        def fget(self):
-            return self._reqBox
-
-        def fset(self, value):
-            self._reqBox = value
-
-        def fdel(self):
-            del self._reqBox
-
-        return locals()
-
-    reqBox = property(**reqBox())
-
-    def autoRun():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._autoRun
-
-        def fset(self, value):
-            self._autoRun = value
-
-        def fdel(self):
-            del self._autoRun
-
-        return locals()
-
-    autoRun = property(**autoRun())
-
-    def siteBox():  # @NoSelf
-        """Contains the SiteBox which holds all available SiteAdapter"""
-
-        def fget(self):
-            return self._siteBox
-
-        def fset(self, value):
-            self._siteBox = value
-
-        def fdel(self):
-            del self._siteBox
-
-        return locals()
-
-    siteBox = property(**siteBox())
-
-    def intBox():  # @NoSelf
-        """Contains the IntegrationBox which holds all available IntegrationAdapter"""
-
-        def fget(self):
-            return self._intBox
-
-        def fset(self, value):
-            self._intBox = value
-
-        def fdel(self):
-            del self._intBox
-
-        return locals()
-
-    intBox = property(**intBox())
 
     _rpcServer = None
 
@@ -187,7 +58,7 @@ class ScaleCore(object):
         if self._rpcServer is not None:
             self._rpcServer.register_function(meth, name)
         else:
-            logger.warn("Can't register method " + name + " with rpc, self._rpcServer not set")
+            logger.warning("Can't register method " + name + " with rpc, self._rpcServer not set")
 
     def __init__(self,
                  broker,
@@ -249,6 +120,8 @@ class ScaleCore(object):
         if isinstance(python_object, datetime) is True:
             return {"__class__": "datetime.datetime",
                     "__value__": python_object.strftime("%Y-%m-%d %H:%M:%S:%f")}
+        elif isinstance(python_object, bytes) is True:
+            return python_object.decode()
         raise TypeError(repr(python_object) + ' is not JSON serializable')
 
     def fromJson(self, json_object):
@@ -274,7 +147,7 @@ class ScaleCore(object):
 
         try:
             with open("log/machine_registry.json", "w") as file_:
-                simplejson.dump(self.mr.machines, file_, default=self.toJson)
+                json.dump(self.mr.machines, file_, default=self.toJson)
         except IOError:
             logger.error("json file could not be opened for dumping state!")
 
@@ -285,7 +158,7 @@ class ScaleCore(object):
 
         try:
             with open("log/machine_registry.json", "r") as file_:
-                state = simplejson.load(file_, object_hook=self.fromJson)
+                state = json.load(file_, object_hook=self.fromJson)
             self.mr.machines = state
         except IOError:
             logger.error("json file could not be opened for loading state!")
@@ -319,19 +192,19 @@ class ScaleCore(object):
         siteInfo = self.siteBox.getSiteInformation()
         runningBySite = self.siteBox.getRunningMachinesCount()
 
-        def mergeDicts(x, y):
-            for (k, v) in y.iteritems():
-                if k in x:
-                    x[k] += v
+        def mergeDicts(dict1, dict2):
+            for (key_, value_) in dict2.items():
+                if key_ in dict1:
+                    dict1[key_] += value_
                 else:
-                    x[k] = v
-            return x
+                    dict1[key_] = value_
+            return dict1
 
         # contains a list of all machine types merged
         runningOverall = reduce(mergeDicts, runningBySite.values(), dict())
 
         machStat = dict()
-        for (k, v) in runningOverall.iteritems():
+        for (k, v) in runningOverall.items():
             machStat[k] = MachineStatus(req.get(k, 0), v)
 
         for k in req:
@@ -344,7 +217,7 @@ class ScaleCore(object):
         logger.info("Decision: " + str(decision))
 
         # make the machine counts absolute, as they come in relative from the broker
-        for (ksite, vmach) in decision.iteritems():
+        for (ksite, vmach) in decision.items():
             for kmach in vmach:
                 decision[ksite][kmach] += runningBySite[ksite].get(kmach, [])
 
@@ -368,7 +241,8 @@ class ScaleCore(object):
         if self.autoRun is True and lastIteration is False:
             self.startManagementTimer()
 
-    def getDescription(self):
+    @property
+    def description(self):
         return "Scale Core 0.2"
 
 
@@ -399,6 +273,7 @@ class ObjectFactory(object):
             return class_
         except AttributeError:
             logging.error('Class %s does not exist' % className)
+
 
 class ScaleCoreFactory(object):
     def getCore(self, configuration, maximumInterval=None):

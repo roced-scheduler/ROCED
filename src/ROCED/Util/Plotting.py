@@ -20,6 +20,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
+from __future__ import print_function, unicode_literals
 
 """
 Plots useful information from HTCondorRequirementAdapter and OpenStackSiteAdapter JSON outputs.
@@ -91,7 +92,7 @@ def load_style(style):
         matplotlib.rcParams["font.sans-serif"] = "Linux Biolinum O"
         matplotlib.rcParams["font.family"] = "sans-serif"
     else:
-        print "Error: plotting style unknown!"
+        print("Error: plotting style unknown!")
         return sys.exit(1)
 
     plot_dict = plot_dict.T
@@ -106,7 +107,7 @@ def load_log(input_files, correction_period, plot_dict):
             with open(input_file, "r") as json_file:
                 tmp.update(json.load(json_file))
 
-    logs = {}
+    logs_ = {}
     for timestamp in tmp:
         for site in tmp[timestamp]:
             values = np.array([])
@@ -119,235 +120,287 @@ def load_log(input_files, correction_period, plot_dict):
                     values = np.append(values, np.NaN)
                 elif key == "jobs_idle":
                     values = np.append(values,
-                                       int(tmp[timestamp][site][key]) + int(tmp[timestamp][site]["jobs_running"]))
+                                       int(tmp[timestamp][site][key]) + int(
+                                           tmp[timestamp][site]["jobs_running"]))
                 else:
                     values = np.append(values, int(tmp[timestamp][site][key]))
                 columns = np.append(columns, key)
 
-            if site in logs:
+            if site in logs_:
                 tmp_pd = pd.DataFrame([values], columns=columns)
-                logs[site] = logs[site].append(tmp_pd, ignore_index=True)
+                logs_[site] = logs_[site].append(tmp_pd, ignore_index=True)
             else:
-                logs[site] = pd.DataFrame([values], columns=columns)
+                logs_[site] = pd.DataFrame([values], columns=columns)
 
-    for site in logs:
-        logs[site] = logs[site].sort("timestamps")
-        logs[site].index = logs[site].sort_index().index
+    for site in logs_:
+        logs_[site] = logs_[site].sort("timestamps")
+        logs_[site].index = logs_[site].sort_index().index
 
-    return logs
+    return logs_
 
 
-def correct_data(logs, correction):
-    for site in logs:
-        runtimes = np.array(logs[site]["timestamps"]) - logs[site]["timestamps"][0]
-        logs[site]["runtimes"] = runtimes
+def correct_data(logs_, correction):
+    for site in logs_:
+        runtimes = np.array(logs_[site]["timestamps"]) - logs_[site]["timestamps"][0]
+        logs_[site]["runtimes"] = runtimes
 
         indices = np.nonzero(np.diff(runtimes) > correction)
         if len(indices[0]) > 0:
-            print "Ignoring " + str(len(indices[0])) + " periods with no log entries for over " + str(
-                correction) + " seconds:"
+            print(
+                "Ignoring " + str(len(indices[0])) + " periods with no log entries for over " + str(
+                    correction) + " seconds:")
             for index in indices[0]:
-                print "Begin: " + str(logs[site]["runtimes"][index]) + "s, End: " + str(
-                    logs[site]["runtimes"][index + 1]) + "s, Diff: " + str(
-                    logs[site]["runtimes"][index + 1] - logs[site]["runtimes"][index]) + "s"
+                print("Begin: " + str(logs_[site]["runtimes"][index]) + "s, End: " + str(
+                    logs_[site]["runtimes"][index + 1]) + "s, Diff: " + str(
+                    logs_[site]["runtimes"][index + 1] - logs_[site]["runtimes"][index]) + "s")
                 # add two entries to time axis
-                tmp1 = pd.DataFrame([np.array([np.NaN for i in xrange(len(logs[site].columns))])],
-                                    columns=logs[site].columns)
-                tmp1["timestamps"] = np.array([logs[site]["timestamps"][index] + 1])
-                tmp1["runtimes"] = np.array([logs[site]["runtimes"][index] + 1])
-                tmp2 = pd.DataFrame([np.array([np.NaN for i in xrange(len(logs[site].columns))])],
-                                    columns=logs[site].columns)
-                tmp2["timestamps"] = np.array([logs[site]["timestamps"][index + 1] - 1])
-                tmp2["runtimes"] = np.array([logs[site]["runtimes"][index + 1] - 1])
-                logs[site] = logs[site].append(tmp1.append(tmp2, ignore_index=True), ignore_index=True)
+                tmp1 = pd.DataFrame([np.array([np.NaN for i in range(len(logs_[site].columns))])],
+                                    columns=logs_[site].columns)
+                tmp1["timestamps"] = np.array([logs_[site]["timestamps"][index] + 1])
+                tmp1["runtimes"] = np.array([logs_[site]["runtimes"][index] + 1])
+                tmp2 = pd.DataFrame([np.array([np.NaN for i in range(len(logs_[site].columns))])],
+                                    columns=logs_[site].columns)
+                tmp2["timestamps"] = np.array([logs_[site]["timestamps"][index + 1] - 1])
+                tmp2["runtimes"] = np.array([logs_[site]["runtimes"][index + 1] - 1])
+                logs_[site] = logs_[site].append(tmp1.append(tmp2, ignore_index=True),
+                                                 ignore_index=True)
 
-        logs[site] = logs[site].sort("timestamps")
-        logs[site].index = logs[site].sort_index().index
+        logs_[site] = logs_[site].sort("timestamps")
+        logs_[site].index = logs_[site].sort_index().index
 
-    return logs
+    return logs_
 
 
-def correct_quantities(logs):
+def correct_quantities(logs_):
     # multiply by number of cores
-    for site in logs:
-        logs[site]["machines_requested"] = machine_settings[site]["vcpu"] * np.add(logs[site]["machines_requested"],
-                                                                                   np.add(logs[site]["condor_nodes"],
-                                                                                          logs[site][
-                                                                                              "condor_nodes_draining"]))
-        logs[site]["condor_nodes"] = machine_settings[site]["vcpu"] * np.add(logs[site]["condor_nodes"],
-                                                                             logs[site]["condor_nodes_draining"])
-        logs[site]["condor_nodes_draining"] = machine_settings[site]["vcpu"] * logs[site]["condor_nodes_draining"]
+    for site in logs_:
+        logs_[site]["machines_requested"] = machine_settings[site]["vcpu"] * np.add(
+            logs_[site]["machines_requested"],
+            np.add(logs_[site]["condor_nodes"],
+                   logs_[site][
+                       "condor_nodes_draining"]))
+        logs_[site]["condor_nodes"] = machine_settings[site]["vcpu"] * np.add(
+            logs_[site]["condor_nodes"],
+            logs_[site]["condor_nodes_draining"])
+        logs_[site]["condor_nodes_draining"] = machine_settings[site]["vcpu"] * logs_[site][
+            "condor_nodes_draining"]
 
-    return logs
+    return logs_
 
 
-def plot_to_screen(logs, plot_dict, style, time_scale):
+def plot_to_screen(logs_, plot_dict, style, time_scale):
     # prepare plots
     fig = plt.figure()
-    n_plots = len(logs)
+    n_plots = len(logs_)
     y_pos = int(np.floor(np.sqrt(n_plots)))
     x_pos = int(np.ceil(n_plots / float(y_pos)))
     plots = {}
     for i, item in enumerate(range(1, n_plots + 1), 1):
         plots[i] = fig.add_subplot(x_pos, y_pos, i)
 
-    time_scales = {"s": ("second", 1), "m": ("minute", 60), "h": ("hour", 60 * 60), "d": ("day", 60 * 60 * 24)}
+    time_scales = {"s": ("second", 1), "m": ("minute", 60), "h": ("hour", 60 * 60),
+                   "d": ("day", 60 * 60 * 24)}
 
     i = 1
     if style == "screen":
-        for site in logs:
+        for site in logs_:
             plot = plots[i]
-            plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"])  # , x=0.5, y=0.88)
+            plot.set_title("Resource allocation over time @ " + machine_settings[site][
+                "label"])  # , x=0.5, y=0.88)
 
-            logs[site]["runtimes"] = logs[site]["runtimes"] / float(time_scales[time_scale][1])
+            logs_[site]["runtimes"] /= float(time_scales[time_scale][1])
             plot.set_xlabel(r"Time (" + time_scales[time_scale][0] + ")", ha="right", x=1)
             plot.set_ylabel(r"Number of Jobs & VM cores", va="top", y=.7, labelpad=20.0)
 
-            stack1 = plot.fill_between(logs[site]["runtimes"], logs[site]["jobs_idle"],
-                                       facecolor=plot_dict["color"]["jobs_idle"], color=None, edgecolor=None,
+            stack1 = plot.fill_between(logs_[site]["runtimes"], logs_[site]["jobs_idle"],
+                                       facecolor=plot_dict["color"]["jobs_idle"], color=None,
+                                       edgecolor=None,
                                        linewidth=0.0, label=plot_dict["plot_name"]["jobs_idle"])
-            stack2 = plot.fill_between(logs[site]["runtimes"], logs[site]["jobs_running"],
-                                       facecolor=plot_dict["color"]["jobs_running"], color=None, edgecolor=None,
+            stack2 = plot.fill_between(logs_[site]["runtimes"], logs_[site]["jobs_running"],
+                                       facecolor=plot_dict["color"]["jobs_running"], color=None,
+                                       edgecolor=None,
                                        linewidth=0.0, label=plot_dict["plot_name"]["jobs_running"])
 
             for entry in stack1, stack2:
-                plot.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())
-            plot.plot(logs[site]["runtimes"], logs[site]["machines_requested"],
+                plot.plot([], [], color=entry.get_facecolor()[0], linewidth=10,
+                          label=entry.get_label())
+            plot.plot(logs_[site]["runtimes"], logs_[site]["machines_requested"],
                       label=plot_dict["plot_name"]["machines_requested"],
-                      color=plot_dict["color"]["machines_requested"], linestyle="-", marker="", linewidth=2.0)
-            plot.plot(logs[site]["runtimes"], logs[site]["condor_nodes"], label=plot_dict["plot_name"]["condor_nodes"],
-                      color=plot_dict["color"]["condor_nodes"], linestyle="-", marker="", linewidth=2.0)
-            plot.plot(logs[site]["runtimes"], logs[site]["condor_nodes_draining"],
+                      color=plot_dict["color"]["machines_requested"], linestyle="-", marker="",
+                      linewidth=2.0)
+            plot.plot(logs_[site]["runtimes"], logs_[site]["condor_nodes"],
+                      label=plot_dict["plot_name"]["condor_nodes"],
+                      color=plot_dict["color"]["condor_nodes"], linestyle="-", marker="",
+                      linewidth=2.0)
+            plot.plot(logs_[site]["runtimes"], logs_[site]["condor_nodes_draining"],
                       label=plot_dict["plot_name"]["condor_nodes_draining"],
-                      color=plot_dict["color"]["condor_nodes_draining"], linestyle="-", marker="", linewidth=2.0)
+                      color=plot_dict["color"]["condor_nodes_draining"], linestyle="-", marker="",
+                      linewidth=2.0)
 
             # legend settings and plot output
             plot.legend(loc="upper right", numpoints=1, frameon=False)
-            plot.set_ylim([0, 1.1 * np.amax(logs[site]["jobs_idle"])])
-            plot.set_xlim([np.amin(logs[site]["runtimes"]), 1.05 * np.amax(logs[site]["runtimes"])])
+            plot.set_ylim([0, 1.1 * np.amax(logs_[site]["jobs_idle"])])
+            plot.set_xlim(
+                [np.amin(logs_[site]["runtimes"]), 1.05 * np.amax(logs_[site]["runtimes"])])
             i += 1
 
     elif style == "slide":
-        for site in logs:
+        for site in logs_:
             plot = plots[i]
-            plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"], size=24)
+            plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"],
+                           size=24)
 
-            logs[site]["runtimes"] = logs[site]["runtimes"] / float(time_scales[time_scale][1])
+            logs_[site]["runtimes"] /= float(time_scales[time_scale][1])
             plot.set_xlabel(r"Time (" + time_scales[time_scale][0] + ")", ha="right", x=1, size=24)
             plot.set_ylabel(r"Number of Jobs & VM cores", va="top", y=.71, labelpad=37.0, size=24)
             plot.tick_params(axis="x", labelsize=20, pad=10., length=10)
             plot.tick_params(axis="y", labelsize=20, length=10)
 
-            plot.plot(logs[site]["runtimes"], logs[site]["machines_requested"],
+            plot.plot(logs_[site]["runtimes"], logs_[site]["machines_requested"],
                       label=plot_dict["plot_name"]["machines_requested"],
-                      color=plot_dict["color"]["machines_requested"], linestyle="-", marker="", linewidth=2.0)
-            plot.plot(logs[site]["runtimes"], logs[site]["condor_nodes"], label=plot_dict["plot_name"]["condor_nodes"],
-                      color=plot_dict["color"]["condor_nodes"], linestyle="-", marker="", linewidth=2.0)
-            plot.plot(logs[site]["runtimes"], logs[site]["condor_nodes_draining"],
+                      color=plot_dict["color"]["machines_requested"], linestyle="-", marker="",
+                      linewidth=2.0)
+            plot.plot(logs_[site]["runtimes"], logs_[site]["condor_nodes"],
+                      label=plot_dict["plot_name"]["condor_nodes"],
+                      color=plot_dict["color"]["condor_nodes"], linestyle="-", marker="",
+                      linewidth=2.0)
+            plot.plot(logs_[site]["runtimes"], logs_[site]["condor_nodes_draining"],
                       label=plot_dict["plot_name"]["condor_nodes_draining"],
-                      color=plot_dict["color"]["condor_nodes_draining"], linestyle="-", marker="", linewidth=2.0)
-            stack1 = plot.fill_between(logs[site]["runtimes"], logs[site]["jobs_idle"],
-                                       facecolor=plot_dict["color"]["jobs_idle"], color=None, edgecolor=None,
+                      color=plot_dict["color"]["condor_nodes_draining"], linestyle="-", marker="",
+                      linewidth=2.0)
+            stack1 = plot.fill_between(logs_[site]["runtimes"], logs_[site]["jobs_idle"],
+                                       facecolor=plot_dict["color"]["jobs_idle"], color=None,
+                                       edgecolor=None,
                                        linewidth=0.0, label=plot_dict["plot_name"]["jobs_idle"])
-            stack2 = plot.fill_between(logs[site]["runtimes"], logs[site]["jobs_running"],
-                                       facecolor=plot_dict["color"]["jobs_running"], color=None, edgecolor=None,
+            stack2 = plot.fill_between(logs_[site]["runtimes"], logs_[site]["jobs_running"],
+                                       facecolor=plot_dict["color"]["jobs_running"], color=None,
+                                       edgecolor=None,
                                        linewidth=0.0, label=plot_dict["plot_name"]["jobs_running"])
             for entry in stack1, stack2:
-                plot.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())
+                plot.plot([], [], color=entry.get_facecolor()[0], linewidth=10,
+                          label=entry.get_label())
 
             # legend settings and plot output
             plot.legend(loc="upper left", numpoints=1, frameon=False, fontsize=24, ncol=2)
-            plot.set_xlim([np.amin(logs[site]["runtimes"]), 1.05 * np.amax(logs[site]["runtimes"])])
-            plot.set_ylim([0, 1.1 * np.amax(logs[site]["jobs_idle"])])
+            plot.set_xlim(
+                [np.amin(logs_[site]["runtimes"]), 1.05 * np.amax(logs_[site]["runtimes"])])
+            plot.set_ylim([0, 1.1 * np.amax(logs_[site]["jobs_idle"])])
             i += 1
 
     plt.show()
     return
 
 
-def plot_to_file(logs, plot_dict, style, time_scale, output, proportion, resolution):
-    time_scales = {"s": ("second", 1), "m": ("minute", 60), "h": ("hour", 60 * 60), "d": ("day", 60 * 60 * 24)}
+def plot_to_file(logs_, plot_dict, style, time_scale, output, proportion, resolution):
+    time_scales = {"s": ("second", 1), "m": ("minute", 60), "h": ("hour", 60 * 60),
+                   "d": ("day", 60 * 60 * 24)}
 
     if style == "screen":
-        for site in logs:
-            fig = plt.figure(num=None, figsize=(proportion[0], proportion[1]), dpi=360, facecolor='w', edgecolor='k')
+        for site in logs_:
+            fig = plt.figure(num=None, figsize=(proportion[0], proportion[1]), dpi=360,
+                             facecolor='w', edgecolor='k')
             plot = fig.add_subplot(1, 1, 1)
             # plot.hold(True)
-            plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"], size=24)  # , x=0.5, y=0.88)
+            plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"],
+                           size=24)  # , x=0.5, y=0.88)
 
-            logs[site]["runtimes"] = logs[site]["runtimes"] / float(time_scales[time_scale][1])
+            logs_[site]["runtimes"] /= float(time_scales[time_scale][1])
             plot.set_xlabel(r"Time / " + time_scales[time_scale][0], ha="right", x=1, size=24)
             plot.set_ylabel(r"Number of Jobs/VMs", va="top", y=.7, labelpad=20.0, size=24)
             plot.tick_params(axis="x", labelsize=16, pad=10., length=10)
             plot.tick_params(axis="y", labelsize=16, pad=11., length=10)
 
-            stack1 = plot.fill_between(logs[site]["runtimes"], logs[site]["jobs_idle"],
-                                       facecolor=plot_dict["color"]["jobs_idle"], color=None, edgecolor=None,
+            stack1 = plot.fill_between(logs_[site]["runtimes"], logs_[site]["jobs_idle"],
+                                       facecolor=plot_dict["color"]["jobs_idle"], color=None,
+                                       edgecolor=None,
                                        linewidth=0.0, label=plot_dict["plot_name"]["jobs_idle"])
-            stack2 = plot.fill_between(logs[site]["runtimes"], logs[site]["jobs_running"],
-                                       facecolor=plot_dict["color"]["jobs_running"], color=None, edgecolor=None,
+            stack2 = plot.fill_between(logs_[site]["runtimes"], logs_[site]["jobs_running"],
+                                       facecolor=plot_dict["color"]["jobs_running"], color=None,
+                                       edgecolor=None,
                                        linewidth=0.0, label=plot_dict["plot_name"]["jobs_running"])
 
             for entry in stack1, stack2:
-                plot.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())
-            plot.plot(logs[site]["runtimes"], logs[site]["machines_requested"],
+                plot.plot([], [], color=entry.get_facecolor()[0], linewidth=10,
+                          label=entry.get_label())
+            plot.plot(logs_[site]["runtimes"], logs_[site]["machines_requested"],
                       label=plot_dict["plot_name"]["machines_requested"],
-                      color=plot_dict["color"]["machines_requested"], linestyle="-", marker="", linewidth=2.0)
-            plot.plot(logs[site]["runtimes"], logs[site]["condor_nodes"], label=plot_dict["plot_name"]["condor_nodes"],
-                      color=plot_dict["color"]["condor_nodes"], linestyle="-", marker="", linewidth=2.0)
-            plot.plot(logs[site]["runtimes"], logs[site]["condor_nodes_draining"],
+                      color=plot_dict["color"]["machines_requested"], linestyle="-", marker="",
+                      linewidth=2.0)
+            plot.plot(logs_[site]["runtimes"], logs_[site]["condor_nodes"],
+                      label=plot_dict["plot_name"]["condor_nodes"],
+                      color=plot_dict["color"]["condor_nodes"], linestyle="-", marker="",
+                      linewidth=2.0)
+            plot.plot(logs_[site]["runtimes"], logs_[site]["condor_nodes_draining"],
                       label=plot_dict["plot_name"]["condor_nodes_draining"],
-                      color=plot_dict["color"]["condor_nodes_draining"], linestyle="-", marker="", linewidth=2.0)
+                      color=plot_dict["color"]["condor_nodes_draining"], linestyle="-", marker="",
+                      linewidth=2.0)
 
             # legend settings and plot output
             plot.legend(loc="upper right", numpoints=1, frameon=False)
-            plot.set_xlim([np.amin(logs[site]["runtimes"]), 1.05 * np.amax(logs[site]["runtimes"])])
-            plot.set_ylim([0, 1.1 * np.amax(logs[site]["jobs_idle"])])
+            plot.set_xlim(
+                [np.amin(logs_[site]["runtimes"]), 1.05 * np.amax(logs_[site]["runtimes"])])
+            plot.set_ylim([0, 1.1 * np.amax(logs_[site]["jobs_idle"])])
 
-            plt.savefig(output + "_" + machine_settings[site]["label"] + ".png", bbox_inches="tight")
-            plt.savefig(output + "_" + machine_settings[site]["label"] + ".pdf", bbox_inches="tight")
-            plt.savefig(output + "_" + machine_settings[site]["label"] + ".svg", bbox_inches="tight")
-            print "Output written to: " + output + "_" + machine_settings[site]["label"]
+            plt.savefig(output + "_" + machine_settings[site]["label"] + ".png",
+                        bbox_inches="tight")
+            plt.savefig(output + "_" + machine_settings[site]["label"] + ".pdf",
+                        bbox_inches="tight")
+            plt.savefig(output + "_" + machine_settings[site]["label"] + ".svg",
+                        bbox_inches="tight")
+            print("Output written to: " + output + "_" + machine_settings[site]["label"])
             fig.delaxes(plot)
 
     elif style == "slide":
-        for site in logs:
-            fig = plt.figure(num=None, figsize=(proportion[0], proportion[1]), dpi=360, facecolor='w', edgecolor='k')
+        for site in logs_:
+            fig = plt.figure(num=None, figsize=(proportion[0], proportion[1]), dpi=360,
+                             facecolor='w', edgecolor='k')
             plot = fig.add_subplot(1, 1, 1)
-            plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"], size=24)
+            plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"],
+                           size=24)
 
-            logs[site]["runtimes"] = logs[site]["runtimes"] / float(time_scales[time_scale][1])
+            logs_[site]["runtimes"] /= float(time_scales[time_scale][1])
             plot.set_xlabel(r"Time / " + time_scales[time_scale][0], ha="right", x=1, size=24)
             plot.set_ylabel(r"Number of Jobs/VMs", va="top", y=.71, labelpad=37.0, size=24)
             plot.tick_params(axis="x", labelsize=20, pad=10., length=10)
             plot.tick_params(axis="y", labelsize=20, pad=11., length=10)
 
-            plot.plot(logs[site]["runtimes"], logs[site]["machines_requested"],
+            plot.plot(logs_[site]["runtimes"], logs_[site]["machines_requested"],
                       label=plot_dict["plot_name"]["machines_requested"],
-                      color=plot_dict["color"]["machines_requested"], linestyle="-", marker="", linewidth=2.0)
-            plot.plot(logs[site]["runtimes"], logs[site]["condor_nodes"], label=plot_dict["plot_name"]["condor_nodes"],
-                      color=plot_dict["color"]["condor_nodes"], linestyle="-", marker="", linewidth=2.0)
-            plot.plot(logs[site]["runtimes"], logs[site]["condor_nodes_draining"],
+                      color=plot_dict["color"]["machines_requested"], linestyle="-", marker="",
+                      linewidth=2.0)
+            plot.plot(logs_[site]["runtimes"], logs_[site]["condor_nodes"],
+                      label=plot_dict["plot_name"]["condor_nodes"],
+                      color=plot_dict["color"]["condor_nodes"], linestyle="-", marker="",
+                      linewidth=2.0)
+            plot.plot(logs_[site]["runtimes"], logs_[site]["condor_nodes_draining"],
                       label=plot_dict["plot_name"]["condor_nodes_draining"],
-                      color=plot_dict["color"]["condor_nodes_draining"], linestyle="-", marker="", linewidth=2.0)
-            stack1 = plot.fill_between(logs[site]["runtimes"], logs[site]["jobs_idle"],
-                                       facecolor=plot_dict["color"]["jobs_idle"], color=None, edgecolor=None,
+                      color=plot_dict["color"]["condor_nodes_draining"], linestyle="-", marker="",
+                      linewidth=2.0)
+            stack1 = plot.fill_between(logs_[site]["runtimes"], logs_[site]["jobs_idle"],
+                                       facecolor=plot_dict["color"]["jobs_idle"], color=None,
+                                       edgecolor=None,
                                        linewidth=0.0, label=plot_dict["plot_name"]["jobs_idle"])
-            stack2 = plot.fill_between(logs[site]["runtimes"], logs[site]["jobs_running"],
-                                       facecolor=plot_dict["color"]["jobs_running"], color=None, edgecolor=None,
+            stack2 = plot.fill_between(logs_[site]["runtimes"], logs_[site]["jobs_running"],
+                                       facecolor=plot_dict["color"]["jobs_running"], color=None,
+                                       edgecolor=None,
                                        linewidth=0.0, label=plot_dict["plot_name"]["jobs_running"])
             for entry in stack1, stack2:
-                plot.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())
+                plot.plot([], [], color=entry.get_facecolor()[0], linewidth=10,
+                          label=entry.get_label())
 
             # legend settings and plot output
             plot.legend(loc="upper left", numpoints=1, frameon=False, fontsize=24, ncol=2)
-            plot.set_xlim([np.amin(logs[site]["runtimes"]), 1.05 * np.amax(logs[site]["runtimes"])])
-            plot.set_ylim([0, 1.1 * np.amax(logs[site]["jobs_idle"])])
+            plot.set_xlim(
+                [np.amin(logs_[site]["runtimes"]), 1.05 * np.amax(logs_[site]["runtimes"])])
+            plot.set_ylim([0, 1.1 * np.amax(logs_[site]["jobs_idle"])])
 
-            plt.savefig(output + "_" + machine_settings[site]["label"] + ".png", bbox_inches="tight")
-            plt.savefig(output + "_" + machine_settings[site]["label"] + ".pdf", bbox_inches="tight")
-            plt.savefig(output + "_" + machine_settings[site]["label"] + ".svg", bbox_inches="tight")
-            print "Output written to: " + output + "_" + machine_settings[site]["label"]
+            plt.savefig(output + "_" + machine_settings[site]["label"] + ".png",
+                        bbox_inches="tight")
+            plt.savefig(output + "_" + machine_settings[site]["label"] + ".pdf",
+                        bbox_inches="tight")
+            plt.savefig(output + "_" + machine_settings[site]["label"] + ".svg",
+                        bbox_inches="tight")
+            print("Output written to: " + output + "_" + machine_settings[site]["label"])
 
     return
 
@@ -365,7 +418,7 @@ def main():
     parser.add_argument("-t", "--time-scale", type=str, default="m",
                         help="time scale of plot: s(econd), m(inute), h(our), d(ay) (default: %(default)s)")
     parser.add_argument("-s", "--style", type=str, default="screen",
-                        help="output style (screen or print for presentations/poster) (default: %(default)s)")
+                        help="output style (screen or print(for presentations/poster) (default: %(default)s)")
     parser.add_argument("-x", "--xlim", type=float, default=None, nargs=2,
                         help="x-axis limit (lower, upper) (default: %(default)s)")
     parser.add_argument("-p", "--proportion", type=int, default=[21, 9], nargs=2,
@@ -375,22 +428,23 @@ def main():
     args = parser.parse_args()
 
     plot_dict = load_style(args.style)
-    logs = load_log(args.input_files, args.correction_period, plot_dict)
+    logs_ = load_log(args.input_files, args.correction_period, plot_dict)
 
     if args.correction_period > 0:
-        logs = correct_data(logs, args.correction_period)
+        logs_ = correct_data(logs_, args.correction_period)
 
-    logs = correct_quantities(logs)
+    logs_ = correct_quantities(logs_)
 
     if args.xlim:
         plt.xlim(xmin=args.xlim[0], xmax=args.xlim[1])
 
     if args.live:
-        plot_to_screen(logs, plot_dict, args.style, args.time_scale)
+        plot_to_screen(logs_, plot_dict, args.style, args.time_scale)
     else:
         if not args.output:
             args.output = path.splitext(args.input_files[0])[0]
-        plot_to_file(logs, plot_dict, args.style, args.time_scale, args.output, args.proportion, args.resolution)
+        plot_to_file(logs_, plot_dict, args.style, args.time_scale, args.output, args.proportion,
+                     args.resolution)
 
     return
 

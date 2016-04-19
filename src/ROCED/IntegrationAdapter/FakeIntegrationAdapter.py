@@ -20,9 +20,9 @@
 # ===============================================================================
 
 
-import datetime
 import logging
 import random
+
 from Core import MachineRegistry
 from IntegrationAdapter.Integration import IntegrationAdapterBase
 
@@ -34,28 +34,24 @@ class FakeIntegrationAdapter(IntegrationAdapterBase):
         self.mr.registerListener(self)
 
     def manage(self):
-        done = filter(lambda (x, y): y.get(self.mr.regStatus) == self.mr.statusIntegrating, \
-                      self.mr.machines.iteritems())
-        for (x, y) in done:
-            self.mr.updateMachineStatus(x, self.mr.statusWorking)
+        [self.mr.updateMachineStatus(mid, self.mr.statusWorking) for mid
+         in self.mr.getMachines(status=self.mr.statusIntegrating).keys()]
 
-        disint = filter(lambda (x, y): y.get(self.mr.regStatus) == self.mr.statusDisintegrating and \
-                                       (datetime.datetime.now() - y.get(
-                                           self.mr.regStatusLastUpdate)).seconds > random.randint(10, 50), \
-                        self.mr.machines.iteritems())
-        for (x, y) in disint:
-            self.mr.updateMachineStatus(x, self.mr.statusDisintegrated)
+        [self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated) for mid
+         in self.mr.getMachines(status=self.mr.statusDisintegrating).keys()
+         if self.mr.calcLastStateChange(mid) > random.randint(10, 50)]
 
     def onEvent(self, evt):
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
             if evt.newStatus == self.mr.statusUp:
-                logging.info("Integrating machine with ip " + str(self.mr.machines[evt.id].get(self.mr.regHostname)))
+                logging.info("Integrating machine with ip " + str(
+                    self.mr.machines[evt.id].get(self.mr.regHostname)))
                 # ha, new machine to integrate
                 self.mr.updateMachineStatus(evt.id, self.mr.statusIntegrating)
-
-            if evt.newStatus == self.mr.statusPendingDisintegration:
+            elif evt.newStatus == self.mr.statusPendingDisintegration:
                 # ha, machine to disintegrate
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDisintegrating)
 
-    def getDescription(self):
+    @property
+    def description(self):
         return "FakeIntegrationAdapter"

@@ -18,13 +18,14 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
+from __future__ import print_function, unicode_literals
 
-import hashlib
-import xmlrpclib
-import logging
-from xml.dom import minidom
-import socket
 import datetime
+import hashlib
+import logging
+import socket
+import xmlrpc.client
+from xml.dom import minidom
 
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase
@@ -32,8 +33,8 @@ from Util import ScaleTools
 
 
 class OneSiteAdapter(SiteAdapterBase):
-    """Site Adapter for OpenNebula. OSA is responsible for spawning new machines and setting the status from
-    booting to up and from disintegrated to done"""
+    """Site Adapter for OpenNebula. OSA is responsible for spawning new machines and setting
+    status from booting to up and from disintegrated to done"""
 
     ConfigServerProxy = "oneServerProxy"
     ConfigUser = "oneUser"
@@ -50,7 +51,6 @@ class OneSiteAdapter(SiteAdapterBase):
         #        self.setConfig( self.ConfigPass, open("one_auth","r").read()[8:18] ) # reads in the one password stored locally in one_auth
         #        self.setConfig( self.ConfigUID,"17" ) # one user ID
         #        self.setConfig( self.ConfigServerProxy, "http://localhost:3000" ) # xmpl-rpc server address. port points via ssh tunnel to http://scchpblade09b.fzk.de:2633/RPC2
-
 
         self.addCompulsoryConfigKeys(self.ConfigUser, Config.ConfigTypeString)
         self.addCompulsoryConfigKeys(self.ConfigPass, Config.ConfigTypeString)
@@ -71,7 +71,7 @@ class OneSiteAdapter(SiteAdapterBase):
         try:
             return self.proxy
         except AttributeError:
-            self.proxy = xmlrpclib.ServerProxy(self.getConfig(self.ConfigServerProxy))
+            self.proxy = xmlrpc.client.ServerProxy(self.getConfig(self.ConfigServerProxy))
             return self.proxy
 
     def VMAllocate(self, template_name, hostname):
@@ -82,7 +82,8 @@ class OneSiteAdapter(SiteAdapterBase):
         try:
             return self.getProxy().one.vm.allocate(self.getOneSessionString(), template)
         except socket.error:
-            logging.debug("Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
+            logging.debug(
+                "Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
             return [False]
             # returns [True,VM_ID] or [False]
 
@@ -103,16 +104,18 @@ class OneSiteAdapter(SiteAdapterBase):
             if info[0] is True:
                 if info[1]["UID"] == self.getConfig(self.ConfigUID):  # machine is my machine
                     try:
-                        vm_action = self.getProxy().one.vm.action(self.getOneSessionString(), action, vm_id)
-                        print vm_action
+                        vm_action = self.getProxy().one.vm.action(self.getOneSessionString(),
+                                                                  action, vm_id)
+                        print(vm_action)
                         if vm_action[0] is True:
                             logging.info("Action %s for VM ID %s successful!" % (action, vm_id))
                     except socket.error:
                         logging.debug(
-                            "Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
+                            "Failed to connect to ONE RPC server %s !" % self.getConfig(
+                                self.ConfigServerProxy))
                         vm_action[0] = False
 
-        print vm_action
+        print(vm_action)
         return vm_action
 
     def ParseVmInfo(self, response):
@@ -135,7 +138,8 @@ class OneSiteAdapter(SiteAdapterBase):
         try:
             vm_info = self.getProxy().one.vm.info(self.getOneSessionString(), vm_id)
         except socket.error:
-            logging.debug("Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
+            logging.debug(
+                "Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
             vm_info[0] = False
 
         if vm_info[0] is True:
@@ -177,10 +181,12 @@ class OneSiteAdapter(SiteAdapterBase):
         see http://opennebula.org/documentation:rel2.0:api for more infos"""
 
         try:
-            vm_pool_info = self.getProxy().one.vmpool.info(self.getOneSessionString(), filter_flag, extended_info,
+            vm_pool_info = self.getProxy().one.vmpool.info(self.getOneSessionString(), filter_flag,
+                                                           extended_info,
                                                            state)
         except socket.error:
-            logging.debug("Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
+            logging.debug(
+                "Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
 
         if vm_pool_info[0] is True:
             info = [True, self.ParseVMPoolInfo(vm_pool_info[1])]
@@ -196,10 +202,10 @@ class OneSiteAdapter(SiteAdapterBase):
     def getOneSessionString(self):
         """one session string used for authentication by the xmlrpc server"""
 
-        hash = hashlib.sha1()
-        hash.update(self.getConfig(self.ConfigPass))
+        hash_ = hashlib.sha1()
+        hash_.update(self.getConfig(self.ConfigPass))
 
-        return self.getConfig(self.ConfigUser) + ":" + hash.hexdigest()
+        return self.getConfig(self.ConfigUser) + ":" + hash_.hexdigest()
 
     def checkForDeadMachine(self, mid):
         logging.info("Machine " + str(mid) + " is running but no ssh connect yet")
@@ -208,7 +214,8 @@ class OneSiteAdapter(SiteAdapterBase):
         if firstCheck is None:
             self.mr.machines[mid][self.reg_site_one_first_dead_check] = datetime.datetime.now()
         else:
-            if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(self.ConfigMachineBootTimeout):
+            if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(
+                    self.ConfigMachineBootTimeout):
                 logging.warn("Machine " + str(mid) + " did not boot in time. Shutting down")
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
@@ -234,44 +241,48 @@ class OneSiteAdapter(SiteAdapterBase):
         # print myMachines
         # {'8e661aac-fc4e-450f-9cbb-e57ec6e4adb2': {'status': 'working', 'site_type': 'one', 'hostname': '141.52.208.174', 'ssh_key': 'one_host_key', 'one_vmid': 910, 'status_last_update': datetime.datetime(2011, 1, 13, 15, 48, 39, 328084), 'machine_type': 'euca-default', 'site': 'one_site_scc'}}
 
-        for k in myMachines:
-            if myMachines[k]["status"] == "booting":
-                vm_info = self.VMInfo(myMachines[k]["one_vmid"])
-                print myMachines[k]["vpn_ip"]
-                print myMachines[k]["vpn_cert_is_valid"]
-                print myMachines[k]["vpn_cert"]
+        for mid in myMachines:
+            if myMachines[mid]["status"] == "booting":
+                vm_info = self.VMInfo(myMachines[mid]["one_vmid"])
+                print(myMachines[mid]["vpn_ip"])
+                print(myMachines[mid]["vpn_cert_is_valid"])
+                print(myMachines[mid]["vpn_cert"])
                 if vm_info[0] is True:
 
                     if vm_info[1]["STATE"] == "3" and vm_info[1]["LCM_STATE"] == "3":
-                        if self.checkIfMachineIsUp(k):
+                        if self.checkIfMachineIsUp(mid):
                             vpn = ScaleTools.Vpn()
 
-                            if (myMachines[k]["vpn_cert_is_valid"] is None):
-                                if (vpn.makeCertificate(myMachines[k]["vpn_cert"]) == 0):
-                                    myMachines[k]["vpn_cert_is_valid"] = True
+                            if myMachines[mid]["vpn_cert_is_valid"] is None:
+                                if vpn.makeCertificate(myMachines[mid]["vpn_cert"]) == 0:
+                                    myMachines[mid]["vpn_cert_is_valid"] = True
 
-                            if (myMachines[k]["vpn_cert_is_valid"] == True and myMachines[k]["vpn_ip"] is None):
-                                if (vpn.copyCertificate(myMachines[k]["vpn_cert"], myMachines[k]) == 0):
-                                    if (vpn.connectVPN(myMachines[k]["vpn_cert"], myMachines[k]) == 0):
-                                        (res, ip) = vpn.getIP(myMachines[k])
-                                        print res
-                                        print ip
-                                        if (res == 0 and ip != ""):
-                                            myMachines[k]["vpn_ip"] = ip
+                            if myMachines[mid]["vpn_cert_is_valid"] == True and \
+                                    myMachines[mid]["vpn_ip"] is None:
+                                if (vpn.copyCertificate(myMachines[mid]["vpn_cert"],
+                                                        myMachines[mid]) == 0):
+                                    if (vpn.connectVPN(myMachines[mid]["vpn_cert"],
+                                                       myMachines[mid]) == 0):
+                                        (res, ip) = vpn.getIP(myMachines[mid])
+                                        print(res)
+                                        print(ip)
+                                        if res == 0 and ip != "":
+                                            myMachines[mid]["vpn_ip"] = ip
                                         else:
-                                            print "getting VPN IP failed!!"
+                                            print("getting VPN IP failed!!")
 
-                            if (myMachines[k]["vpn_cert_is_valid"] == True and myMachines[k]["vpn_ip"] is not None):
+                            if (myMachines[mid]["vpn_cert_is_valid"] == True and myMachines[mid][
+                                "vpn_ip"] is not None):
                                 # if( vpn.revokeCertificate(myMachines[k]["vpn_cert"]) == 0):
                                 #    myMachines[k]["vpn_cert_is_valid"] == False
-                                self.mr.updateMachineStatus(k, self.mr.statusUp)
+                                self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
-                            print myMachines[k]["vpn_ip"]
-                            print myMachines[k]["vpn_cert_is_valid"]
-                            print myMachines[k]["vpn_cert"]
+                            print(myMachines[mid]["vpn_ip"])
+                            print(myMachines[mid]["vpn_cert_is_valid"])
+                            print(myMachines[mid]["vpn_cert"])
 
                         else:
-                            self.checkForDeadMachine(k)
+                            self.checkForDeadMachine(mid)
 
     """
         Possible VM States @ ONE:
@@ -295,8 +306,8 @@ class OneSiteAdapter(SiteAdapterBase):
 
             if info[0] is True:
                 # mid = self.mr.newMachine()
-                self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
-                self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
+                self.mr.machines[mid][self.mr.regSite] = self.siteName
+                self.mr.machines[mid][self.mr.regSiteType] = self.siteType
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
                 self.mr.machines[mid][self.reg_site_one_vmid] = info[1]  # ONE VM ID
                 self.mr.machines[mid][self.reg_gridengine_node_name] = node_name
@@ -314,20 +325,14 @@ class OneSiteAdapter(SiteAdapterBase):
 
     def terminateMachines(self, machineType, count):
         """kill <count> machines of type <machineType>"""
-
-        reg = MachineRegistry.MachineRegistry()
-
-        # a tuple is returned here
-        toRemove = filter(lambda (k, v): (v[self.mr.regStatus] == self.mr.statusWorking or v[
-            self.mr.regStatus] == self.mr.statusBooting) and \
-                                         v[self.mr.regSite] == self.getSiteName() and \
-                                         v[self.mr.regMachineType] == machineType, \
-                          self.mr.machines.iteritems())
-
-        # print toRemove: [('89f2904e-7c62-48fe-8cd0-f88ea14af359', {'status': 'booting', 'site_type': 'one', 'site': 'one_site_scc', 'one_vmid': 797, 'status_last_update': datetime.datetime(2010, 12, 16, 10, 14, 14, 282325), 'machine_type': 'euca-default'})]
+        toRemove = [mid for (mid, machine)
+                    in self.mr.getMachines(site=self.siteName, machineType=machineType)
+                    if machine[self.mr.regStatus] in [self.mr.statusWorking, self.mr.statusBooting]]
 
         toRemove = toRemove[0:count]
-        map(lambda (k, v): reg.updateMachineStatus(k, reg.statusPendingDisintegration), toRemove)
+
+        [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
+         for mid in toRemove]
 
         return len(toRemove)
 
@@ -335,16 +340,18 @@ class OneSiteAdapter(SiteAdapterBase):
         """triggered when event appears, independent of manage cycle"""
 
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
-            if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
+            if self.mr.machines[evt.id].get(self.mr.regSite) == self.siteName:
                 # check correct site etc...
                 if evt.newStatus == self.mr.statusDisintegrated:
                     # print int(self.mr.machines[evt.id].get(self.reg_site_one_vmid))
-                    vm_action = self.VMAction("cancel", int(self.mr.machines[evt.id].get(self.reg_site_one_vmid)))
+                    vm_action = self.VMAction("cancel", int(
+                        self.mr.machines[evt.id].get(self.reg_site_one_vmid)))
                     if vm_action[0] is True:
                         self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
     def isMachineTypeSupported(self, machineType):
         return True
 
-    def getDescription(self):
+    @property
+    def description(self):
         return "OneSiteAdapter"

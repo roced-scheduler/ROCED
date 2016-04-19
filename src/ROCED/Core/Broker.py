@@ -35,6 +35,7 @@ class SiteBrokerBase(object):
 
     @abc.abstractmethod
     def decide(self, machineTypes, siteInfo):
+        # (dict, list) ->dict
         """
         Main SiteBroker method with the intended behaviour.
 
@@ -68,6 +69,9 @@ class StupidBroker(SiteBrokerBase):
     def modSiteOrders(self, dict_, siteName, machineName, mod):
         """
         Increases or decreases the machines which should be stopped or started
+        :param mod:
+        :param machineName:
+        :param siteName:
         :type dict_: Dictionary to be manipulated
         """
         if mod == 0:
@@ -82,15 +86,12 @@ class StupidBroker(SiteBrokerBase):
         dict_[siteName][machineName] += mod
 
     def decide(self, machineTypes, siteInfo):
-        """
-        Redistribute cloud usage
-
-        """
+        """Redistribute cloud usage."""
         # TODO: report if not all req can be met
         # TODO: Input not yet complete. Broker has to know where each machine is running. FIX!!!
         machinesToSpawn = dict()
 
-        for (mname, mreq) in machineTypes.iteritems():
+        for (mname, mreq) in machineTypes.items():
             # don't request new machines in case of failure
             if mreq.required is not None:
                 delta = mreq.required - mreq.actual
@@ -98,8 +99,8 @@ class StupidBroker(SiteBrokerBase):
                 delta = 0
             delta = min(self._maxInstances - mreq.actual, delta)
 
-            self.logger.info("machine type " + mname + ": " + str(mreq.actual) + " running " + str(
-                mreq.required) + " needed. spawning/removing " + str(delta))
+            self.logger.info("machine type \'" + mname + "\': " + str(mreq.actual) + " running, " +
+                             str(mreq.required) + " needed. Spawning/removing " + str(delta))
 
             # if delta > 0:
             if mname in machinesToSpawn:
@@ -107,16 +108,16 @@ class StupidBroker(SiteBrokerBase):
             else:
                 machinesToSpawn[mname] = delta
 
-        # machinesToSpawn contains the wishlist of machines, distribute this to the cloud
-        # spawn, cheap sites first...
+        # machinesToSpawn contains a wishlist of machines. Distribute this to the cloud.
+        # Spawn cheap sites first.
         cheapFirst = sorted(siteInfo, key=attrgetter('cost'), reverse=False)
-        # shutdown, expensive sites first...
+        # Shutdown expensive sites first.
         expensiveFirst = sorted(siteInfo, key=attrgetter('cost'), reverse=True)
 
         siteOrders = dict()
 
         # spawn
-        for (mname, tospawn) in machinesToSpawn.iteritems():
+        for mname, tospawn in machinesToSpawn.items():
             for site in cheapFirst:
                 if tospawn > 0:
                     if mname in site.supportedMachineTypes:
@@ -126,7 +127,7 @@ class StupidBroker(SiteBrokerBase):
                         tospawn = 0
 
         # shutdown
-        for (mname, tospawn) in machinesToSpawn.iteritems():
+        for mname, tospawn in machinesToSpawn.items():
             for site in expensiveFirst:
                 if tospawn < 0:
                     if mname in site.supportedMachineTypes:

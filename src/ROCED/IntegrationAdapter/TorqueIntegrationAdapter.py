@@ -19,9 +19,9 @@
 #
 # ===============================================================================
 
-
-import libxml2
 import logging
+from lxml import etree
+
 from Core import MachineRegistry
 from IntegrationAdapter.Integration import IntegrationAdapterBase
 from Util import ScaleTools
@@ -32,97 +32,17 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
     reg_torque_bootstrap_url = "torque_bootstrap_url"
     reg_torque_node_ip = "torque_node_ip"
 
-    def torqHostName():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqHostName
-
-        def fset(self, value):
-            self._torqHostName = value
-
-        def fdel(self):
-            del self._torqHostName
-
-        return locals()
-
-    torqHostName = property(**torqHostName())
-
-    def torqIp():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqIp
-
-        def fset(self, value):
-            self._torqIp = value
-
-        def fdel(self):
-            del self._torqIp
-
-        return locals()
-
-    torqIp = property(**torqIp())
-
-    def torqNodeBootstrapRoot():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqNodeBootstrapRoot
-
-        def fset(self, value):
-            self._torqNodeBootstrapRoot = value
-
-        def fdel(self):
-            del self._torqNodeBootstrapRoot
-
-        return locals()
-
-    torqNodeBootstrapRoot = property(**torqNodeBootstrapRoot())
-
-    def torqNodeBootstrapUrl():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqNodeBootstrapUrl
-
-        def fset(self, value):
-            self._torqNodeBootstrapUrl = value
-
-        def fdel(self):
-            del self._torqNodeBootstrapUrl
-
-        return locals()
-
-    torqNodeBootstrapUrl = property(**torqNodeBootstrapUrl())
-
-    ''' ssh key to torque server
-    if this property is None, all calls will be made locally
-    '''
-
-    def torqKey():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._torqKey
-
-        def fset(self, value):
-            self._torqKey = value
-
-        def fdel(self):
-            del self._torqKey
-
-        return locals()
-
-    torqKey = property(**torqKey())
-
     def __init__(self):
         super(TorqueIntegrationAdapter, self).__init__()
 
         self.mr = MachineRegistry.MachineRegistry()
         self.torqIp = None
         self.torqHostName = None
+        """ SSH key to torque server.
+        if this property is None, all calls will be made locally
+        """
         self.torqKey = None
+
         self.torqInternalIp = None
 
         self.torqNodeBootstrapRoot = None
@@ -134,14 +54,13 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
 
     def manage(self):
 
-        disint = filter(lambda (k, v): v.get(self.mr.regStatus) == self.mr.statusDisintegrating,
-                        self.mr.machines.iteritems())
+        disint = self.mr.getMachines(status=self.mr.statusDisintegrating)
 
         # check if fully offline
         mlist = ""
 
-        for (mid, v) in disint:
-            mlist += v.get(self.reg_torque_node_name) + " "
+        for (mid, machine) in disint:
+            mlist += machine.get(self.reg_torque_node_name) + " "
 
         if len(mlist) == 0:
             return
@@ -150,11 +69,11 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
 
         if res == 0:
             try:
-                xd = libxml2.parseDoc(xmlRes)
+                xd = etree.parse(xmlRes)
 
-                for (mid, v) in disint:
-                    nodeName = v.get(self.reg_torque_node_name)
-                    stateLs = xd.xpathEval("/Data/Node[name='%s']/state" % nodeName)
+                for (mid, machine) in disint:
+                    nodeName = machine.get(self.reg_torque_node_name)
+                    stateLs = xd.xpath("/Data/Node[name='%s']/state" % nodeName)
                     if len(stateLs) > 0:
                         if str(stateLs[0].content).strip() == "offline" or str(
                                 stateLs[0].content).strip() == "down,offline":
@@ -285,5 +204,6 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
                     # set node offline. only remove as soon as no more jobs running
                     self.setNodeOffline(evt.id)
 
-    def getDescription(self):
+    @property
+    def description(self):
         return "TorqueIntegrationAdapter"

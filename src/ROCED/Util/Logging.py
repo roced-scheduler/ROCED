@@ -19,6 +19,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
+from __future__ import print_function, unicode_literals
 
 
 import csv
@@ -57,9 +58,19 @@ class JsonLog(object):
                 logging.error("Error when creating /log/ folder")
         # Build log file name
         if not cls.__fileName:
-            cls.__fileName = dir_.__str__() + "/" + prefix.__str__() + "_" + \
-                             str(datetime.today().strftime("%Y-%m-%d_%H-%M")) + \
-                             suffix.__str__() + ".json"
+            cls.__fileName = (dir_.__str__() + "/" + prefix.__str__() + "_" +
+                              str(datetime.today().strftime("%Y-%m-%d_%H-%M")) +
+                              suffix.__str__() + ".json")
+
+    @classmethod
+    def __enter__(cls):
+        return cls
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    def __exit__(cls, exc_type, exc_val, exc_tb):
+        # Raise exception(s) that appear along the way
+        return False
 
     @classmethod
     def addItem(cls, site, key, value):
@@ -89,7 +100,7 @@ class JsonLog(object):
             oldLog = {int(time.time()): cls.__jsonLog}
         try:
             with open(cls.__fileName, "w") as jsonFile:
-                json.dump(oldLog, jsonFile, sort_keys=True, indent=2)
+                json.dump(oldLog, jsonFile, indent=2)
         except IOError:
             logging.error("JSON file could not be opened for logging!")
 
@@ -103,7 +114,7 @@ class JsonLog(object):
 
         Format: | Timestamp: Log Output
         """
-        print str(int(time.time())) + ": " + str(cls.__jsonLog)
+        print(str(int(time.time())) + ": " + str(cls.__jsonLog))
 
 
 class JsonStats(object):
@@ -123,9 +134,9 @@ class JsonStats(object):
                 logging.error("Error when creating /log/ folder")
         # Build log file name
         if not cls.__fileName:
-            cls.__fileName = dir_.__str__() + "/" + prefix.__str__() + "_" + \
-                             str(datetime.today().strftime("%Y-%m-%d_%H-%M")) + \
-                             suffix.__str__() + ".json"
+            cls.__fileName = (dir_.__str__() + "/" + prefix.__str__() + "_" +
+                              str(datetime.today().strftime("%Y-%m-%d_%H-%M")) +
+                              suffix.__str__() + ".json")
 
     @classmethod
     def add_item(cls, site, mid, value):
@@ -167,14 +178,14 @@ class JsonStats(object):
             }
         try:
             with open(cls.__fileName, "w") as jsonFile:
-                json.dump(oldStats, jsonFile, sort_keys=True, indent=2)
+                json.dump(oldStats, jsonFile, indent=2)
         except IOError:
             logging.error("JSON file could not be opened for logging!")
 
     @classmethod
     def printStats(cls):
         for mid in cls.__jsonStats.keys():
-            print str(mid) + ": " + str(cls.__jsonStats[mid])
+            print(str(mid) + ": " + str(cls.__jsonStats[mid]))
 
 
 class CsvStats(object):
@@ -199,7 +210,7 @@ class CsvStats(object):
 
         # Existence check for log file
         if not os.path.isfile(cls.__fileName):
-            with open(cls.__fileName, "wb") as stats_file:
+            with open(cls.__fileName, "w", newline='') as stats_file:
                 writer = csv.DictWriter(stats_file, fieldnames=cls.__fieldnames)
                 writer.writeheader()
 
@@ -207,9 +218,11 @@ class CsvStats(object):
     def __enter__(cls):
         return cls
 
+    # noinspection PyUnusedLocal
     @classmethod
     def __exit__(cls, exc_type, exc_val, exc_tb):
-        pass
+        # Throw exception, if a problem occurred
+        return False
 
     @classmethod
     def add_item(cls, site, mid, old_status, new_status, timestamp, time_diff):
@@ -221,10 +234,10 @@ class CsvStats(object):
     def write_stats(cls):
         with open(cls.__fileName, "a") as stats_file:
             writer = csv.DictWriter(stats_file, fieldnames=cls.__fieldnames)
-            for stat in xrange(len(cls.__csvStats)):
+            for stat in range(len(cls.__csvStats)):
                 writer.writerow(cls.__csvStats.pop())
 
     @classmethod
     def printLog(cls):
         for stat in cls.__csvStats:
-            print stat
+            print(stat)

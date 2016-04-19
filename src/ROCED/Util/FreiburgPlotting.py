@@ -24,6 +24,7 @@
 """
 Plots useful information from HTCondorRequirementAdapter and FreiburgSiteAdapter JSON outputs.
 """
+from __future__ import print_function
 
 import json
 import argparse
@@ -81,7 +82,7 @@ def main():
         matplotlib.rcParams['font.sans-serif'] = 'Linux Biolinum O'
         matplotlib.rcParams['font.family'] = 'sans-serif'
     else:
-        print 'Error: plotting style unknown!'
+        print('Error: plotting style unknown!')
         sys.exit(1)
 
     # get log files and sort entries, result is a tuple
@@ -102,14 +103,13 @@ def main():
         rel_time_diffs = np.diff(rel_times)
         # get all indices of timestamps with a time difference greater than requested
         indices = np.nonzero(rel_time_diffs > args.correction_period)
-        print 'Ignoring ' + str(len(indices[0])) + ' periods with no log entries for over ' + str(
-            args.correction_period) + \
-              ' seconds:'
+        print('Ignoring ' + str(len(indices[0])) + ' periods with no log entries for over ' + str(
+            args.correction_period) + ' seconds:')
         index_offset = 0
         for index in indices[0]:
-            print 'Begin: ' + str(rel_times[index + index_offset]) + 's, End: ' + str(
-                rel_times[index + 1 + index_offset]) + \
-                  's, Diff: ' + str(rel_times[index + 1 + index_offset] - rel_times[index + index_offset]) + 's'
+            print('Begin: ' + str(rel_times[index + index_offset]) + 's, End: ' + str(
+                  rel_times[index + 1 + index_offset]) + 's, Diff: ' +
+                  str(rel_times[index + 1 + index_offset] - rel_times[index + index_offset]) + 's')
             # add two entries to time axis
             rel_times = np.insert(rel_times, index + index_offset + 1, rel_times[index + index_offset] + 1)
             rel_times = np.insert(rel_times, index + index_offset + 2, rel_times[index + index_offset + 2] - 1)
@@ -119,7 +119,7 @@ def main():
             index_offset += 2
 
     time_scales = {'s': ('second', 1), 'm': ('minute', 60), 'h': ('hour', 60 * 60), 'd': ('day', 60 * 60 * 24)}
-    rel_times = rel_times / float(time_scales.get(args.time_scale, 'm')[1])
+    rel_times /= float(time_scales.get(args.time_scale, 'm')[1])
 
     quantities = {}
 
@@ -209,7 +209,7 @@ def main():
         plt.savefig(args.output + '.png', bbox_inches='tight')
         plt.savefig(args.output + '.pdf', bbox_inches='tight')
         plt.savefig(args.output + '.svg', bbox_inches='tight')
-        print 'Output written to: ' + args.output
+        print('Output written to: ' + args.output)
 
 
 if __name__ == '__main__':

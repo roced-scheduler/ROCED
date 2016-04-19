@@ -210,7 +210,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         used_indices = []
         for server in servers:
             # find all machines matching the requirement "roced-" + index
-            number_found = re.findall(r"roced-([0-9]+)$", servers[server][self.oao_name])
+            number_found = re.findall("roced-([0-9]+)$", servers[server][self.oao_name])
             if len(number_found) > 0:
                 used_indices.append(int(number_found[0]))
 
@@ -235,36 +235,6 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # return the unused indices
         return new_indices
 
-    def getRunningMachines(self):
-        """
-        Returns a dictionary containing all running machines
-
-        The number of running machines needs to be recalculated when using status integrating and pending
-        disintegration. Machines pending disintegration are still running an can accept new jobs. Machines integrating
-        are counted as running machines by default.
-
-        :return: machineList
-        """
-
-        # get all machines running on site
-        myMachines = self.getSiteMachines()
-        machineList = dict()
-
-        # generate empty list for machines running on 1and1
-        machineList[self.getConfig(self.configMachines).keys()[0]] = []
-
-        # filter for machines in status booting, up, integrating, working or pending disintegration
-        for (k, v) in myMachines.iteritems():
-            if v.get(self.mr.regStatus) == self.mr.statusBooting or \
-                    v.get(self.mr.regStatus) == self.mr.statusUp or \
-                    v.get(self.mr.regStatus) == self.mr.statusIntegrating or \
-                    v.get(self.mr.regStatus) == self.mr.statusWorking or \
-                    v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration:
-                # add machine to previously defined list
-                machineList[v[self.mr.regMachineType]].append(k)
-
-        return machineList
-
     def spawnMachines(self, machineType, requested):
         """
         spawn VMs for 1and1 cloud service
@@ -284,7 +254,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # find all unused indices to spawn machines
         index = self.getIndex(servers, requested)
         # loop over all requested machines
-        for count in xrange(requested):
+        for count in range(requested):
             # set machine name
             vm_name = "roced-" + "{0:0>3}".format(index.pop(0))  # str(index.pop(0))
             # create machine with all required information
@@ -313,8 +283,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             mid = self.mr.newMachine()
 
             # set some machine specific entries in machine registry
-            self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
-            self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
+            self.mr.machines[mid][self.mr.regSite] = self.siteName
+            self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = machineType
             self.mr.machines[mid][self.reg_site_server_name] = vm[self.oao_name]
             self.mr.machines[mid][self.reg_site_server_id] = vm[self.oao_id]
@@ -405,7 +375,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             return
 
         # loop over all machines on 1and1 Cloud Site and already in machine registry
-        for mid in self.mr.getMachines(self.getSiteName()):
+        for mid in self.mr.getMachines(self.siteName):
             # TODO: is this needed?
             # check if machine is already deleted on site
             if not self.mr.machines[mid][self.reg_site_server_id] in oao_machines:
@@ -485,14 +455,14 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                 continue
 
             # check if machine is already in machine registry
-            if vm in self.mr.getMachines(self.getSiteName()):
+            if vm in self.mr.getMachines(self.siteName):
                 continue
             # create new machine in machine registry
             mid = self.mr.newMachine()
 
             # set some machine specific entries in machine registry
-            self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
-            self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
+            self.mr.machines[mid][self.mr.regSite] = self.siteName
+            self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = self.oao  # machineType
             self.mr.machines[mid][self.reg_site_server_name] = oao_machines[vm][self.oao_name]
             self.mr.machines[mid][self.reg_site_server_id] = oao_machines[vm][self.oao_id]
@@ -501,15 +471,15 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
         # add current amounts of machines to Json log file
-        self.logger.info("Current machines running at " + str(self.getSiteName()) + " : " + str(
-            self.getRunningMachinesCount()[self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
+        self.logger.info("Current machines running at " + str(self.siteName) + " : " + str(
+            self.runningMachinesCount[self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
         json_log = JsonLog()
-        json_log.addItem(self.getSiteName(), 'machines_requested',
+        json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                              len(self.getSiteMachines(status=self.mr.statusUp)) +
                              len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        json_log.addItem(self.getSiteName(), 'condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
-        json_log.addItem(self.getSiteName(), 'condor_nodes_draining',
+        json_log.addItem(self.siteName, 'condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
+        json_log.addItem(self.siteName, 'condor_nodes_draining',
                          len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 
         del oao_machines

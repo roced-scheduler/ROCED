@@ -19,7 +19,7 @@
 #
 # ===============================================================================
 
-
+# see http://docs.pythonboto.org/
 import boto
 
 try:
@@ -29,25 +29,9 @@ except ImportError:
 
 
 class E2basedUtil(object):
-    def imagesCache():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._imagesCache
-
-        def fset(self, value):
-            self._imagesCache = value
-
-        def fdel(self):
-            del self._imagesCache
-
-        return locals()
-
-    imagesCache = property(**imagesCache())
 
     def __init__(self):
         self.imagesCache = None
-        pass
 
     def loadImages(self, euca_conn):
         if self.imagesCache is None:
@@ -65,14 +49,14 @@ class E2basedUtil(object):
     def getImageIdByImageName(self, euca_conn, image_name):
         return self.getImageByImageName(euca_conn, image_name).id
 
-    def getImageNameByImageId(self, euca_conn, id):
+    def getImageNameByImageId(self, euca_conn, id_):
         self.loadImages(euca_conn)
 
         for i in self.imagesCache:
-            if i.id == id:
+            if i.id == id_:
                 return i.location.partition("/")[0]
 
-        raise LookupError("No image with id " + id + " found")
+        raise LookupError("No image with id " + id_ + " found")
 
     def openConnection(self):
         raise NotImplementedError("This method must be implemented by the concrete derived class")

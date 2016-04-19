@@ -24,7 +24,7 @@ import logging
 import random
 
 from Core import MachineRegistry
-from Site import SiteAdapterBase
+from .Site import SiteAdapterBase
 
 
 class FakeSiteAdapter(SiteAdapterBase):
@@ -37,7 +37,6 @@ class FakeSiteAdapter(SiteAdapterBase):
 
         self.privateConfig += [self.ConfigSiteDescription]
 
-        self.runningMachines = dict()
         self.mr = MachineRegistry.MachineRegistry()
 
         self.bootTimeMu = 60
@@ -54,68 +53,34 @@ class FakeSiteAdapter(SiteAdapterBase):
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
                 # self.mr.removeMachine(evt.id)
 
-    def runningMachines():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._runningMachines
-
-        def fset(self, value):
-            self._runningMachines = value
-
-        def fdel(self):
-            del self._runningMachines
-
-        return locals()
-
-    runningMachines = property(**runningMachines())
-
     def manage(self):
-        for k in self.runningMachines:
-            if (datetime.datetime.now() - self.mr.machines[k][
-                self.mr.regStatusLastUpdate]).seconds > random.gauss(
-                self.bootTimeMu, self.bootTimeSigma) and \
-                            self.mr.machines[k][self.mr.regStatus] == self.mr.statusBooting:
-                logging.info("Machine " + str(k) + " is done booting")
-                self.mr.updateMachineStatus(k, self.mr.statusUp)
+        for machineType in self.runningMachines:
+            for mid in self.runningMachines[machineType]:
+                if self.mr.calcLastStateChange(mid) > random.gauss(
+                   self.bootTimeMu, self.bootTimeSigma) and self.mr.machines[mid][
+                        self.mr.regStatus] == self.mr.statusBooting:
+                    logging.info("Machine " + str(mid) + " is done booting")
+                    self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
     def spawnMachines(self, machineType, count):
         for i in range(0, count):
             self.mr = MachineRegistry.MachineRegistry()
-            id = self.mr.newMachine()
+            mid = self.mr.newMachine()
 
-            self.runningMachines[id] = None
+            self.runningMachines[mid] = {}
 
-            self.mr.machines[id][self.mr.regSite] = self.getSiteName()
-            self.mr.machines[id][self.mr.regMachineType] = machineType
-            self.mr.updateMachineStatus(id, self.mr.statusBooting)
+            self.mr.machines[mid][self.mr.regSite] = self.siteName
+            self.mr.machines[mid][self.mr.regMachineType] = machineType
+            self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
         return count
 
     def terminateMachines(self, machineType, count):
-        reg = MachineRegistry.MachineRegistry()
-
-        # a tuple is returned here
-        toRemove = filter(lambda (k, v): v[reg.regStatus] == reg.statusWorking and \
-                                         v[reg.regMachineType] == machineType, \
-                          self.mr.machines.iteritems())
+        toRemove = list(self.mr.getMachines(status=self.mr.statusWorking, machineType=machineType))
 
         # only pick the needed amount
         toRemove = toRemove[0:count]
-        map(lambda (k, v): reg.updateMachineStatus(k, reg.statusPendingDisintegration), toRemove)
+
+        [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration) for mid in toRemove]
 
         return len(toRemove)
-
-    # def getRunningMachines(self):
-    #     res = dict()
-    #
-    #     res["machine1"] = []
-    #
-    #     for k in self.runningMachines:
-    #         if self.mr.machines[k].get(self.mr.reg_status) == self.mr.StatusBooting or \
-    #                         self.mr.machines[k].get(self.mr.reg_status) == self.mr.StatusUp or \
-    #                         self.mr.machines[k].get(
-    #                             self.mr.reg_status) == self.mr.StatusIntegrating or \
-    #                         self.mr.machines[k].get(self.mr.reg_status) == self.mr.StatusWorking:
-    #             res["machine1"].append(k)
-    #     return res

@@ -1,6 +1,6 @@
 # ==============================================================================
 #
-# Copyright (c) 2010, 2011, 2015 by Guenther Erli
+# Copyright (c) 2010, 2011, 2015, 2016 by Guenther Erli, Frank Fischer
 #
 # This file is part of ROCED.
 #
@@ -19,16 +19,14 @@
 #
 # ==============================================================================
 
-
 import datetime
 import logging
-# import time
 import uuid
 from novaclient.client import Client
 from novaclient.v1_1.hypervisors import HypervisorManager
 
 from Core import MachineRegistry, Config
-from SiteAdapter.Site import SiteAdapterBase, SiteInformation
+from SiteAdapter.Site import SiteAdapterBase
 from Util.Logging import JsonLog
 
 
@@ -36,8 +34,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     """
     Site Adapter for OpenStack
 
-    responsible for spawning new machines and setting the status from booting to up, from up to integrating,
-    from pending disintegrating to disintegrating, from disintegrating to disintegrated and from disintegrated to down
+    responsible for spawning new machines and setting status from booting to up,
+    from up to integrating, from pending disintegrating to disintegrating,
+    from disintegrating to disintegrated and from disintegrated to down
     """
 
     # Name of Site Adapter in ROCED output
@@ -151,7 +150,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         super(OpenStackSiteAdapter, self).init()
 
         # if admin access is enabled, get number of max machines from number of hypervisors
-        if self.getConfig(self.configUseTime) is True and not self.getConfig(self.configMaxMachines):
+        if self.getConfig(self.configUseTime) is True and not self.getConfig(
+                self.configMaxMachines):
             self.setConfig(self.configMaxMachines, self.getMaxMachines())
 
         # set name of Site Adapter for ROCED output
@@ -172,101 +172,48 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # if admin access is enabled, get number of max machines from number of hypervisors
         if self.getConfig(self.configUseTime):
             flavor_cores = \
-                self.getNovaApi().flavors.find(name=self.getConfig(self.configFlavor)).__dict__[
+                self.__getNovaApi().flavors.find(name=self.getConfig(self.configFlavor)).__dict__[
                     "vcpus"]
             host_list = HypervisorManager(
-                self.getNovaApi(self.getConfig(self.configUseTime))).list()
+                self.__getNovaApi(self.getConfig(self.configUseTime))).list()
             maxMachines = 0
             for host in host_list:
                 maxMachines = maxMachines + (host.__dict__["vcpus"] / flavor_cores)
             return maxMachines
 
-    def getSiteInformation(self):
-        """
-        Get information about running site
-        :return: site_info (SiteInformation class)
-        """
-
-        site_info = SiteInformation()
-        site_info.siteName = self.getSiteName()
-        site_info.maxMachines = self.getConfig(self.ConfigMaxMachines)
-        site_info.baselineMachines = self.getConfig(self.ConfigBaselineMachines)
-        site_info.supportedMachineTypes = self.getConfig(self.ConfigMachines)
-        site_info.cost = self.getConfig(self.ConfigCost)
-        site_info.isAvailable = self.getConfig(self.ConfigIsAvailable)
-
-        return site_info
-
-    def getSiteMachines(self, status=None, machineType=None):
-        """
-        Get machines running at OpenStack site
-
-        :param status:
-        :param machineType:
-        :return: machine_registry
-        """
-        return self.mr.getMachines(self.getSiteName(), status, machineType)
-
-    def getRunningMachines(self):
+    @property
+    def runningMachines(self):
         """
         Returns a dictionary containing all running machines
 
-        The number of running machines needs to be recalculated when using status integrating and pending
-        disintegration. Machines pending disintegration are still running an can accept new jobs. Machines integrating
-        are counted as running machines by default.
+        The number of running machines needs to be recalculated when using status integrating and
+        pending disintegration. Machines pending disintegration are still running and can accept
+        new jobs. Machines integrating are counted as running machines by default.
 
         :return: machineList
         """
+        statusFilter = [MachineRegistry.MachineRegistry.statusUp,
+                        MachineRegistry.MachineRegistry.statusIntegrating,
+                        MachineRegistry.MachineRegistry.statusWorking,
+                        MachineRegistry.MachineRegistry.statusPendingDisintegration,
+                        MachineRegistry.MachineRegistry.statusDisintegrating,
+                        MachineRegistry.MachineRegistry.statusDisintegrated]
 
-        myMachines = self.getSiteMachines()
-        machineList = dict()
-
-        machineList[self.getConfig(self.configMachines)] = []
-        # for i in self.getConfig(self.configMachines).keys():
-        #    machineList[i] = []
-
-        # filter for machines in status booting, up, integrating, working or pending disintegration
-        for (k, v) in myMachines.iteritems():
-            if v.get(self.mr.regStatus) == self.mr.statusBooting or \
-                    v.get(self.mr.regStatus) == self.mr.statusUp or \
-                    v.get(self.mr.regStatus) == self.mr.statusIntegrating or \
-                    v.get(self.mr.regStatus) == self.mr.statusWorking or \
-                    v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration or \
-                    v.get(self.mr.regStatus) == self.mr.statusDisintegrating or \
-                    v.get(self.mr.regStatus) == self.mr.statusDisintegrated:
-                # will later hold specific information, like id, ip etc
-                machineList[v[self.mr.regMachineType]].append(k)
-
-        return machineList
-
-    def getRunningMachinesCount(self):
-        """
-        This function returns a dictionary containing the number running machines for each machine type
-
-        :return: running_machines_count
-        """
-        # this function return the a dictionary containing the number of running machines for each machine type
-        running_machines = self.getRunningMachines()
-        running_machines_count = dict()
-
-        for machine_type in running_machines:
-            running_machines_count[machine_type] = len(running_machines[machine_type])
-
-        return running_machines_count
+        return self.getSiteMachinesAsDict(statusFilter)
 
     def spawnMachines(self, machineType, requested):
         """Function to spawn requested amount of machines
 
-        This function spawns the requested number of new machines, unless the number exceeds the maximal number of
-        machines allowed to spawn per management cycle. The requested amount of machines is also limited by
-        SiteAdapterBase.applyMachineDecision(), so that the number of requested machines plus running machines will not
-        exceed the number of overall allowed machines.
+        This function spawns the requested number of new machines, unless the number exceeds the
+        maximal number of machines allowed to spawn per management cycle. The requested amount of
+        machines is also limited by SiteAdapterBase.applyMachineDecision(), so that the number of
+        requested + running machines will not exceed the number of overall allowed machines.
 
-        If the timedependent spawning of machines is activated, it will not spawn more machines totally than
-        (percentage of machines at day) * (number of machines allowed per site).
+        If time-dependent spawning of machines is activated, it will not spawn more machines
+        in total than (percentage of machines at day) * (number of machines allowed per site).
 
-        If spawning is not possible of fails (due to connection failures, OpenStack quota limits,...) it does nothing
-        (ROCED will try to spawn new machines in next managment cycle).
+        If spawning is not possible or fails (due to connection failures, OpenStack quota limits,..)
+        it does nothing (ROCED will try to spawn new machines in next managment cycle).
 
         :param machineType:
         :param requested: requested number of machines
@@ -277,26 +224,29 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             return 0
 
         try:
-            nova = self.getNovaApi()
+            nova = self.__getNovaApi()
 
             # important to give a specifc network due to bug in nova api:
             netw = nova.networks.list()[0]
             fls = nova.flavors.find(name=self.getConfig(self.configFlavor))
             img = nova.images.find(name=self.getConfig(self.configImage))
             key = nova.keypairs.list()
-            name_prefix = str(self.getSiteName() + "-")
+            name_prefix = str(self.siteName + "-")
 
             daytime = datetime.datetime.strptime(self.getConfig(self.configDay), "%H:%M")
             nighttime = datetime.datetime.strptime(self.getConfig(self.configNight), "%H:%M")
 
-            # check if timedependent spawning is activated
+            ###
+            # Time dependent adaptions:
+            #   Daytime:
+            #   - number of allowed machines = (percentage * max_machines)
+            #   - if requested machines + running machines > number of allowed machines:
+            #       number of requested machines = limit
+            #   Nighttime:
+            #   - nothing to do
+            ###
             if self.getConfig(self.configUseTime):
-                # check if it is day or night
                 if daytime.time() <= datetime.datetime.now().time() <= nighttime.time():
-                    # if the amount of requested machines plus running machines exceed the number of maximally allowed
-                    # machines at day, set the number of requested machines so that it fits the limits
-                    # also: if it is daytime, the amount of allowed machines is set to (percentage * max_machines)
-                    # if it is nighttime, nothing happens
                     if (requested + len(self.getSiteMachines())) > (
                                 self.getConfig(self.configMaxMachines) * self.getConfig(
                                 self.configMachinePercentage)):
@@ -307,40 +257,42 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                                     self.configMachinePercentage))) +
                             ")! ")
                         self.logger.info("Will spawn " + str(int(
-                                (self.getConfig(self.configMaxMachines) * self.getConfig(
-                                    self.configMachinePercentage)) - len(
-                                    self.getSiteMachines()))) +
-                            " machines")
+                            (self.getConfig(self.configMaxMachines) * self.getConfig(
+                                self.configMachinePercentage)) - len(
+                                self.getSiteMachines()))) + " machines")
                         requested = int(
                             (self.getConfig(self.configMaxMachines) * self.getConfig(
                                 self.configMachinePercentage)) - len(
                                 self.getSiteMachines()))
 
-            # check if the requested amount of machines exceeds the allowed number of machines per cycle
+            # requested amount > allowed number of machines per cycle
             if requested > self.getConfig(self.configMaxMachinesPerCycle):
                 self.logger.info(
                     "Request exceeds maximum number of allowed machines per cycle on this site (" +
                     str(requested) + ">" + str(
                         self.getConfig(self.configMaxMachinesPerCycle)) + ")!")
                 self.logger.info("Will spawn " +
-                    str(self.getConfig(self.configMaxMachinesPerCycle)) + " machines")
+                                 str(self.getConfig(self.configMaxMachinesPerCycle)) + " machines")
                 # set requested equals the number of machines per cycle
                 requested = self.getConfig(self.configMaxMachinesPerCycle)
 
-            # now spawn the machines
-            for count in xrange(requested):
+            ###
+            # spawn machines
+            ###
+            for count in range(requested):
                 # init new machine in machine registry
                 mid = name_prefix + str(uuid.uuid4())
                 self.mr.newMachine(mid)
                 # spawn machine at site
                 if len(key) >= 1:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw.id}], key_name=key[0].id)
+                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw.id}],
+                                             key_name=key[0].id)
                 else:
                     vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw.id}])
 
                 # set some machine information in machine registry
-                self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
-                self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
+                self.mr.machines[mid][self.mr.regSite] = self.siteName
+                self.mr.machines[mid][self.mr.regSiteType] = self.siteType
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
                 self.mr.machines[mid][self.reg_site_server_id] = vm.id
                 self.mr.machines[mid][self.reg_site_server_status] = vm.status
@@ -349,7 +301,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 # if admin account is set, also set the hypervisor
                 if self.getConfig(self.configUseTime):
                     # time.sleep(1)
-                    self.mr.machines[mid][self.reg_site_server_hypervisor] = self.getHypervisor(
+                    self.mr.machines[mid][self.reg_site_server_hypervisor] = self.__getHypervisor(
                         vm.id)
 
                 # TODO: set machine information, like openstack id
@@ -362,21 +314,21 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         except:
             self.logger.warning("Spawning machines failed...")
 
-    def openstackTerminateMachines(self, mid):
+    def __openstackTerminateMachines(self, mid):
         """Terminate machines in OpenStack
 
-        This function will terminate/delete the machine in OpenStack, which means it will clean up the used resources in
-        OpenStack, and remove the machine from the machine registry.
+        This function will terminate/delete the machine in OpenStack, which means it will clean up
+        the used resources in OpenStack, and remove the machine from the machine registry.
 
-        If terminating the machine fails, for example due to connection failures, nothing happens until the next
-        management cycle
+        If terminating the machine fails, for example due to connection failures, nothing happens
+        until the next management cycle.
 
         :param mid: id of machine to terminate
         :return:
         """
         try:
             # initialize the NovaAPI
-            nova = self.getNovaApi()
+            nova = self.__getNovaApi()
             # send terminate/delete command
             nova.servers.find(id=self.mr.machines[mid.id][self.reg_site_server_id]).delete()
             # remove from machine registry
@@ -384,28 +336,28 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         except:
             pass
 
-    def openstackStopMachine(self, mid):
+    def __openstackStopMachine(self, mid):
         """Stop machines in OpenStack
 
-        This function stops the machine in OpenStack. It will now regularly shut down and therefore log out of condor.
-        A direct terminate would result in the machine not logging out of condor and therefore stay in condor status
-        idle, although it doesn't exist any more.
+        This function stops the machine in OpenStack. It will now regularly shut down and therefore
+        log out of condor. A direct terminate would result in the machine not logging out of condor
+        and therefore stay in condor status idle, although it doesn't exist any more.
 
-        If stopping the machine fails, for example due to connection failures, nothing happens until the next management
-        cycle.
+        If stopping the machine fails, for example due to connection failures, nothing happens until
+        the next management cycle.
 
         :param mid: id of machine to stop
         :return:
         """
         try:
             # initialize the NovaAPI
-            nova = self.getNovaApi()
+            nova = self.__getNovaApi()
             # send the stop command for shutting down
             nova.servers.find(id=self.mr.machines[mid][self.reg_site_server_id]).stop()
         except:
             pass
 
-    def openstackTimeDepStopMachine(self):
+    def __openstackTimeDepStopMachine(self):
         """
         function to terminate running machines if time dependant machine management is enabled
         :return:
@@ -418,20 +370,22 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
             hypervisor_machines = {}
 
-            for mid in self.mr.getMachines(self.getSiteName()):
+            for mid in self.mr.getMachines(self.siteName):
                 # if hypervisor is not set or None, set the hypervisor correctly
                 if self.reg_site_server_hypervisor not in self.mr.machines[mid].keys() \
                         or self.mr.machines[mid][self.reg_site_server_hypervisor] is None:
-                    self.mr.machines[mid][self.reg_site_server_hypervisor] = self.getHypervisor(
+                    self.mr.machines[mid][self.reg_site_server_hypervisor] = self.__getHypervisor(
                         self.mr.machines[mid][self.reg_site_server_id])
                 # get the hypervisor from machine registry
                 hypervisor = self.mr.machines[mid][self.reg_site_server_hypervisor]
                 # append machine to hypervisor in hypvisor list
                 if hypervisor in hypervisor_machines:
-                    hypervisor_machines[self.mr.machines[mid][self.reg_site_server_hypervisor]].append(
+                    hypervisor_machines[
+                        self.mr.machines[mid][self.reg_site_server_hypervisor]].append(
                         mid)
                 else:
-                    hypervisor_machines[self.mr.machines[mid][self.reg_site_server_hypervisor]] = [mid]
+                    hypervisor_machines[self.mr.machines[mid][self.reg_site_server_hypervisor]] = [
+                        mid]
 
             for hypervisor in hypervisor_machines.keys():
                 # check if there are more machines running on specific hypervisor and if so, get the least one used and
@@ -451,11 +405,14 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                             to_terminate = mid
                             break
                         # if all machines are working, get the least one used
-                        if self.mr.machines[mid][self.reg_site_server_status] is not self.reg_site_server_status_error:
-                            if self.mr.regMachineLoad in self.mr.machines[mid].keys() and self.mr.regMachineLoad in \
+                        if self.mr.machines[mid][
+                            self.reg_site_server_status] is not self.reg_site_server_status_error:
+                            if self.mr.regMachineLoad in self.mr.machines[
+                                mid].keys() and self.mr.regMachineLoad in \
                                     self.mr.machines[to_terminate].keys() and (
-                                        self.mr.machines[mid][self.mr.regMachineLoad] < self.mr.machines[to_terminate][
-                                        self.mr.regMachineLoad]):
+                                        self.mr.machines[mid][self.mr.regMachineLoad] <
+                                        self.mr.machines[to_terminate][
+                                            self.mr.regMachineLoad]):
                                 to_terminate = mid
                         # if all are used the same, just take the first one
                         else:
@@ -475,14 +432,18 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         :return:
         """
-        nova_machines = self.getNovaMachines()
+        nova_machines = self.__getNovaMachines()
 
-        # look after each machine in machine registry and perform state changes. if machine appears also in nova
-        # machines, delete it from nova machines. this will result in all machines appearing in machine registry will
-        # be removed from nova machines and the remaining machines will be add to the machines registry
-        # this could happen, if somehow machines will boot up at OpenStack without being requested...
-        for mid in self.mr.getMachines(self.getSiteName()):
-            # if machine is not listed in OpenStack, remove it from machine registry
+        # Look for each machine in machine registry and perform necessary status change(s).
+        #
+        # In the process we delete each machine that's in the machine registry from nova_machines.
+        # As a result, nova_machines then contains a list of MISSING machines.
+        #
+        # -> Add these machines to the machines registry.
+        # This can happen, if (somehow) machines boot up at OpenStack without being requested...
+
+        for mid in self.mr.getMachines(self.siteName):
+            # machine not listed in OpenStack -> remove from machine registry
             if len(nova_machines) == 0 or mid not in nova_machines:
                 self.mr.removeMachine(mid)
                 continue
@@ -493,10 +454,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
             # if machine is in error state, move it to disintegrating
             if nova_machines[mid][self.reg_site_server_status] in [
-                self.reg_site_server_status_error,
-                self.reg_site_server_status_shutoff]:
-                self.mr.machines[mid][
-                    self.reg_site_server_status] = self.reg_site_server_status_error
+                self.reg_site_server_status_error, self.reg_site_server_status_shutoff]:
+                self.mr.machines[mid][self.reg_site_server_status] = \
+                    self.reg_site_server_status_error
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
 
             # status handled by Integration Adapter
@@ -504,15 +464,13 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                                                             self.mr.statusWorking,
                                                             self.mr.statusPendingDisintegration]:
                 del nova_machines[mid]
-
-            # if status is down, machine is terminated at OpenStack, so remove it from machine registry
-            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDown:
+            # if status = down, machine was terminated at OpenStack -> remove from machine registry
+            elif self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDown:
                 self.mr.removeMachine(mid)
                 continue
-
             # check if machine could be started correctly
-            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting:
-                # they started correctly when the OpenStack state changes to active
+            elif self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting:
+                # they started correctly when OpenStack state changes to active
                 if nova_machines[mid][
                     self.reg_site_server_status] == self.reg_site_server_status_active:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
@@ -520,13 +478,12 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                         self.reg_site_server_status]
                 if mid in nova_machines:
                     del nova_machines[mid]
-
             # check if machines is disintegrating
-            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDisintegrating:
+            elif self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDisintegrating:
                 # check if machine is in status active (OpenStack status), if so, send stop command
                 if nova_machines[mid][
                     self.reg_site_server_status] == self.reg_site_server_status_active:
-                    self.openstackStopMachine(mid)
+                    self.__openstackStopMachine(mid)
                 # if machine is in status shutoff (OpenStack), update to disintegrated
                 if nova_machines[mid][
                     self.reg_site_server_status] == self.reg_site_server_status_shutoff:
@@ -534,12 +491,12 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 if mid in nova_machines:
                     del nova_machines[mid]
 
-        # add running nova machines and information to machine registry if they were not listed there before
+        # add running nova machines and information to machine registry
         for mid in nova_machines:
-            if mid not in self.mr.getMachines(self.getSiteName()):
+            if mid not in self.mr.getMachines(self.siteName):
                 new = self.mr.newMachine(mid)
-                self.mr.machines[new][self.mr.regSite] = self.getSiteName()
-                self.mr.machines[new][self.mr.regSiteType] = self.getSiteType()
+                self.mr.machines[new][self.mr.regSite] = self.siteName
+                self.mr.machines[new][self.mr.regSiteType] = self.siteType
                 # TODO: handle different machine types
                 self.mr.machines[new][self.mr.regMachineType] = self.getConfig(
                     self.configMachines)  # "vm-default"
@@ -559,20 +516,22 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                     self.mr.updateMachineStatus(mid, self.mr.statusWorking)
 
         if self.getConfig(self.configUseTime):
-            self.openstackTimeDepStopMachine()
+            self.__openstackTimeDepStopMachine()
 
-        # add current amounts of machines to Json log file
-        self.logger.info("Current machines running at " + str(self.getSiteName()) + " : " + str(
-            self.getRunningMachinesCount()[
-                self.getConfig(self.configMachines)]))  # ["vm-default"]))
+        ###
+        # Write Json log file:
+        #  requested machines, nodes, draining nodes.
+        ###
+        self.logger.info("Current machines running at " + str(self.siteName) + " : " + str(
+            self.runningMachinesCount[self.getConfig(self.configMachines)]))  # ["vm-default"]))
         json_log = JsonLog()
-        json_log.addItem(self.getSiteName(), 'machines_requested',
+        json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                              len(self.getSiteMachines(status=self.mr.statusUp)) +
                              len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        json_log.addItem(self.getSiteName(), 'condor_nodes',
+        json_log.addItem(self.siteName, 'condor_nodes',
                          len(self.getSiteMachines(status=self.mr.statusWorking)))
-        json_log.addItem(self.getSiteName(), 'condor_nodes_draining',
+        json_log.addItem(self.siteName, 'condor_nodes_draining',
                          len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 
     def onEvent(self, mid):
@@ -587,39 +546,35 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # check correct site etc...
         if isinstance(mid, MachineRegistry.StatusChangedEvent):
-            if self.mr.machines[mid.id].get(self.mr.regSite) == self.getSiteName():
-                if self.mr.machines[mid.id].get(self.mr.regSite) == self.getSiteName():
+            if self.mr.machines[mid.id].get(self.mr.regSite) == self.siteName:
+                if self.mr.machines[mid.id].get(self.mr.regSite) == self.siteName:
                     # if new status is disintegrating, halt machine
                     if mid.newStatus == self.mr.statusDisintegrating:
-                        self.openstackStopMachine(mid.id)
+                        self.__openstackStopMachine(mid.id)
                     # if new status is disintegrated, machine is already shut down, so kill it
                     if mid.newStatus == self.mr.statusDisintegrated:
-                        self.openstackTerminateMachines(mid)
+                        self.__openstackTerminateMachines(mid)
                         self.mr.updateMachineStatus(mid.id, self.mr.statusDown)
 
-    """private part"""
-
-    def getHypervisor(self, id):
+    def __getHypervisor(self, id_):
         """
-
         get the corresponding hypervisor to the requested id
 
         :return:vm_hypervisor
         """
 
-        nova = self.getNovaApi(self.getConfig(self.configUseTime))
+        nova = self.__getNovaApi(self.getConfig(self.configUseTime))
         nova_machines = [(vm.id, vm.__dict__['OS-EXT-SRV-ATTR:host']) for vm in
                          nova.servers.list(search_opts={'all_tenants': True})]
 
         # return the corresponding hypervisor
         for (vm_id, vm_hypervisor) in nova_machines:
-            if str(vm_id) == str(id):
+            if str(vm_id) == str(id_):
                 # if vm_hypervisor == "None":
-
 
                 return vm_hypervisor
 
-    def getNovaApi(self, admin_access=False):
+    def __getNovaApi(self, admin_access=False):
         """Nova Client API
 
         initialize the Nova Client API with the specified settings
@@ -643,14 +598,14 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # client = __import__('novaclient', globals(), locals(), [], 0)
         return Client(2, user, password, tenant, keystone, timeout=time_out)
 
-    def getNovaMachines(self):
+    def __getNovaMachines(self):
         """Get list of machines from OpenStack
 
         :return: nova_machines
         """
 
         # init NovaClient
-        nova = self.getNovaApi()
+        nova = self.__getNovaApi()
 
         # get list of servers
         try:
@@ -661,10 +616,10 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             nova_machines = {}
 
             if len(nova_results) >= 1:
-                for (id, name, status) in nova_results:
+                for (id_, name, status) in nova_results:
                     # set some machine information
                     nova_machines[name] = {}
-                    nova_machines[name][self.reg_site_server_id] = id
+                    nova_machines[name][self.reg_site_server_id] = id_
                     nova_machines[name][self.reg_site_server_status] = status
 
             return nova_machines

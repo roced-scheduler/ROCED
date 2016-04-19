@@ -52,7 +52,7 @@ class GridEngineRequirementAdapter(RequirementAdapterBase):
 
         self.shell_env = os.environ.copy()  # read current shell vars and add SGE vars
         self.shell_env["SGE_ROOT"] = "/opt/sge6.2u5"
-        self.shell_env["PATH"] = self.shell_env["PATH"] + ":/opt/sge6.2u5/bin/lx24-amd64"
+        self.shell_env["PATH"] += ":/opt/sge6.2u5/bin/lx24-amd64"
 
     def init(self):
         self.exportMethod(self.setCurrentRequirement, "GridEngine_setCurrentRequirement")
@@ -62,11 +62,11 @@ class GridEngineRequirementAdapter(RequirementAdapterBase):
 
         (res, count) = ScaleTools.Shell.executeCommand(cmd, self.shell_env)
 
-        return (res, int(count))
+        return res, int(count)
 
-    def getCurrentRequirement(self):
+    @property
+    def requirement(self):
         """get the number of jobs currently queued/running in grid engine"""
-
         """
             for this method the ge bin files have to be locally available and a ssh tunnel to the
             qmaster server has to be established first:
@@ -86,32 +86,28 @@ class GridEngineRequirementAdapter(RequirementAdapterBase):
             as a host. this is a bit dirty but solved my problem for now.
         """
 
-        (res, count) = self.countQ("qstat -q %s -u \"*\" | wc -l" % self.getConfig(self.ConfigQueueName))
+        (res, count) = self.countQ("qstat -q %s -u \"*\" | wc -l"
+                                   % self.getConfig(self.ConfigQueueName))
 
         if res == 0:  # if shell command was successful
             if count == 0:
-                overall = 0
+                self._curRequirement = 0
             else:
-                overall = count - self.qsizeOffset
+                self._curRequirement = count - self.qsizeOffset
 
-            overall = int(math.ceil(float(overall) / float(self.qsizeDivider)))
+            self._curRequirement = int(math.ceil(float(self._curRequirement) /
+                                                 float(self.qsizeDivider)))
 
-            logging.info("grid engine needs " + str(overall) + " nodes. qsizeoffset is " + str(self.qsizeOffset))
+            logging.info("grid engine needs " + str(self._curRequirement) +
+                         " nodes. qsizeoffset is " + str(self.qsizeOffset))
         else:
-            overall = 0
+            self._curRequirement = 0
 
-        return overall
-
-    def setCurrentRequirement(self, c):
-        if (c < 0):
-            self.curReq = None
-        else:
-            self.curReq = c
-        # to avoid the None problem with XML RPC
-        return 23
+        return self._curRequirement
 
     def getNeededMachineType(self):
         return "one-default"
 
-    def getDescription(self):
+    @property
+    def description(self):
         return "GridEngineRequirementAdapter"

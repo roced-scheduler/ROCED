@@ -19,11 +19,8 @@
 #
 # ===============================================================================
 
-
-
 # from SiteAdapter.Ec2SiteAdapter import EucaSiteAdapter
 from Core import MachineRegistry, ScaleTest
-
 
 # import EucaUtil
 
@@ -70,7 +67,7 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
 
     def getDefaultMachines(self):
         return dict({'euca-default': self.getDefaultMachine(),
-                     'euca-alt-default': self.getAltDefaultMachine(),})
+                     'euca-alt-default': self.getAltDefaultMachine(), })
 
     def test_getMachineAvailable(self):
         espawn = EucaSiteAdapter()
@@ -155,7 +152,6 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         # mr.machines[id3][ mr.reg_machine_type ] = "machine2"
         # mr.updateMachineStatus(id3, mr.StatusDisintegrated )
 
-
         self.assertTrue(self.wasRun)
         self.assertEqual(mr.machines[id1][mr.regStatus], mr.statusDisintegrated)
         self.assertEqual(mr.machines[id2][mr.regStatus], mr.statusDown)
@@ -206,7 +202,7 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
 
         EucaUtil.openConnection = lambda xself: self.getDefaultEucaConnection()
 
-        runningMachines = espawn.getRunningMachines()
+        runningMachines = espawn.runningMachines()
 
         self.assertEqual(len(runningMachines), 2)
         self.assertEqual(len(runningMachines["euca-default"]), 2)
@@ -271,15 +267,15 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         mr = MachineRegistry.MachineRegistry()
         mr.clear()
         # insert 3 machines
-        id = mr.newMachine()
-        mr.machines[id][mr.regSite] = espawn.getConfig(EucaSiteAdapter.ConfigSiteName)
-        mr.machines[id][mr.regMachineType] = "euca-default"
-        id = mr.newMachine()
-        mr.machines[id][mr.regSite] = espawn.getConfig(EucaSiteAdapter.ConfigSiteName)
-        mr.machines[id][mr.regMachineType] = "euca-default"
-        id = mr.newMachine()
-        mr.machines[id][mr.regSite] = espawn.getConfig(EucaSiteAdapter.ConfigSiteName)
-        mr.machines[id][mr.regMachineType] = "euca-default"
+        mid = mr.newMachine()
+        mr.machines[mid][mr.regSite] = espawn.getConfig(EucaSiteAdapter.ConfigSiteName)
+        mr.machines[mid][mr.regMachineType] = "euca-default"
+        mid = mr.newMachine()
+        mr.machines[mid][mr.regSite] = espawn.getConfig(EucaSiteAdapter.ConfigSiteName)
+        mr.machines[mid][mr.regMachineType] = "euca-default"
+        mid = mr.newMachine()
+        mr.machines[mid][mr.regSite] = espawn.getConfig(EucaSiteAdapter.ConfigSiteName)
+        mr.machines[mid][mr.regMachineType] = "euca-default"
 
         self.assertEqual(len(mr.machines), 3)
 
@@ -361,11 +357,11 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         self.assertEqual(espawn.spawnMachines("euca-default", 10), 10)
         self.assertEqual(len(mr.machines), 10)
 
-        for (k, v) in mr.machines.iteritems():
-            self.assertTrue(v.has_key(espawn.reg_site_euca_instance_id))
-            self.assertTrue(v.has_key(mr.regSite))
-            self.assertTrue(v.has_key(mr.regStatus))
-            self.assertEqual(v[mr.regMachineType], "euca-default")
+        for (mid, machine) in mr.machines.items():
+            self.assertTrue(espawn.reg_site_euca_instance_id in machine)
+            self.assertTrue(mr.regSite in machine)
+            self.assertTrue(mr.regStatus in machine)
+            self.assertEqual(machine[mr.regMachineType], "euca-default")
 
 
 class ONESiteAdapterTest(ScaleTest.ScaleTestBase):

@@ -27,11 +27,13 @@ class ZeroRequirementAdapter(RequirementAdapterBase):
     def __init__(self, machineType="default"):
         super(ZeroRequirementAdapter, self).__init__(machineType)
 
-    def getCurrentRequirement(self):
+    @property
+    def description(self):
+        return "ZeroRequirementAdapter"
+
+    @property
+    def requirement(self):
         return 0
 
     def getNeededMachineType(self):
         return "euca-default"
-
-    def getDescription(self):
-        return "ZeroRequirementAdapter"

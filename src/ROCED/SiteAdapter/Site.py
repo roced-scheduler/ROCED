@@ -39,104 +39,6 @@ class SiteInformation(object):
         self.cost = 0
         self.isAvailable = True
 
-    def siteName():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._siteName
-
-        def fset(self, value):
-            self._siteName = value
-
-        def fdel(self):
-            del self._siteName
-
-        return locals()
-
-    siteName = property(**siteName())
-
-    def baselineMachines():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._baselineMachines
-
-        def fset(self, value):
-            self._baselineMachines = value
-
-        def fdel(self):
-            del self._baselineMachines
-
-        return locals()
-
-    baselineMachines = property(**baselineMachines())
-
-    def maxMachines():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._maxMachines
-
-        def fset(self, value):
-            self._maxMachines = value
-
-        def fdel(self):
-            del self._maxMachines
-
-        return locals()
-
-    maxMachines = property(**maxMachines())
-
-    def supportedMachineTypes():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._supportedMachineTypes
-
-        def fset(self, value):
-            self._supportedMachineTypes = value
-
-        def fdel(self):
-            del self._supportedMachineTypes
-
-        return locals()
-
-    supportedMachineTypes = property(**supportedMachineTypes())
-
-    def cost():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._cost
-
-        def fset(self, value):
-            self._cost = value
-
-        def fdel(self):
-            del self._cost
-
-        return locals()
-
-    cost = property(**cost())
-
-    # if true, this site is available to run new nodes.
-    # If a site is not available, already running nodes keep running
-    def isAvailable():  # @NoSelf
-        doc = """Docstring"""  # @UnusedVariable
-
-        def fget(self):
-            return self._isAvailable
-
-        def fset(self, value):
-            self._isAvailable = value
-
-        def fdel(self):
-            del self._isAvailable
-
-        return locals()
-
-    isAvailable = property(**isAvailable())
-
 
 class SiteAdapterBase(AdapterBase):
     """
@@ -213,12 +115,12 @@ class SiteAdapterBase(AdapterBase):
         :return {machine_id: {a:b,c:d,e:f}, machine_id: {a:b,c:d,e:f}, ...}:
         """
         mr = MachineRegistry.MachineRegistry()
-        return mr.getMachines(self.getSiteName(), status, machineType)
+        return mr.getMachines(self.siteName, status, machineType)
 
     def applyMachineDecision(self, decision):
 
         decision = copy.deepcopy(decision)
-        running_machines_count = self.getRunningMachinesCount()
+        running_machines_count = self.runningMachinesCount
         max_machines = self.getConfig(self.ConfigMaxMachines)
 
         for (machine_type, n_machines) in decision.items():
@@ -275,7 +177,8 @@ class SiteAdapterBase(AdapterBase):
 
         return machineList
 
-    def getRunningMachines(self):
+    @property
+    def runningMachines(self):
         """Returns a dictionary of machines running at a specific site.
 
         :return dictionary {machine_type: [machine ID, machine ID, ...], ...} :
@@ -287,18 +190,20 @@ class SiteAdapterBase(AdapterBase):
                         MachineRegistry.MachineRegistry.statusPendingDisintegration]
         return self.getSiteMachinesAsDict(statusFilter)
 
-    def getRunningMachinesCount(self):
+    @property
+    def runningMachinesCount(self):
         """Return dictionary with number of machines running at a site.
 
         :return {machine_type: integer, ...}:
         """
-        running_machines = self.getRunningMachines()
+        running_machines = self.runningMachines
         running_machines_count = dict()
-        for machine_type, midList in running_machines.items():
+        for (machine_type, midList) in running_machines.items():
             running_machines_count[machine_type] = len(midList)
         return running_machines_count
 
-    def getCloudOccupyingMachines(self):
+    @property
+    def cloudOccupyingMachines(self):
         """Return all machines which occupy computing resources on the cloud.
 
         Same behaviour as getRunningMachines, just with other status filtering.
@@ -314,24 +219,25 @@ class SiteAdapterBase(AdapterBase):
                         MachineRegistry.MachineRegistry.statusDisintegrated]
         return self.getSiteMachinesAsDict(statusFilter)
 
-    def getCloudOccupyingMachinesCount(self):
+    @property
+    def cloudOccupyingMachinesCount(self):
         """Return total number of machines occupying computing resources on a site."""
         sum_ = 0
-        for machineType, midList in self.getCloudOccupyingMachines().items():
+        for (machineType, midList) in self.cloudOccupyingMachines.items():
             sum_ += len(midList)
         return sum_
 
     def isMachineTypeSupported(self, machineType):
         return machineType in self.getConfig(self.ConfigMachines)
 
-    '''
-    static information about the site
-    '''
+    """
+    static information about a site
+    """
 
     def getSiteInformation(self):
 
         sinfo = SiteInformation()
-        sinfo.siteName = self.getSiteName()
+        sinfo.siteName = self.siteName
         sinfo.maxMachines = self.getConfig(self.ConfigMaxMachines)
         sinfo.baselineMachines = self.getConfig(self.ConfigBaselineMachines)
         sinfo.supportedMachineTypes = self.getConfig(self.ConfigMachines).keys()
@@ -340,47 +246,50 @@ class SiteAdapterBase(AdapterBase):
 
         return sinfo
 
-    def getSiteName(self):
+    @property
+    def siteName(self):
         return self.getConfig(self.ConfigSiteName)
 
-    def getSiteType(self):
+    @property
+    def siteType(self):
         return self.getConfig(self.ConfigSiteType)
 
-    def getDescription(self):
+    @property
+    def description(self):
         return self.getConfig(self.ConfigSiteDescription)
 
 
 class SiteBox(AdapterBoxBase):
-    def getRunningMachines(self):
+    @property
+    def runningMachines(self):
         all_ = dict()
 
-        for s in self.adapterList:
-            all_[s.getSiteName()] = s.getRunningMachines()
+        for adapter in self._adapterList:
+            all_[adapter.siteName] = adapter.runningMachines
 
         return all_
 
     def getRunningMachinesCount(self):
         all_ = dict()
 
-        for s in self.adapterList:
-            all_[s.getSiteName()] = s.getRunningMachinesCount()
+        for adapter in self._adapterList:
+            all_[adapter.siteName] = adapter.runningMachinesCount
 
         return all_
 
     def applyMachineDecision(self, decision):
-        map(lambda x: x.applyMachineDecision(decision.get(x.getSiteName(), dict())),
-            self.adapterList)
+        [x.applyMachineDecision(decision.get(x.siteName, dict())) for x in self._adapterList]
 
     def getSiteConfigAsDict(self):
         all_ = dict()
 
-        for s in self.adapterList:
-            all_[s.getSiteName()] = s.getConfigAsDict()
+        for s in self._adapterList:
+            all_[s.siteName] = s.getConfigAsDict()
 
         return all_
 
     def getSite(self, siteName):
-        res = filter(lambda x: x.getSiteName() == siteName, self.adapterList)
+        res = [site for site in self._adapterList if site.siteName == siteName]
         if len(res) == 1:
             return res[0]
         else:
@@ -389,7 +298,7 @@ class SiteBox(AdapterBoxBase):
     def getSiteInformation(self):
         all_ = dict()
 
-        for s in self.adapterList:
-            all_[s.getSiteName()] = s.getSiteInformation()
+        for s in self._adapterList:
+            all_[s.siteName] = s.getSiteInformation()
 
         return all_

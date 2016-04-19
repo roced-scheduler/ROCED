@@ -19,46 +19,47 @@
 #
 # ===============================================================================
 
-
-import ConfigParser
 import logging
 
-import Config
-import ScaleTest
-from Adapter import AdapterBase, AdapterBoxBase
+import configparser
+
 from IntegrationAdapter import Integration
 from SiteAdapter.Site import SiteAdapterBase
+from . import Config
+from . import ScaleTest
+from .Adapter import AdapterBase, AdapterBoxBase
 
 
 class AdapterBaseTestClass(AdapterBase):
-    def getDescription(self):
-        super(AdapterBaseTestClass, self).getDescription()
+    @property
+    def description(self):
+        return super(AdapterBaseTestClass, self).description
 
 
 class IntegrationAdapterTest(Integration.IntegrationAdapterBase):
     def init(self):
         super(IntegrationAdapterTest, self).init()
 
+    @property
+    def description(self):
+        return super(IntegrationAdapterTest, self).description
+
 
 class AdapterBoxTest(ScaleTest.ScaleTestBase):
-    _adapterList = []
-
     def test_getBoxContent(self):
         logging.basicConfig(level=logging.DEBUG)
 
         box = AdapterBoxBase()
-        box._adapterList.append(IntegrationAdapterTest())
-        box._adapterList.append(IntegrationAdapterTest())
+        box.addAdapter(IntegrationAdapterTest())
+        box.addAdapter(IntegrationAdapterTest())
 
-        con = box.get_adapterList()
+        con = box.adapterList
         self.assertEqual(len(con), 2)
 
 
 class AdapterBaseTest(ScaleTest.ScaleTestBase):
-    _adapterList = []
-
     def test_addOptionalConfigKeys(self):
-        config = ConfigParser.RawConfigParser()
+        config = configparser.RawConfigParser()
 
         # general
         config.add_section(Config.GeneralSection)

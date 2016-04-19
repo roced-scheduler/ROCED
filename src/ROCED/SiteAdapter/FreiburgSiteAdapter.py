@@ -18,6 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==============================================================================
+from __future__ import unicode_literals
 
 import logging
 import re
@@ -43,9 +44,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
     reg_site_server_condor_name = HTCondor.reg_site_server_condor_name
     regMachineJobId = "batch_job_id"
-
-    __condorNamePrefix = "moab-vm-"
     __vmStartScript = "startVM.py"
+    """Python script to be executed in Freiburg. This start the VM with the corresponding image.
+
+    This python script has to be adapted on the server with user name, OpenStack Dashboard PW,
+    image GUID, etc.
+    """
+    __condorNamePrefix = "moab-vm-"
+    """VM machine name. This is also used as machine name in condor by us."""
 
     def __init__(self):
         super(FreiburgSiteAdapter, self).__init__()
@@ -77,6 +83,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     def init(self):
         self.mr.registerListener(self)
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
+        super(FreiburgSiteAdapter, self).init()
 
     def spawnMachines(self, machineType, count):
         """Request machines in Freiburg via batch job containing startVM script.
@@ -108,15 +115,11 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             # std_out = batch job id
             if result[0] == 0 and result[1].strip().isdigit():
                 mid = self.mr.newMachine()
-                self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
-                self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
-                # TODO Test: is moab-vm* required here?
                 self.mr.machines[mid][self.regMachineJobId] = result[1].strip()
                 self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
                     result[1].strip())
-                self.mr.updateMachineStatus(mid, self.mr.statusBooting)
-                # TODO: Remove "cores". Slots of a machine = cores
+                # TODO: Remove "cores"? Slots of a machine = cores
                 self.mr.machines[mid][self.mr.regMachineCores] = machineSettings["cores"]
             else:
                 self.logger.warning(
@@ -140,23 +143,32 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         ###
         # booting machines, sorted by request time (newest first)
         bootingMachines = self.getSiteMachines(self.mr.statusBooting, machineType)
-        bootingMachines = sorted(bootingMachines.items(),
-                                 key=lambda v: (v[1][self.mr.regStatusLastUpdate]),
-                                 reverse=True)
+        try:
+            bootingMachines = sorted(bootingMachines[machineType],
+                                     key=lambda machine_: machine_[1][self.mr.regStatusLastUpdate],
+                                     reverse=True)
+        except KeyError:
+            bootingMachines = []
 
-        # Also drain working machines? -> merge both lists
+        # Also drain working machines?
         if self.getConfig(self.configDrainWorkingMachines) is True:
             # get working machines, sorted by load (idle first)
             # This is used to select suitable machines for termination (drain mode).
             # The more slots on a machine are in use, the less likely it is to get drained.
-            workingMachines = self.getSiteMachines(self.mr.statusWorking, machineType)
-            workingMachines = sorted(workingMachines.items(),
-                                     key=lambda machine_: HTCondor.calcMachineLoad(machine_[1]),
-                                     reverse=True)
+            workingMachines = self.getSiteMachinesAsDict([self.mr.statusIntegrating,
+                                                          self.mr.statusWorking,
+                                                          self.mr.statusPendingDisintegration])
+            try:
+                workingMachines = sorted(workingMachines[machineType],
+                                         key=lambda machine_: HTCondor.calcMachineLoad(machine_[1]),
+                                         reverse=True)
+            except KeyError:
+                workingMachines = []
+            #Merge lists
             machinesToRemove = bootingMachines + workingMachines
         else:
             machinesToRemove = bootingMachines
-        # get needed amount of machines
+        # needed amount of machines
         machinesToRemove = machinesToRemove[0:count]
 
         # prepare list of machine ids to terminate/drain
@@ -180,8 +192,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             idsRemoved, idsInvalidated = self.__cancelFreiburgMachines(idsToTerminate)
 
         if idsToDrain:
-            # TODO: Connect to HTCondor collector and send drain command to nodes; not needed now.
-            self.logger.warning("Send draining command to VM not yet implemented")
+            for batchJobID in idsToDrain:
+                [HTCondor.drainMachine(machine) for machine in self.mr.machines.values()
+                 if machine[self.regMachineJobId] == batchJobID]
 
         if len(idsRemoved + idsInvalidated) > 0:
             mr = self.getSiteMachines()
@@ -191,7 +204,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 if mr[mid][self.regMachineJobId] in idsRemoved + idsInvalidated:
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
 
-    def getRunningMachinesCount(self):
+    @property
+    def runningMachinesCount(self):
         """Return dictionary with number of machines running at Freiburg. Depending on config file
         this may account for draining slots (claimed|retiring = working vs. claimed|idle = offline).
 
@@ -204,9 +218,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         """
         # fall back to base method if required
         if self.getConfig(self.configIgnoreDrainingMachines) is True:
-            return super(FreiburgSiteAdapter, self).getRunningMachinesCount()
+            return super(FreiburgSiteAdapter, self).runningMachinesCount
         else:
-            runningMachines = self.getRunningMachines()
+            runningMachines = self.runningMachines
             runningMachinesCount = dict()
             for machineType in runningMachines:
                 # calculate number of drained slots (idle and not accepting new jobs -> not usable)
@@ -216,8 +230,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     nDrainedSlots += HTCondor.calcDrainStatus(self.mr.machines[mid])[0]
                 nCores = self.getConfig(self.ConfigMachines)[machineType]["cores"]
                 nMachines = len(runningMachines[machineType])
-                # calculate the actual number of machines available to run jobs
-                runningMachinesCount[machineType] = (nMachines - nDrainedSlots) // nCores
+                # Calculate the number of available slots
+                # Little trick: floor division with negative values: -9//4 = -3
+                nDrainedSlots = -nDrainedSlots
+                runningMachinesCount[machineType] = nMachines + nDrainedSlots // nCores
                 if nDrainedSlots is not 0:
                     self.logger.debug(
                         str(machineType) + ": running: " + str(nMachines) + ", drained slots: " +
@@ -237,13 +253,19 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         :type evt: MachineRegistry.StatusChangedEvent
         :return:
         """
-        if isinstance(evt, MachineRegistry.StatusChangedEvent):
-            if self.mr.machines[evt.id].get(self.mr.regSite) == self.getSiteName():
+        if isinstance(evt, MachineRegistry.NewMachineEvent):
+            self.mr.machines[evt.id][self.mr.regSite] = self.siteName
+            self.mr.machines[evt.id][self.mr.regSiteType] = self.siteType
+            self.mr.updateMachineStatus(evt.id, self.mr.statusBooting)
+        elif isinstance(evt, MachineRegistry.StatusChangedEvent):
+            if self.mr.machines[evt.id].get(self.mr.regSite) == self.siteName:
                 if evt.newStatus == self.mr.statusDisintegrated:
                     if evt.oldStatus is not self.mr.statusDisintegrating:
-                        # cancel VM batch job in Freiburg
-                        self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
-                            self.regMachineJobId)])
+                        frJobsRunning, frJobsCompleted = self.__getJobList()
+                        if self.mr.machines[evt.id].get(self.regMachineJobId) in frJobsRunning:
+                            # cancel VM batch job in Freiburg
+                            self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
+                                                           self.regMachineJobId)])
                     self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
                 elif evt.newStatus == self.mr.statusDown:
                     self.mr.removeMachine(evt.id)
@@ -298,26 +320,24 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         # Handles machines manually started.
         for batchJobId in frJobsRunning:
             mid = self.mr.newMachine()
-            self.mr.machines[mid][self.mr.regSite] = self.getSiteName()
-            self.mr.machines[mid][self.mr.regSiteType] = self.getSiteType()
-            # TODO: handle different machine types
+            # TODO: try to identify machine type, using cores & walltime
             self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
             self.mr.machines[mid][self.regMachineJobId] = batchJobId
             self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
                 batchJobId)
             self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
-        self.logger.info(
-            "Machines using resources in Freiburg: " + str(self.getCloudOccupyingMachinesCount()))
+        self.logger.info("Machines using resources in Freiburg: " +
+                         str(self.cloudOccupyingMachinesCount))
 
-        jsonLog = JsonLog()
-        jsonLog.addItem(self.getSiteName(), "condor_nodes",
-                        len(self.getSiteMachines(status=self.mr.statusWorking)))
-        jsonLog.addItem(self.getSiteName(), "condor_nodes_draining",
-                        len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
-        jsonLog.addItem(self.getSiteName(), "machines_requested",
-                        len(self.getSiteMachines(status=self.mr.statusBooting)) +
-                        len(self.getSiteMachines(status=self.mr.statusUp)))
+        with JsonLog() as jsonLog:
+            jsonLog.addItem(self.siteName, "condor_nodes",
+                            len(self.getSiteMachines(status=self.mr.statusWorking)))
+            jsonLog.addItem(self.siteName, "condor_nodes_draining",
+                            len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
+            jsonLog.addItem(self.siteName, "machines_requested",
+                            len(self.getSiteMachines(status=self.mr.statusBooting)) +
+                            len(self.getSiteMachines(status=self.mr.statusUp)))
 
     def __execCmdInFreiburg(self, cmd):
         """Execute command on Freiburg login node via SSH.
@@ -332,7 +352,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         frUser = self.getConfig(self.configFreiburgUser)
         frKey = self.getConfig(self.configFreiburgKey)
         frSsh = ScaleTools.Ssh(frServer, frUser, frKey)
-        return frSsh.executeRemoteCommand(cmd)
+        return frSsh.handleSshCall(call=cmd, quiet=True)
 
     def __cancelFreiburgMachines(self, batchJobIds):
         """Cancel batch job (VM) in Freiburg
@@ -359,8 +379,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         idsInvalidated = []
         if result[0] <= 1:
             ScaleTools.sshDebugOutput(self.logger, "FR-terminate", result)
-            idsRemoved += re.findall(r"\'([0-9]+)\'", result[1])
-            idsInvalidated += re.findall(r"invalid job specified \(([0-9]+)", result[2])
+            idsRemoved += re.findall("\'([0-9]+)\'", result[1])
+            idsInvalidated += re.findall("invalid job specified \(([0-9]+)", result[2])
             if len(idsRemoved) > 0:
                 self.logger.info(
                     "Terminated machines (" + str(len(idsRemoved)) + "): " + ", ".join(idsRemoved))
@@ -400,7 +420,20 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         if frResult[0] == 0:
             # returns a list containing all running batch jobs in Freiburg
-            frJobsRunning = re.findall(r"^([0-9]+)[\s]+R", frResult[1], re.MULTILINE)
+            frJobsRunning = re.findall("^([0-9]+)[\s]+R", frResult[1], re.MULTILINE)
+            # {jobid: {"cores": cores, "walltime": time_limit}
+            #  for jobid, cores, time_limit
+            #  in re.findall("""
+            #     ^                 # Line start
+            #     (\d+)             # batch job id (digits) = result 1
+            #     \s+               # whitespace(s)
+            #     R                 # Job = Running
+            #     \s+.+\s           # waste between whitespaces and next regex
+            #     (\d)              # cores = result 2
+            #     \s+               # whitespace(s)
+            #     ((?:\d{2}:?){3,4}) # time limit: 3-4 digit pairs, optional : = res3
+            #     \s+.+             # more waste
+            #     """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsRunning = []
             self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
@@ -418,15 +451,15 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         if frResult[0] == 0:
             # returns a dict: {batch job id: return code/status, ..}
-            frJobsCompleted = {k: v for k, v in
-                               re.findall(r"""
+            frJobsCompleted = {jobid: rc for jobid, rc in
+                               re.findall("""
                                ^            # Match at the beginning of lines
-                               ([0-9]+)     # Search for batch job id = result 1
-                               (?:[\s]+     # start of non-capturing group with whitespace/tab
+                               (\d+)        # batch job id (digits) = result 1
+                               \s+          # whitespace/tab
                                [CV]         # job state: completed or vacated
-                               [\s]+)       # whitespace/tab
+                               s+           # whitespace/tab
                                ([A-Z0-9]+)  # Return-code = result 2: 0/1 or CNCLD
-                               (?:[\s]+.+)  # useless rest
+                               [\s]+.+      # useless rest
                                """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsCompleted = {}
@@ -436,5 +469,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.warning(
                 "Problem running remote command in Freiburg (showq -c) (return code " +
                 str(frResult[0]) + "):\n" + str(frResult[2]))
+
+            self.logger.debug("Running: \n" + str(frJobsRunning))
+            self.logger.debug("Completed: \n" + str(frJobsCompleted))
 
         return frJobsRunning, frJobsCompleted

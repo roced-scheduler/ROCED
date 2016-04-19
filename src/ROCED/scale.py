@@ -30,7 +30,7 @@ import logging
 import unittest
 import sys
 import argparse
-import ConfigParser
+import configparser
 import datetime
 import os
 
@@ -86,15 +86,15 @@ class ScaleMain(object):
         else:
             sys.exit(0)
 
-    def run(self, config_file_name, debug, iterations=None):
+    def run(self, config_file_name, debug=False, iterations=None):
 
-        if debug:
+        if debug is True:
             logging.getLogger().setLevel(logging.DEBUG)
         else:
             logging.getLogger().setLevel(logging.INFO)
 
         self.logger.info("Loading config " + str(config_file_name))
-        config = ConfigParser.SafeConfigParser()
+        config = configparser.RawConfigParser()
         config.readfp(open(config_file_name))
 
         if config.has_option(Config.GeneralSection, Config.GeneralLogFolder):
@@ -121,13 +121,13 @@ class ScaleMain(object):
         scaleCore.startManage()
 
         # Run the server's main loop
-        self.logger.info(scaleCore.getDescription() + " running")
+        self.logger.info(scaleCore.description + " running")
 
 
 class MyDaemon(DaemonBase):
     def run(self):
-        sm = ScaleMain()
-        sm.run(self.configfile)
+        scaleObject = ScaleMain()
+        scaleObject.run(self.configfile)
 
 
 if __name__ == "__main__":
