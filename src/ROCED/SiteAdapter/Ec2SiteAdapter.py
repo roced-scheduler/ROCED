@@ -99,7 +99,7 @@ class Ec2BasedSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.reg_site_euca_first_dead_check] = datetime.datetime.now()
         else:
             if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(self.ConfigMachineBootTimeout):
-                logging.warn("Machine " + str(mid) + " did not boot in time. Shutting down")
+                logging.warning("Machine " + str(mid) + " did not boot in time. Shutting down")
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
     def manage(self):
@@ -206,18 +206,13 @@ class Ec2BasedSiteAdapter(SiteAdapterBase):
             return 0
 
     def terminateMachines(self, machineType, count):
-        toRemove = [self.mr.machines[mid] for (mid, machine)
-                    in self.mr.getMachines(site=self.siteName, machineType=machineType)
-                    if machine[self.mr.regStatus] in [self.mr.statusWorking, self.mr.statusBooting]]
+        booting = list(self.getSiteMachines(machineType=machineType, status=self.mr.statusBooting))
+        working = list(self.getSiteMachines(machineType=machineType, status=self.mr.statusWorking))
 
+        toRemove = booting + working
         toRemove = toRemove[0:count]
 
-        # booting machines first, less overhead
-        toRemove = sorted(toRemove, lambda (k1, v1), (k2, v2): (v1[
-                                                                self.mr.regStatus] == self.mr.statusWorking) * 2 - 1)
-
-        [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
-         for (mid, value) in toRemove]
+        [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration) for mid in toRemove]
 
         return len(toRemove)
     """
@@ -234,8 +229,8 @@ class Ec2BasedSiteAdapter(SiteAdapterBase):
             slotsLeft = self.getConfig(self.ConfigMaxMachines) - machineCount
 
             if slotsLeft < count:
-                logging.warn("Site " + self.siteName + " reached MaxMachines, truncating to " + str(
-                    slotsLeft) + " new machines")
+                logging.warning("Site " + self.siteName + " reached MaxMachines, truncating to " +
+                                str(slotsLeft) + " new machines")
                 count = max(0, slotsLeft)
 
         if count == 0:

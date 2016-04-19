@@ -3,8 +3,7 @@ python:
   - "2.7"
   - "3.5"
 install:
-  - "pip install future"
-  - "pip3 install future"
+  - "pip install future lxml"
 script:
   - ./src/ROCED/scale.py test
-  - ./src/ROCED/scale.py --iterations 10 --config roced_fake.config standalone
+  - ./src/ROCED/scale.py --iterations 10 --config src/ROCED/roced_fake.config standalone

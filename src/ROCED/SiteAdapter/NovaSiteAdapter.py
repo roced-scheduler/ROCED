@@ -97,7 +97,7 @@ class NovaSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.reg_site_euca_first_dead_check] = datetime.datetime.now()
         else:
             if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(self.ConfigMachineBootTimeout):
-                logging.warn("Machine " + str(mid) + " did not boot in time. Shutting down")
+                logging.warning("Machine " + str(mid) + " did not boot in time. Shutting down")
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
     def manage(self):
@@ -225,7 +225,7 @@ class NovaSiteAdapter(SiteAdapterBase):
             slotsLeft = self.getConfig(self.ConfigMaxMachines) - machineCount
 
             if slotsLeft < count:
-                logging.warn("Site " + self.siteName + " reached MaxMachines, truncating to " + str(
+                logging.warning("Site " + self.siteName + " reached MaxMachines, truncating to " + str(
                     slotsLeft) + " new machines")
                 count = max(0, slotsLeft)
 
