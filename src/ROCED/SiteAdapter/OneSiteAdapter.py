@@ -216,7 +216,7 @@ class OneSiteAdapter(SiteAdapterBase):
         else:
             if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(
                     self.ConfigMachineBootTimeout):
-                logging.warn("Machine " + str(mid) + " did not boot in time. Shutting down")
+                logging.warning("Machine " + str(mid) + " did not boot in time. Shutting down")
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
     def manage(self):
@@ -272,7 +272,7 @@ class OneSiteAdapter(SiteAdapterBase):
                                             print("getting VPN IP failed!!")
 
                             if (myMachines[mid]["vpn_cert_is_valid"] == True and myMachines[mid][
-                                "vpn_ip"] is not None):
+                               "vpn_ip"] is not None):
                                 # if( vpn.revokeCertificate(myMachines[k]["vpn_cert"]) == 0):
                                 #    myMachines[k]["vpn_cert_is_valid"] == False
                                 self.mr.updateMachineStatus(mid, self.mr.statusUp)

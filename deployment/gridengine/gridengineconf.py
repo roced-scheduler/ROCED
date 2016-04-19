@@ -70,7 +70,7 @@ def callQconf(opt, arg):
     ret = subprocess.call(["/opt/sge6.2u5/bin/lx24-amd64/qconf", opt, arg],
                           env={"SGE_ROOT": "/opt/sge6.2u5", "TERM": "xterm-color"})
 
-    if ret == "adminhost %s already exists" %arg:
+    if ret == "adminhost %s already exists" % arg:
         print(ret)
     if not ret == 0:
         print("error while adding to gridengine")

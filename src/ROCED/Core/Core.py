@@ -19,7 +19,9 @@
 #
 # ===============================================================================
 from __future__ import unicode_literals, absolute_import, print_function
+
 from builtins import str
+
 """
 This file contains the ScaleCore class which contains
 all module objects and runs the SiteBroker to handle
@@ -50,8 +52,8 @@ class MachineStatus(object):
         self.required = required
         self.actual = actual
 
-class ScaleCore(object):
 
+class ScaleCore(object):
     _rpcServer = None
 
     def exportMethod(self, meth, name):

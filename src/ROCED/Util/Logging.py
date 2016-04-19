@@ -29,6 +29,10 @@ import os
 import time
 from datetime import datetime
 
+import sys
+
+PY3 = sys.version_info > (3,)
+
 """
     JSON Log handling
 
@@ -178,7 +182,7 @@ class JsonStats(object):
             }
         try:
             with open(cls.__fileName, "w") as jsonFile:
-                json.dump(oldStats, jsonFile, indent=2)
+                json.dump(oldStats, jsonFile, sort_keys=True, indent=2)
         except IOError:
             logging.error("JSON file could not be opened for logging!")
 
@@ -186,6 +190,41 @@ class JsonStats(object):
     def printStats(cls):
         for mid in cls.__jsonStats.keys():
             print(str(mid) + ": " + str(cls.__jsonStats[mid]))
+
+
+class UnicodeWriter(object):
+    def __init__(self, filename, fieldnames, dialect=csv.excel,
+                 encoding="utf-8", **kw):
+        self.filename = filename
+        self.fieldnames = fieldnames
+        self.dialect = dialect
+        self.encoding = encoding
+        self.kw = kw
+
+    def __enter__(self):
+        if PY3:
+            self.f = open(self.filename, 'wt', encoding=self.encoding, newline='')
+        else:
+            self.f = open(self.filename, 'wb')
+        self.writer = csv.DictWriter(self.f, fieldnames=self.fieldnames, dialect=self.dialect,
+                                     **self.kw)
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.f.close()
+
+    def writeheader(self):
+        header = dict(zip(self.fieldnames, self.fieldnames))
+        if not PY3:
+            header = {str(key).encode(self.encoding): str(value).encode(self.encoding)
+                      for key, value in header.items()}
+        self.writerow(header)
+
+    def writerow(self, dictrow):
+        if not PY3:
+            dictrow = {str(key).encode(self.encoding): str(value).encode(self.encoding)
+                       for key, value in dictrow.items()}
+        self.writer.writerow(dictrow)
 
 
 class CsvStats(object):
@@ -210,8 +249,9 @@ class CsvStats(object):
 
         # Existence check for log file
         if not os.path.isfile(cls.__fileName):
-            with open(cls.__fileName, "w", newline='') as stats_file:
-                writer = csv.DictWriter(stats_file, fieldnames=cls.__fieldnames)
+            # with open(cls.__fileName, "w", newline='') as stats_file:
+            #     writer = UnicodeWriter(stats_file, fieldnames=cls.__fieldnames)
+            with UnicodeWriter(cls.__fileName, fieldnames=cls.__fieldnames) as writer:
                 writer.writeheader()
 
     @classmethod
@@ -232,8 +272,9 @@ class CsvStats(object):
 
     @classmethod
     def write_stats(cls):
-        with open(cls.__fileName, "a") as stats_file:
-            writer = csv.DictWriter(stats_file, fieldnames=cls.__fieldnames)
+        with UnicodeWriter(cls.__fileName, fieldnames=cls.__fieldnames) as writer:
+            # with open(cls.__fileName, "a") as stats_file:
+            #     writer = UnicodeWriter(stats_file, fieldnames=cls.__fieldnames)
             for stat in range(len(cls.__csvStats)):
                 writer.writerow(cls.__csvStats.pop())
 

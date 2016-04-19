@@ -180,8 +180,8 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
                 if self.mr.machines[evt.id].get(self.reg_torque_node_name, None) is None:
                     # not listed internally, try to find the node name
 
-                    (res, nodeName) = self.runCommandOnPbs("python torqconf.py get_node_name %s" % \
-                                                           self.mr.machines[evt.id].get(
+                    (res, nodeName) = self.runCommandOnPbs("python torqconf.py get_node_name %s"
+                                                           % self.mr.machines[evt.id].get(
                                                                self.reg_torque_node_ip,
                                                                "xxx.xxx.xxx.xxy"))
                     nodeName = nodeName.strip()
@@ -190,7 +190,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
                         logging.info("rediscovered torque node: %s" % nodeName)
                         self.mr.machines[evt.id][self.reg_torque_node_name] = nodeName
                     else:
-                        logging.warn("cant rediscovered torque node: %s with internal ip %s" % (
+                        logging.warning("cant rediscovered torque node: %s with internal ip %s" % (
                             evt.id, self.mr.machines[evt.id].get(self.reg_torque_node_ip)))
 
             if evt.newStatus == self.mr.statusPendingDisintegration:
