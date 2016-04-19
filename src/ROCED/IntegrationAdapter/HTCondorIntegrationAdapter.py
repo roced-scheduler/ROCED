@@ -209,6 +209,9 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                     # update condor slot status in machine registry
                     self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                         machine_[self.reg_site_server_condor_name]]
+                    # number of cores = number of slots
+                    self.mr.machines[mid][self.mr.regMachineCores] = len(
+                        self.mr.machines[mid][self.reg_site_condor_status])
 
             # check if machines with status pending disintegration can be shut down
             if machine_[self.mr.regStatus] == self.mr.statusPendingDisintegration:
@@ -266,7 +269,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
         self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
-        self.logger.debug("Content of condor machines:\n" + str(condor_machines))
+        self.logger.debug("Content of condor machines:\n" + str(condor_machines.items()))
 
     def onEvent(self, evt):
         """Event handler
@@ -339,4 +342,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         administrative command, so condor_user requires condor admin access rights."""
         # TODO: Implement "condor_drain"
         # TODO: Must be class method (external call!); access instance attribute condor_server...
+        if cls.calcDrainStatus(machine)[1] is True:
+            logging.debug("Machine is already in drain mode.")
         logging.warning("Send draining command to VM not yet implemented")

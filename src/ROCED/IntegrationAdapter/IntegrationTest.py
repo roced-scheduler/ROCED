@@ -23,42 +23,35 @@
 import logging
 
 from Core import MachineRegistry
-from IntegrationAdapter import Integration
 from IntegrationAdapter import TorqueIntegrationAdapter
 from Util import ScaleTools
 from Core import ScaleTest
 
 
-class FakeSsh(object):
+class FakeSsh(ScaleTools.Ssh):
     # static
     ranCommands = []
     predefCommands = dict()
 
-    def __init__(self, host, username, key, password=None, timeout=3):
-        pass
-
-    @staticmethod
-    def clear():
-        FakeSsh.predefCommands = dict()
-        FakeSsh.ranfCommands = []
+    @classmethod
+    def clear(cls):
+        cls.predefCommands = dict()
+        cls.ranfCommands = []
 
     @staticmethod
     def getSshOnMachine(machine):
-        return FakeSsh()
+        return FakeSsh("localhost", "root", None, None, 1)
 
-    def canConnect(self):
+    def canConnect(self, quiet=True):
         return True
 
-    def handleSshCall(self, call):
-        return self.executeRemoteCommand(call)
-
-    @staticmethod
-    def executeRemoteCommand(command):
+    @classmethod
+    def _executeRemoteCommand(cls, command):
         logging.debug("ssh running %s" % command)
-        FakeSsh.ranCommands.append(command)
+        cls.ranCommands.append(command)
 
-        if command in FakeSsh.predefCommands:
-            return FakeSsh.predefCommands[command]
+        if command in cls.predefCommands:
+            return cls.predefCommands[command]
         else:
             return 0, ""
 

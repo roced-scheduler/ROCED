@@ -1,5 +1,4 @@
-#!/usr/bin/python
-
+#!/usr/bin/env python
 # ===============================================================================
 #
 # Copyright (c) 2015 by Georg Fleig

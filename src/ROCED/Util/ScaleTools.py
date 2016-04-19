@@ -155,7 +155,7 @@ class Ssh(object):
             call = "ssh -i %s %s@%s '%s'" % (self.gatewayKey, self.gatewayUser, self.gatewayIp,
                                              call)
 
-        res = self.__executeRemoteCommand(call)
+        res = self._executeRemoteCommand(call)
 
         if not quiet:
             if res[0] == 255:
@@ -189,8 +189,8 @@ class Ssh(object):
             ssh = Ssh(ip, "root", key, None, 1)
         return ssh
 
-    # private
-    def __executeRemoteCommand(self, command):
+    # protected
+    def _executeRemoteCommand(self, command):
         # type (str) -> Tuple(int, str, str)
         """Perform SSH command on remote server. Don't call directly. Use handleSshCall.
 
@@ -251,15 +251,15 @@ class Vpn(object):
                 ./pkitool --pkcs12 --batch %s" %(cert_name)
         """
 
-        cmd = "/etc/openvpn/vpn.sh -new_cert %s" %cert_name
+        cmd = "/etc/openvpn/vpn.sh -new_cert %s" % cert_name
 
         ssh = Ssh("ekpvpn", "root", "<user ssh key>", None, 1)
         (res1, count1, err1) = ssh.handleSshCall(cmd)
 
         if res1 == 0:
-            logging.info("certificate \"%s\" successfully created!" %cert_name)
+            logging.info("certificate \"%s\" successfully created!" % cert_name)
         else:
-            logging.error("creation of certificate \"%s\" failed!" %cert_name)
+            logging.error("creation of certificate \"%s\" failed!" % cert_name)
 
         return res1
 
@@ -315,9 +315,9 @@ class Vpn(object):
         (res1, count1, err1) = ssh.handleSshCall(cmd)
 
         if res1 == 0:
-            logging.info("certificate \"%s\" successfully revoked!" %cert_name)
+            logging.info("certificate \"%s\" successfully revoked!" % cert_name)
         else:
-            logging.error("revocation of certificate \"%s\" failed!" %cert_name)
+            logging.error("revocation of certificate \"%s\" failed!" % cert_name)
 
         return res1
 
@@ -329,15 +329,15 @@ class Vpn(object):
         # cmd = "cd /etc/openvpn/easy-rsa/2.0/keys && \
         #         rm -rf %s.*" % (cert_name)
 
-        cmd = "/etc/openvpn/vpn.sh -delete_cert %s" %cert_name
+        cmd = "/etc/openvpn/vpn.sh -delete_cert %s" % cert_name
 
         ssh = Ssh("ekpvpn", "root", "<user ssh key>", None, 1)
         (res1, count1, err1) = ssh.handleSshCall(cmd)
 
         if res1 == 0:
-            logging.info("certificate \"%s\" successfully deleted!" %cert_name)
+            logging.info("certificate \"%s\" successfully deleted!" % cert_name)
         else:
-            logging.error("deleting certificate \"%s\" failed!" %cert_name)
+            logging.error("deleting certificate \"%s\" failed!" % cert_name)
 
         return res1
 

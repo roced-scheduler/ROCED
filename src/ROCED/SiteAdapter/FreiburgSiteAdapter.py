@@ -119,7 +119,6 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.regMachineJobId] = result[1].strip()
                 self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
                     result[1].strip())
-                # TODO: Remove "cores"? Slots of a machine = cores
                 self.mr.machines[mid][self.mr.regMachineCores] = machineSettings["cores"]
             else:
                 self.logger.warning(
@@ -164,7 +163,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                          reverse=True)
             except KeyError:
                 workingMachines = []
-            #Merge lists
+            # Merge lists
             machinesToRemove = bootingMachines + workingMachines
         else:
             machinesToRemove = bootingMachines
@@ -176,13 +175,15 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         idsToDrain = []
         idsRemoved = []
         idsInvalidated = []
-        for machine in machinesToRemove:
-            if machine[1][self.mr.regStatus] == self.mr.statusBooting:
+        for mid in machinesToRemove:
+            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting:
                 # booting machines can be terminated immediately
-                idsToTerminate.append(machine[1][self.regMachineJobId])
+                idsToTerminate.append(self.mr.machines[mid][self.regMachineJobId])
             elif self.getConfig(self.configDrainWorkingMachines):
+                if HTCondor.calcDrainStatus(self.mr.machines[mid])[1] is True:
+                    continue
                 # working machines should be set to drain mode
-                idsToDrain.append(machine[1][self.regMachineJobId])
+                idsToDrain.append(self.mr.machines[mid][self.regMachineJobId])
         self.logger.debug("Machines to terminate (" + str(len(idsToTerminate)) + "): " +
                           ", ".join(idsToTerminate))
         self.logger.debug(
@@ -260,12 +261,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         elif isinstance(evt, MachineRegistry.StatusChangedEvent):
             if self.mr.machines[evt.id].get(self.mr.regSite) == self.siteName:
                 if evt.newStatus == self.mr.statusDisintegrated:
-                    if evt.oldStatus is not self.mr.statusDisintegrating:
-                        frJobsRunning, frJobsCompleted = self.__getJobList()
-                        if self.mr.machines[evt.id].get(self.regMachineJobId) in frJobsRunning:
-                            # cancel VM batch job in Freiburg
-                            self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
-                                                           self.regMachineJobId)])
+                    # If Integration Adapter tells us, that the machine disappeared or "deserves" to
+                    # be shutdown (timeouts), cancel VM batch job in Freiburg
+                    frJobsRunning = self.__runningJobs
+                    if self.mr.machines[evt.id].get(self.regMachineJobId) in frJobsRunning:
+                        self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
+                                                       self.regMachineJobId)])
                     self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
                 elif evt.newStatus == self.mr.statusDown:
                     self.mr.removeMachine(evt.id)
@@ -284,7 +285,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         :return:
         """
 
-        frJobsRunning, frJobsCompleted = self.__getJobList()
+        frJobsRunning = self.__runningJobs
+        frJobsCompleted = self.__completedJobs
         mr = self.getSiteMachines()
         for mid in mr:
             batchJobId = mr[mid][self.regMachineJobId]
@@ -293,9 +295,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                                             self.mr.statusWorking,
                                                             self.mr.statusPendingDisintegration]:
                 try:
-                    frJobsRunning.remove(batchJobId)
+                    frJobsRunning.pop(batchJobId)
                     continue
-                except ValueError:
+                except KeyError:
                     pass
             # Machines which failed to boot/died/got canceled (return code != 0) -> down
             # -> ROCED becomes aware of failed VM requests and asks for new ones.
@@ -315,7 +317,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
                 if batchJobId in frJobsRunning:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
-                    frJobsRunning.remove(batchJobId)
+                    frJobsRunning.pop(batchJobId)
 
         # Handles machines manually started.
         for batchJobId in frJobsRunning:
@@ -348,10 +350,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         :param cmd:
         :return: Tuple: (return_code, std_out, std_err)
         """
-        frServer = self.getConfig(self.configFreiburgServer)
-        frUser = self.getConfig(self.configFreiburgUser)
-        frKey = self.getConfig(self.configFreiburgKey)
-        frSsh = ScaleTools.Ssh(frServer, frUser, frKey)
+        frSsh = ScaleTools.Ssh(host=self.getConfig(self.configFreiburgServer),
+                               username=self.getConfig(self.configFreiburgUser),
+                               key=self.getConfig(self.configFreiburgKey))
         return frSsh.handleSshCall(call=cmd, quiet=True)
 
     def __cancelFreiburgMachines(self, batchJobIds):
@@ -406,34 +407,35 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         HTCondorIntegrationAdapter. In Freiburg this name is built from the batch job id."""
         return cls.__condorNamePrefix + str(batchJobId)
 
-    def __getJobList(self):
-        # type: () -> Tuple(List,Dict)
-        """Get list of running and completed batch jobs, filtered by user ID."""
+    @property
+    def __runningJobs(self):
+        # type: () -> List
+        """Get list of running batch jobs, filtered by user ID."""
         frUser = self.getConfig(self.configFreiburgUser)
         frGroup = self.getConfig(self.configFreiburgUserGroup)
 
-        # get list of running jobs in Freiburg to see which machines booted up
         if frGroup is None:
-            frResult = self.__execCmdInFreiburg("showq -r -w user=" + frUser)
+            cmd = "showq -r -w user=" + frUser
         else:
-            frResult = self.__execCmdInFreiburg("showq -r -w group=" + frGroup)
+            cmd = "showq -r -w group=" + frGroup
+
+        frResult = self.__execCmdInFreiburg(cmd)
 
         if frResult[0] == 0:
             # returns a list containing all running batch jobs in Freiburg
-            frJobsRunning = re.findall("^([0-9]+)[\s]+R", frResult[1], re.MULTILINE)
-            # {jobid: {"cores": cores, "walltime": time_limit}
-            #  for jobid, cores, time_limit
-            #  in re.findall("""
-            #     ^                 # Line start
-            #     (\d+)             # batch job id (digits) = result 1
-            #     \s+               # whitespace(s)
-            #     R                 # Job = Running
-            #     \s+.+\s           # waste between whitespaces and next regex
-            #     (\d)              # cores = result 2
-            #     \s+               # whitespace(s)
-            #     ((?:\d{2}:?){3,4}) # time limit: 3-4 digit pairs, optional : = res3
-            #     \s+.+             # more waste
-            #     """, frResult[1], re.MULTILINE | re.VERBOSE)}
+            frJobsRunning = {jobid: {"cores": cores, "walltime": time_limit}
+                             for jobid, cores, time_limit
+                             in re.findall("""
+                                    ^                  # Line start
+                                    (\d+)              # batch job id (digits) = result 1
+                                    \s+                # whitespace(s)
+                                    R                  # Job = Running
+                                    \s+.+\s            # waste between whitespaces and next regex
+                                    (\d)               # cores = result 2
+                                    \s+                # whitespace(s)
+                                    ((?:\d{2}:?){3,4}) # time limit: 3-4 digit pairs = res3
+                                    \s+.+              # more waste
+                                    """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsRunning = []
             self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
@@ -443,11 +445,22 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 "Problem running remote command in Freiburg (showq -r) (return code " +
                 str(frResult[0]) + "):\n" + str(frResult[2]))
 
-        # get list of completed jobs in Freiburg to see which machines failed to boot/died
+        self.logger.debug("Running: \n" + str(frJobsRunning))
+        return frJobsRunning
+
+    @property
+    def __completedJobs(self):
+        # type: () -> Dict
+        """Get list of completed batch jobs, filtered by user ID."""
+        frUser = self.getConfig(self.configFreiburgUser)
+        frGroup = self.getConfig(self.configFreiburgUserGroup)
+
         if frGroup is None:
-            frResult = self.__execCmdInFreiburg("showq -c -w user=" + frUser)
+            cmd = "showq -c -w user=" + frUser
         else:
-            frResult = self.__execCmdInFreiburg("showq -c -w group=" + frGroup)
+            cmd = "showq -c -w group=" + frGroup
+
+        frResult = self.__execCmdInFreiburg(cmd)
 
         if frResult[0] == 0:
             # returns a dict: {batch job id: return code/status, ..}
@@ -470,7 +483,5 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 "Problem running remote command in Freiburg (showq -c) (return code " +
                 str(frResult[0]) + "):\n" + str(frResult[2]))
 
-            self.logger.debug("Running: \n" + str(frJobsRunning))
-            self.logger.debug("Completed: \n" + str(frJobsCompleted))
-
-        return frJobsRunning, frJobsCompleted
+        self.logger.debug("Completed: \n" + str(frJobsCompleted))
+        return frJobsCompleted

@@ -1,5 +1,4 @@
-#!/usr/bin/python
-
+#!/usr/bin/env python
 # ===============================================================================
 #
 # Copyright (c) 2010, 2011, 2016 by Guenther Erli
@@ -151,12 +150,11 @@ class Stats(object):
                 stats_file = open(filename, "wb")
                 writer = csv.DictWriter(stats_file, fieldnames=fieldnames)
                 writer.writeheader()
-            writer.writerow({machines: self.total_stats[site_][stat[title]][machines], timediff: self.total_stats[site_][stat[title]][timediff]})
-            #for stat in xrange(len(CsvStats.__csvStats)):
-            #    writer.writerow(CsvStats.__csvStats.pop())
+            writer.writerow({machines: self.total_stats[site_][stat[title]][machines],
+                             timediff: self.total_stats[site_][stat[title]][timediff]})
 
     def plot_stats_to_screen(self):
-        #prepare plots
+        # prepare plots
         fig = plt.figure()
         n_plots = 0
         for site_ in self.stats:
