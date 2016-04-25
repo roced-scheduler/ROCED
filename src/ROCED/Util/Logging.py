@@ -63,7 +63,7 @@ class JsonLog(object):
         # Build log file name
         if not cls.__fileName:
             cls.__fileName = (dir_.__str__() + "/" + prefix.__str__() + "_" +
-                              str(datetime.today().strftime("%Y-%m-%d_%H-%M")) +
+                              str(datetime.today().strftime("%Y-%m-%d")) +
                               suffix.__str__() + ".json")
 
     @classmethod
@@ -113,8 +113,7 @@ class JsonLog(object):
 
     @classmethod
     def printLog(cls):
-        """
-        Print log to output device.
+        """Print log to output device.
 
         Format: | Timestamp: Log Output
         """
@@ -139,7 +138,7 @@ class JsonStats(object):
         # Build log file name
         if not cls.__fileName:
             cls.__fileName = (dir_.__str__() + "/" + prefix.__str__() + "_" +
-                              str(datetime.today().strftime("%Y-%m-%d_%H-%M")) +
+                              str(datetime.today().strftime("%Y-%m-%d")) +
                               suffix.__str__() + ".json")
 
     @classmethod
