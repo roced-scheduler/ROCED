@@ -21,14 +21,12 @@
 
 import logging
 import re
+import time
 
 from Core import Config, MachineRegistry
 from SiteAdapter.Site import SiteAdapterBase
 from Util.Logging import JsonLog
 from oneandone.client import OneAndOneService, Server, Hdd
-
-# sh** happens with oneandone....
-import time
 
 
 class OneAndOneSiteAdapter(SiteAdapterBase):
@@ -54,6 +52,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
     configCoresPerProcessor = "cores_per_processor"
     configRam = "ram"
     configPassword = "password"
+    configPrivateNetworkID = "private_network_id"
     configSquid = "squid"
 
     # site settings
@@ -127,6 +126,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configRam, Config.ConfigTypeInt,
                                    description="Ram size",
                                    default=8)
+        self.addOptionalConfigKeys(self.configPrivateNetworkID, Config.ConfigTypeString,
+                                   description="Private network",
+                                   default=None)
         self.addOptionalConfigKeys(self.configPassword, Config.ConfigTypeString,
                                    description="Password for virtual machines",
                                    default=None)
@@ -191,7 +193,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         for server in tmp:
             # set ID as keyword
             servers[server[self.oao_id]] = {}
-            for key in server.keys():
+            for key in list(server.keys()):
                 # add all information to dict if it is not the ID
                 if key is not self.oao_id:
                     servers[server[self.oao_id]][key] = server[key]
@@ -230,10 +232,54 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                     i += 1
         # otherwise generate a list [0..(requested-1)]
         else:
-            new_indices = range(requested)
+            new_indices = list(range(requested))
 
         # return the unused indices
         return new_indices
+
+    def generateCondorName(self, ip):
+        """
+        This function generates the machine name that is used to sign in to HTCondor
+
+        :param ip: ip address as 128.14.123.182
+        :return: ip_addr - string as 128014123182
+        """
+        ip_string = ""
+        for ip_part in re.split(r'\.', ip):
+            ip_string = ip_string + "{0:0>3}".format(ip_part)
+
+        return ip_string
+
+
+    def getRunningMachines(self):
+        """
+        Returns a dictionary containing all running machines
+
+        The number of running machines needs to be recalculated when using status integrating and pending
+        disintegration. Machines pending disintegration are still running an can accept new jobs. Machines integrating
+        are counted as running machines by default.
+
+        :return: machineList
+        """
+
+        # get all machines running on site
+        myMachines = self.getSiteMachines()
+        machineList = dict()
+
+        # generate empty list for machines running on 1and1
+        machineList[list(self.getConfig(self.configMachines).keys())[0]] = []
+
+        # filter for machines in status booting, up, integrating, working or pending disintegration
+        for (k, v) in myMachines.items():
+            if v.get(self.mr.regStatus) == self.mr.statusBooting or \
+                    v.get(self.mr.regStatus) == self.mr.statusUp or \
+                    v.get(self.mr.regStatus) == self.mr.statusIntegrating or \
+                    v.get(self.mr.regStatus) == self.mr.statusWorking or \
+                    v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration:
+                # add machine to previously defined list
+                machineList[v[self.mr.regMachineType]].append(k)
+
+        return machineList
 
     def spawnMachines(self, machineType, requested):
         """
@@ -244,7 +290,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         """
 
         # check if machine type is requested machine type
-        if not machineType == self.getConfig(self.configMachines).keys()[0]:
+        if not machineType == list(self.getConfig(self.configMachines).keys())[0]:
             return 0
 
         # get 1and1 client and machine list
@@ -264,7 +310,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                             cores_per_processor=self.getConfig(self.configCoresPerProcessor),
                             ram=self.getConfig(self.configRam),
                             firewall_policy_id=self.getConfig(self.configFirewallPolicy),
-                            monitoring_policy_id=self.getConfig(self.configMonitoringPolicy))
+                            monitoring_policy_id=self.getConfig(self.configMonitoringPolicy),
+                            power_on=(not self.getConfig(self.configPrivateNetworkID))
+                            )
 
             # create HDD with requested size
             hdd = Hdd(size=self.getConfig(self.configHddSize), is_main=True)
@@ -312,8 +360,13 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
         # check if machine status is on or off, if so shut down the machine
         if action in [self.oao_state_power_on, self.oao_state_power_off]:
-            client.modify_server_status(server_id=self.mr.machines[mid][self.reg_site_server_id], action=action,
+            try:
+                client.modify_server_status(server_id=self.mr.machines[mid][self.reg_site_server_id], action=action,
                                         method=method)
+            except Exception as e:
+                self.logger.info(
+                    "Machine " + str(self.mr.machines[mid][self.reg_site_server_name]) + " already shutting down")
+                self.logger.warning(str(e))
         # check if machine should be deleted
         if action == self.oao_delete:
             # if so, try to delete the machine on 1and1 Cloud Site
@@ -329,6 +382,24 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
         # wait 1 second with the next action due to 1and1's firewall policies (1 request/second)
         time.sleep(1)
+        return
+
+    def assignPrivateNetwork(self, mid, netw_id):
+        """ Assign VM to a private network
+
+        The VMs have to be assigned to a private network manually due to the missing possibility to assign it while
+        requesting the VM.
+
+        :param mid:
+        :param netw_id:
+        :return:
+        """
+
+        # get 1and1 client
+        client = self.getOneAndOneClient()
+
+        client.assign_private_network(server_id=self.mr.machines[mid][self.reg_site_server_id],
+                                      private_network_id=netw_id)
         return
 
     def terminateMachines(self, machineType, count):
@@ -406,7 +477,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                             oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"] is not None):
                     # if so, set ip as condor name, remove "." from ip
                     self.mr.machines[mid][self.reg_site_server_condor_name] = \
-                        oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"].replace(".", "")
+                        self.generateCondorName(oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"])
+                        # oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"].replace(".", "")
 
             # check for status which is handled by integration adapter
             if self.mr.machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating, self.mr.statusWorking,
@@ -416,6 +488,13 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             # booting -> up
             # check if machine status is booting
             if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting:
+                # machines that are powered off have to be assigned to a private network
+                if oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status][
+                    self.oao_state] == self.oao_state_powered_off:
+                    # assign the network
+                    self.assignPrivateNetwork(mid, self.getConfig(self.configPrivateNetworkID))
+                    # boot up the machine afterwards
+                    self.modifyMachineStatus(mid, self.oao_state_power_on)
                 # check if machine status on 1and1 Cloud Site is already powered on
                 if oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status][
                     self.oao_state] == self.oao_state_powered_on:
@@ -472,7 +551,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at " + str(self.siteName) + " : " + str(
-            self.runningMachinesCount[self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
+            self.runningMachinesCount[list(self.getConfig(self.configMachines).keys())[0]]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
