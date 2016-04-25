@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
+from __future__ import unicode_literals
 
 import logging
 import re
@@ -70,9 +70,9 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
         # TODO: Install condor_q on the system and perform the command remote.
         # TODO: Long term we want to run ROCED on the server running the condor scheduler
-        cmd = "condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' " \
-              "-format '%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements | " \
-              "grep '" + requirement_string + "' |  awk -F',' '{print $1\",\"$2}'"
+        cmd = ("condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' "
+               "-format '%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements | "
+               "grep '" + requirement_string + "' |  awk -F',' '{print $1\",\"$2}'")
 
         result = ssh.handleSshCall(call=cmd, quiet=True)
 
@@ -83,7 +83,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         #            "'{print $3 "\n" $4}'| sort -n | head -n1"
 
         if result[0] == 0:
-            condor_jobs = result[1].strip()
+            condor_jobs = str(result[1]).strip()
             condor_jobs = re.split(",|\n", condor_jobs)
             condor_jobs = [condor_jobs[i:i + 2] for i in range(0, len(condor_jobs), 2)]
             n_slots = 0
@@ -96,6 +96,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                         n_jobs_idle += 1
                     elif int(job[0]) == 2:  # 2: running
                         n_jobs_running += 1
+
             self.logger.debug("HTCondor queue (" + str(n_jobs_idle) + "+" + str(n_jobs_running) +
                               ") [Status, CPUs]:\n" + str(condor_jobs))
 
@@ -118,7 +119,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
     def getNeededMachineType(self):
         # TODO: Handle multiple machine types!
-        machineType = list(self.getConfig(self.configMachines))[0]
+        machineType = list(self.getConfig(self.configMachines).keys())[0]
         if machineType:
             return machineType
         else:
