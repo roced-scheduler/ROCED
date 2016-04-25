@@ -66,7 +66,8 @@ class StupidBroker(SiteBrokerBase):
         self._maxInstances = max_instances
         self.logger = logging.getLogger('Broker')
 
-    def modSiteOrders(self, dict_, siteName, machineName, mod):
+    @staticmethod
+    def modSiteOrders(dict_, siteName, machineName, mod):
         """
         Increases or decreases the machines which should be stopped or started
         :param mod:

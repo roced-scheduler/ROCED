@@ -33,12 +33,13 @@ class RequirementAdapterTest(Requirement.RequirementAdapterBase):
 
 class RequirementBoxTest(ScaleTest.ScaleTestBase):
     def test_getReq(self):
+        logging.debug("=======Testing Requirement Adapters=======")
         box = Requirement.RequirementBox()
 
-        box._adapterList.append(RequirementAdapterTest("type1"))
-        box._adapterList.append(RequirementAdapterTest("type2"))
-        box._adapterList.append(RequirementAdapterTest("type3"))
-        box._adapterList.append(RequirementAdapterTest("type2"))
+        box.addAdapter(RequirementAdapterTest("type1"))
+        box.addAdapter(RequirementAdapterTest("type2"))
+        box.addAdapter(RequirementAdapterTest("type3"))
+        box.addAdapter(RequirementAdapterTest("type2"))
 
         self.assertEqual(len(box.getMachineTypeRequirement()), 3)
         self.assertEqual(box.getMachineTypeRequirement()["type2"], 0)

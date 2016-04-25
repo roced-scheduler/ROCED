@@ -106,7 +106,7 @@ class SiteAdapterBase(AdapterBase):
     # The following functions shouldn't be required to be overwritten
     ###
     def getSiteMachines(self, status=None, machineType=None):
-        # type: (str, str) -> Dict
+        # type: (str, str) -> dict
         """
         Return dictionary with machines running on this site (Machine registry).
 
@@ -154,7 +154,7 @@ class SiteAdapterBase(AdapterBase):
                 self.terminateMachines(machine_type, abs(decision[machine_type]))
 
     def getSiteMachinesAsDict(self, statusFilter=None):
-        # type: (List) -> Dict
+        # type: (list) -> dict
         """Retrieve machines running at a site. Optionally can filter on a status list.
 
         :return dictionary {machine_type: [machine ID, machine ID, ...], ...} :
@@ -240,7 +240,7 @@ class SiteAdapterBase(AdapterBase):
         sinfo.siteName = self.siteName
         sinfo.maxMachines = self.getConfig(self.ConfigMaxMachines)
         sinfo.baselineMachines = self.getConfig(self.ConfigBaselineMachines)
-        sinfo.supportedMachineTypes = self.getConfig(self.ConfigMachines).keys()
+        sinfo.supportedMachineTypes = self.getConfig(self.ConfigMachines)
         sinfo.cost = self.getConfig(self.ConfigCost)
         sinfo.isAvailable = self.getConfig(self.ConfigIsAvailable)
 

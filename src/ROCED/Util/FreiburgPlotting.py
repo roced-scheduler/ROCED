@@ -123,15 +123,15 @@ def main():
     quantities = {}
 
     # add empty list for each quantity
-    for quantity in plot_dict.keys():
+    for quantity in plot_dict:
         quantities[quantity] = np.zeros(len(rel_times))
 
     # add content to quantity lists, use np.NaN if no value is available
     i_entry = 0
     for entry in content:
-        for site in entry.keys():
-            for quantity in plot_dict.keys():
-                if quantity in entry[site].keys():
+        for site in entry:
+            for quantity in plot_dict:
+                if quantity in entry[site]:
                     try:
                         quantities[quantity][i_entry] = entry[site][quantity]
                     except (KeyError, TypeError):

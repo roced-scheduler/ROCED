@@ -101,7 +101,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
     @classmethod
     def calcMachineLoad(cls, machine):
-        # type (dict) -> float
+        # type: (dict) -> float
         """Calculate machine load [interval (0,1)] & update object accordingly.
 
         Go over all job slots and check if they are (un)claimed.
@@ -115,7 +115,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         cores_claimed = 0.0
         machine[MachineRegistry.MachineRegistry.regMachineLoad] = 0.0
         for slot in range(len(machine[cls.reg_site_condor_status])):
-            if machine[cls.reg_site_condor_status][slot][0] == cls.condorStatusClaimed:
+            if machine[cls.reg_site_condor_status][slot][0] in cls.condorStatusClaimed:
                 cores_claimed += 1
                 # set a timestamp on this event
                 machine[cls.reg_status_last_update] = datetime.now()
@@ -126,7 +126,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
     @classmethod
     def calcDrainStatus(cls, machine):
-        # type (Dict) -> Tuple(int, bool)
+        # type: (dict) -> Tuple(int, bool)
         """Calculate machine drain status (number of draining slots and bool for drain status).
 
         :param machine:

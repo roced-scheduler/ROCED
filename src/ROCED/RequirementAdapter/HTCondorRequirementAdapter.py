@@ -21,7 +21,6 @@
 
 
 import logging
-import math
 import re
 
 from Core import MachineRegistry, Config
@@ -69,7 +68,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         # selecting specific jobs.
         # grep is the solution here
 
-        # TODO: Install condor_q on the system and perform the command reomote.
+        # TODO: Install condor_q on the system and perform the command remote.
         # TODO: Long term we want to run ROCED on the server running the condor scheduler
         cmd = "condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' " \
               "-format '%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements | " \
@@ -85,7 +84,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
         if result[0] == 0:
             condor_jobs = result[1].strip()
-            condor_jobs = re.split(',|\n', condor_jobs)
+            condor_jobs = re.split(",|\n", condor_jobs)
             condor_jobs = [condor_jobs[i:i + 2] for i in range(0, len(condor_jobs), 2)]
             n_slots = 0
             n_jobs_idle = 0
@@ -101,10 +100,11 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                               ") [Status, CPUs]:\n" + str(condor_jobs))
 
             # this requires the machines variable to be listed twice in the config file
-            n_cores = self.getConfig(self.configMachines)[self.getNeededMachineType()]["cores"]
+            n_cores = - int(self.getConfig(self.configMachines)
+                            [self.getNeededMachineType()]["cores"])
 
             # calculate the number of machines needed
-            self._curRequirement = int(math.ceil(n_slots / float(n_cores)))
+            self._curRequirement = - (n_slots // n_cores)
 
             with Logging.JsonLog() as json_log:
                 json_log.addItem(self.getNeededMachineType(), 'jobs_idle', n_jobs_idle)
@@ -118,7 +118,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
     def getNeededMachineType(self):
         # TODO: Handle multiple machine types!
-        machineType = list(self.getConfig(self.configMachines).keys())[0]
+        machineType = list(self.getConfig(self.configMachines))[0]
         if machineType:
             return machineType
         else:

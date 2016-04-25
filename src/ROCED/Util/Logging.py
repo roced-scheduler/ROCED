@@ -78,7 +78,7 @@ class JsonLog(object):
 
     @classmethod
     def addItem(cls, site, key, value):
-        if site not in cls.__jsonLog.keys():
+        if site not in cls.__jsonLog:
             cls.__jsonLog[site] = {}
         cls.__jsonLog[site][key] = value
 
@@ -144,9 +144,9 @@ class JsonStats(object):
 
     @classmethod
     def add_item(cls, site, mid, value):
-        if site not in cls.__jsonStats.keys():
+        if site not in cls.__jsonStats:
             cls.__jsonStats[site] = {}
-        if mid not in cls.__jsonStats[site].keys():
+        if mid not in cls.__jsonStats[site]:
             cls.__jsonStats[site][str(mid)] = {}
         cls.__jsonStats[site][str(mid)] = value
 
@@ -158,18 +158,18 @@ class JsonStats(object):
                 with open(cls.__fileName, "r") as jsonFile:
                     try:
                         oldStats = json.load(jsonFile)
-                        for site in cls.__jsonStats.keys():
-                            if site not in oldStats.keys():
+                        for site in cls.__jsonStats:
+                            if site not in oldStats:
                                 oldStats[site] = {}
-                            for mid in cls.__jsonStats[site].keys():
-                                if mid not in oldStats[site].keys():
+                            for mid in cls.__jsonStats[site]:
+                                if mid not in oldStats[site]:
                                     oldStats[site][mid] = []
                                 if cls.__jsonStats[site][mid] not in oldStats[site][mid]:
                                     oldStats[site][mid].append(cls.__jsonStats[site][mid])
                     except ValueError:
                         logging.error("Could not parse JSON log!")
-                        for site in cls.__jsonStats.keys():
-                            for mid in cls.__jsonStats[site].keys():
+                        for site in cls.__jsonStats:
+                            for mid in cls.__jsonStats[site]:
                                 oldStats = {site: {mid: cls.__jsonStats[mid]}}
             except IOError:
                 logging.error("JSON file could not be opened for logging!")
@@ -188,7 +188,7 @@ class JsonStats(object):
 
     @classmethod
     def printStats(cls):
-        for mid in cls.__jsonStats.keys():
+        for mid in cls.__jsonStats:
             print(str(mid) + ": " + str(cls.__jsonStats[mid]))
 
 
@@ -210,7 +210,7 @@ class UnicodeWriter(object):
                                      **self.kw)
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self.f.close()
 
     def writeheader(self):

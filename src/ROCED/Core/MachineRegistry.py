@@ -136,7 +136,7 @@ class MachineRegistry(Event.EventPublisher):
 
         if (mid in self.machines) and (len(self.machines[mid][self.statusChangeHistory]) > 0):
             with CsvStats() as csv_stats:
-                if str("site") not in list(self.machines[mid].keys()):
+                if str("site") not in self.machines[mid]:
                     self.machines[mid]["site"] = "site"
                 csv_stats.add_item(site=self.machines[mid]["site"], mid=mid,
                                    old_status=self.machines[mid][self.statusChangeHistory][-1][

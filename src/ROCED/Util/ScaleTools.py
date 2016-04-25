@@ -46,7 +46,7 @@ class ChangeNotifier(object):
         self.cached = []
 
     def onEvent(self, evt):
-        # type (MachineRegistry.StatusChangedEvent)
+        # type: (MachineRegistry.StatusChangedEvent) -> None
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
             s = "Machine type %s on site %s changed status from %s to %s" % \
                 (self.mr.machines[evt.id].get(self.mr.reg_machine_type),
@@ -114,6 +114,20 @@ class Shell(object):
 class Ssh(object):
     def __init__(self, host, username, key, password=None, timeout=3, gatewayip=None,
                  gatewaykey=None, gatewayuser=None, ):
+        """Execute command on login node via SSH.
+
+        Login to server and perform the corresponding SSH command.
+        The command's output is returned as a tuple.
+
+        :param host:
+        :param username:
+        :param key:
+        :param password:
+        :param timeout:
+        :param gatewayip:
+        :param gatewaykey:
+        :param gatewayuser:
+        """
         self.host = host
         self.username = username
         self.key = key
@@ -142,7 +156,7 @@ class Ssh(object):
         return p.returncode, res
 
     def handleSshCall(self, call, quiet=False):
-        # type (str, bool) -> Tuple(int, str, str)
+        # type: (str, bool) -> Tuple[int, str, str]
         """Perform SSH command on remote server.
 
         :param call:
@@ -290,9 +304,9 @@ class Vpn(object):
         (res1, count1, err1) = ssh.handleSshCall(cmd)
 
         if res1 == 0:
-            logging.info("\"%s.p12\" successfully copied!" %cert_name)
+            logging.info("\"%s.p12\" successfully copied!" % cert_name)
         else:
-            logging.error("failed to copy \"%s.p12\"!" %cert_name)
+            logging.error("failed to copy \"%s.p12\"!" % cert_name)
 
         return res1
 

@@ -35,10 +35,10 @@ class FakeIntegrationAdapter(IntegrationAdapterBase):
 
     def manage(self):
         [self.mr.updateMachineStatus(mid, self.mr.statusWorking) for mid
-         in self.mr.getMachines(status=self.mr.statusIntegrating).keys()]
+         in self.mr.getMachines(status=self.mr.statusIntegrating)]
 
         [self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated) for mid
-         in self.mr.getMachines(status=self.mr.statusDisintegrating).keys()
+         in self.mr.getMachines(status=self.mr.statusDisintegrating)
          if self.mr.calcLastStateChange(mid) > random.randint(10, 50)]
 
     def onEvent(self, evt):

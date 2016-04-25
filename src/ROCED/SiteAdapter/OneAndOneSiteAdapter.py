@@ -191,7 +191,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         for server in tmp:
             # set ID as keyword
             servers[server[self.oao_id]] = {}
-            for key in server.keys():
+            for key in server:
                 # add all information to dict if it is not the ID
                 if key is not self.oao_id:
                     servers[server[self.oao_id]][key] = server[key]
@@ -244,7 +244,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         """
 
         # check if machine type is requested machine type
-        if not machineType == self.getConfig(self.configMachines).keys()[0]:
+        if not machineType == self.getConfig(self.configMachines)[0]:
             return 0
 
         # get 1and1 client and machine list
@@ -472,7 +472,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at " + str(self.siteName) + " : " + str(
-            self.runningMachinesCount[self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
+            self.runningMachinesCount[self.getConfig(self.configMachines)[0]]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +

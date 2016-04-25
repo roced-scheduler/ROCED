@@ -20,8 +20,6 @@
 # ===============================================================================
 from __future__ import unicode_literals, absolute_import, print_function
 
-from builtins import str
-
 """
 This file contains the ScaleCore class which contains
 all module objects and runs the SiteBroker to handle
@@ -182,7 +180,6 @@ class ScaleCore(object):
         logger.info("Time: " + str(datetime.today().strftime('%Y-%m-%d %H:%M:%S')))
 
         # regular management
-
         self.reqBox.manage()
         self.siteBox.manage()
         self.intBox.manage()

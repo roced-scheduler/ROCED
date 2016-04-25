@@ -372,8 +372,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
             for mid in self.mr.getMachines(self.siteName):
                 # if hypervisor is not set or None, set the hypervisor correctly
-                if self.reg_site_server_hypervisor not in self.mr.machines[mid].keys() \
-                        or self.mr.machines[mid][self.reg_site_server_hypervisor] is None:
+                if (self.reg_site_server_hypervisor not in self.mr.machines[mid] or
+                        self.mr.machines[mid][self.reg_site_server_hypervisor] is None):
                     self.mr.machines[mid][self.reg_site_server_hypervisor] = self.__getHypervisor(
                         self.mr.machines[mid][self.reg_site_server_id])
                 # get the hypervisor from machine registry
@@ -387,7 +387,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                     hypervisor_machines[self.mr.machines[mid][self.reg_site_server_hypervisor]] = [
                         mid]
 
-            for hypervisor in hypervisor_machines.keys():
+            for hypervisor in hypervisor_machines:
                 # check if there are more machines running on specific hypervisor and if so, get the least one used and
                 # terminate it
                 if len(hypervisor_machines[hypervisor]) > self.getConfig(
@@ -405,14 +405,12 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                             to_terminate = mid
                             break
                         # if all machines are working, get the least one used
-                        if self.mr.machines[mid][
-                            self.reg_site_server_status] is not self.reg_site_server_status_error:
-                            if self.mr.regMachineLoad in self.mr.machines[
-                                mid].keys() and self.mr.regMachineLoad in \
-                                    self.mr.machines[to_terminate].keys() and (
-                                        self.mr.machines[mid][self.mr.regMachineLoad] <
-                                        self.mr.machines[to_terminate][
-                                            self.mr.regMachineLoad]):
+                        if (self.mr.machines[mid][self.reg_site_server_status]
+                                is not self.reg_site_server_status_error):
+                            if (self.mr.regMachineLoad in self.mr.machines[mid] and
+                               self.mr.regMachineLoad in self.mr.machines[to_terminate] and
+                               self.mr.machines[mid][self.mr.regMachineLoad] <
+                               self.mr.machines[to_terminate][self.mr.regMachineLoad]):
                                 to_terminate = mid
                         # if all are used the same, just take the first one
                         else:
