@@ -85,6 +85,30 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
         super(FreiburgSiteAdapter, self).init()
 
+        ###
+        # Try to add "booting" machines (submitted batch jobs) to machine registry.
+        ###
+        idleJobs = self.__idleJobs
+        runningJobs = self.__runningJobs
+        completedJobs = self.__completedJobs
+
+        for mid, machine_ in self.getSiteMachines(status=self.mr.statusBooting).items():
+            try:
+                idleJobs.remove(machine_[self.regMachineJobId])
+            except ValueError:
+                if machine_[self.regMachineJobId] in runningJobs:
+                    self.mr.updateMachineStatus(mid, self.mr.statusUp)
+                elif machine_[self.regMachineJobId] in completedJobs:
+                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
+                else:
+                    self.logger.debug("Couldn't assign machine " + machine_[self.regMachineJobId])
+        for jobId in idleJobs:
+            mid = self.mr.newMachine()
+            self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
+            self.mr.machines[mid][self.regMachineJobId] = jobId
+            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
+                jobId)
+
     def spawnMachines(self, machineType, count):
         """Request machines in Freiburg via batch job containing startVM script.
 
@@ -106,11 +130,11 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
-            result = self.__execCmdInFreiburg("msub -l walltime=" + str(
-                machineSettings["walltime"]) + ",mem=" + str(machineSettings["memory"]) +
-                                              ",nodes=1:ppn=" + str(
-                machineSettings["cores"]) + " " +
-                                              self.__vmStartScript.__str__())
+            result = self.__execCmdInFreiburg("msub -l "
+                                              "walltime=" + str(machineSettings["walltime"]) +
+                                              ",mem=" + str(machineSettings["memory"]) +
+                                              ",nodes=1:ppn=" + str(machineSettings["cores"]) +
+                                              " " + self.__vmStartScript.__str__())
 
             # std_out = batch job id
             if result[0] == 0 and result[1].strip().isdigit():
@@ -119,6 +143,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.regMachineJobId] = result[1].strip()
                 self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
                     result[1].strip())
+                # This may be redundant. HTCondorIntegrationAdapter sets this value depending on the
+                # slot count.
                 self.mr.machines[mid][self.mr.regMachineCores] = machineSettings["cores"]
             else:
                 self.logger.warning(
@@ -243,7 +269,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             return runningMachinesCount
 
     def onEvent(self, evt):
-        # type: (MachineRegistry.StatusChangedEvent)
+        # type: (MachineRegistry.StatusChangedEvent) -> None
         """Event handler: Handles machine status changes.
 
         Freiburg has some special logic here, since machines shutdown themselves after a 5 minute
@@ -266,7 +292,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     frJobsRunning = self.__runningJobs
                     if self.mr.machines[evt.id].get(self.regMachineJobId) in frJobsRunning:
                         self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
-                                                       self.regMachineJobId)])
+                            self.regMachineJobId)])
                     self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
                 elif evt.newStatus == self.mr.statusDown:
                     self.mr.removeMachine(evt.id)
@@ -276,11 +302,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         Booting = Freiburg batch job for machine was submitted
         Up      = Freiburg batch job is running, VM is Booting,
-                  HTCondorIntegrationAdapter automatically switches this to "integrating"
-                   and later to booting.
+                  HTCondorIntegrationAdapter switches this to "integrating" and "working".
 
         HTCondorIntegrationAdapter is responsible for handling Integrating, Working,
-        PendingDisintegration
+        PendingDisintegration, Disintegrating
 
         :return:
         """
@@ -290,10 +315,11 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         mr = self.getSiteMachines()
         for mid in mr:
             batchJobId = mr[mid][self.regMachineJobId]
-            # status handled by Integration Adapter
+            # Status handled by Integration Adapter
             if self.mr.machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating,
                                                             self.mr.statusWorking,
-                                                            self.mr.statusPendingDisintegration]:
+                                                            self.mr.statusPendingDisintegration,
+                                                            self.mr.statusDisintegrating]:
                 try:
                     frJobsRunning.pop(batchJobId)
                     continue
@@ -344,9 +370,6 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     def __execCmdInFreiburg(self, cmd):
         """Execute command on Freiburg login node via SSH.
 
-        Login to server and perform the corresponding SSH command.
-        The command's output is returned as a tuple.
-
         :param cmd:
         :return: Tuple: (return_code, std_out, std_err)
         """
@@ -356,16 +379,15 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return frSsh.handleSshCall(call=cmd, quiet=True)
 
     def __cancelFreiburgMachines(self, batchJobIds):
-        """Cancel batch job (VM) in Freiburg
-
-        It is also possible to use just one single command with multiple ids, but no machine gets
-        cancelled if a single id is invalid! This can happen when the VM fails to boot due to
-        network problems.
+        """Cancel batch job (VM) in Freiburg.
 
         :param batchJobIds:
         :type batchJobIds: list
         :return: [idsRemoved], [idsInvalidated]
         """
+        # It is also possible to use just one single command with multiple ids, but no machine gets
+        # cancelled if a single id is invalid! This can happen when the VM fails to boot due to
+        # network problems.
         command = ""
         if not isinstance(batchJobIds, (list, tuple)):
             batchJobIds = [batchJobIds]
@@ -380,8 +402,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         idsInvalidated = []
         if result[0] <= 1:
             ScaleTools.Ssh.debugOutput(self.logger, "FR-terminate", result)
-            idsRemoved += re.findall("\'([0-9]+)\'", result[1])
-            idsInvalidated += re.findall("invalid job specified \(([0-9]+)", result[2])
+            idsRemoved += re.findall("\'(\d+)\'", result[1])
+            idsInvalidated += re.findall("invalid job specified \((\d+)", result[2])
             if len(idsRemoved) > 0:
                 self.logger.info(
                     "Terminated machines (" + str(len(idsRemoved)) + "): " + ", ".join(idsRemoved))
@@ -408,16 +430,24 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return cls.__condorNamePrefix + str(batchJobId)
 
     @property
-    def __runningJobs(self):
-        # type: () -> List
-        """Get list of running batch jobs, filtered by user ID."""
+    def __userString(self):
+        # type: () -> str
+        """User string for Freiburg SSH query """
         frUser = self.getConfig(self.configFreiburgUser)
         frGroup = self.getConfig(self.configFreiburgUserGroup)
 
         if frGroup is None:
-            cmd = "showq -r -w user=" + frUser
+            cmd = " -w user=" + frUser
         else:
-            cmd = "showq -r -w group=" + frGroup
+            cmd = " -w group=" + frGroup
+
+        return cmd
+
+    @property
+    def __runningJobs(self):
+        # type: () -> dict
+        """Get list of running batch jobs, filtered by user ID."""
+        cmd = "showq -r" + self.__userString
 
         frResult = self.__execCmdInFreiburg(cmd)
 
@@ -433,14 +463,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                     \s+.+\s            # waste between whitespaces and next regex
                                     (\d)               # cores = result 2
                                     \s+                # whitespace(s)
-                                    ((?:\d{2}:?){3,4}) # time limit: 3-4 digit pairs = res3
+                                    ((?:\d{1,2}:?){3,4}) # time limit: 3-4 digit pairs = res3
                                     \s+.+              # more waste
                                     """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
-            frJobsRunning = []
+            frJobsRunning = {}
             self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
         else:
-            frJobsRunning = []
+            frJobsRunning = {}
             self.logger.warning(
                 "Problem running remote command in Freiburg (showq -r) (return code " +
                 str(frResult[0]) + "):\n" + str(frResult[2]))
@@ -449,16 +479,34 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return frJobsRunning
 
     @property
-    def __completedJobs(self):
-        # type: () -> Dict
-        """Get list of completed batch jobs, filtered by user ID."""
-        frUser = self.getConfig(self.configFreiburgUser)
-        frGroup = self.getConfig(self.configFreiburgUserGroup)
+    def __idleJobs(self):
+        # type: () -> list
+        """Get list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
+        cmd = "showq -i" + self.__userString
 
-        if frGroup is None:
-            cmd = "showq -c -w user=" + frUser
+        frResult = self.__execCmdInFreiburg(cmd)
+
+        if frResult[0] == 0:
+            # returns a list containing all running batch jobs in Freiburg
+            # Negative lookahead for "eligible", otherwise he catches "0 eligible jobs".
+            frJobsIdle = re.findall("^^(\d+)\s+(?!eligible)", frResult[1], re.MULTILINE)
+        elif frResult[0] == 255:
+            frJobsIdle = []
+            self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
         else:
-            cmd = "showq -c -w group=" + frGroup
+            frJobsIdle = []
+            self.logger.warning(
+                "Problem running remote command in Freiburg (showq -r) (return code " +
+                str(frResult[0]) + "):\n" + str(frResult[2]))
+
+        self.logger.debug("Idle: \n" + str(frJobsIdle))
+        return frJobsIdle
+
+    @property
+    def __completedJobs(self):
+        # type: () -> dict
+        """Get list of completed batch jobs, filtered by user ID."""
+        cmd = "showq -c" + self.__userString
 
         frResult = self.__execCmdInFreiburg(cmd)
 
@@ -466,13 +514,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             # returns a dict: {batch job id: return code/status, ..}
             frJobsCompleted = {jobid: rc for jobid, rc in
                                re.findall("""
-                               ^            # Match at the beginning of lines
-                               (\d+)        # batch job id (digits) = result 1
-                               \s+          # whitespace/tab
-                               [CV]         # job state: completed or vacated
-                               s+           # whitespace/tab
-                               ([A-Z0-9]+)  # Return-code = result 2: 0/1 or CNCLD
-                               [\s]+.+      # useless rest
+                               ^             # Match at the beginning of lines
+                               (\d+)         # batch job id (digits) = result 1
+                               \s+           # whitespace/tab
+                               [CV]          # job state: completed or vacated
+                               \s+           # whitespace/tab
+                               ([-A-Z0-9]+)  # Return-code = result 2: +/- int or CNCLD
+                               \s+.+       # useless rest
                                """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsCompleted = {}

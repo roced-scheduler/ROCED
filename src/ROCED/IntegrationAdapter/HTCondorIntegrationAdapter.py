@@ -46,7 +46,12 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     reg_status_last_update = "status_last_update"
     # possible slot state
     condorStatusClaimed = "Claimed"
+    # Both states show an empty/idling machine. "Owner" means that there are some job requirements
+    # defined on the machine which have to be met, before a job is assigned.
+    # "Unclaimed" machines will accept any job.
+    condorStatusOwner = "Owner"
     condorStatusUnclaimed = "Unclaimed"
+    condorStatusIdle = [condorStatusOwner, condorStatusUnclaimed]
     condorStatusRetiring = "Retiring"
     # possible slot activity
     condorActivityDrained = "Drained"
@@ -169,8 +174,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         Possible status changes, depending on config, timeouts, variables, workload, etc.:
         ---
-        booting                -> pending disintegration
-        up                     -> pending disintegration
         integrating            -> pending disintegration | working
         ---
         pending disintegration -> disintegrating | working
@@ -179,6 +182,10 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         :return:
         """
+
+        condor_timeout = self.getConfig(self.configCondorDeadline) * 60
+        condor_wait_working = self.getConfig(self.configCondorWaitWorking) * 60
+        condor_wait_PD = self.getConfig(self.configCondorWaitPD) * 60
 
         # get list of condor machines and validity (condor_status returncode)
         condor_machines, valid_condor_info = self.condorList
@@ -189,83 +196,67 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         # check machine registry
         for mid in self.mr.getMachines(self.siteName):
             machine_ = self.mr.machines[mid]
-            # Machine stuck in status booting/up/integrating?
-            if machine_[self.mr.regStatus] in [self.mr.statusBooting, self.mr.statusUp,
-                                               self.mr.statusIntegrating]:
-                # time since last update > threshold -> set to PendingDisintegration (->shutdown)
-                if self.mr.calcLastStateChange(mid) > self.getConfig(
-                        self.configCondorDeadline) * 60:
-                    if self.getConfig(self.configCondorDeadline) == 0:
-                        self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
-                        continue
-                    else:
-                        self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
 
-            # Is an "Integrating" machine completely started up?
-            # Machine with current status "Integrating" appears in condor -> "Working"
-            if machine_[self.mr.regStatus] == self.mr.statusIntegrating:
+            # Is an "Integrating" machine completely started up? (appears in condor) -> "Working"
+            if machine_[self.mr.regStatus] is self.mr.statusIntegrating:
                 if machine_[self.reg_site_server_condor_name] in condor_machines:
                     self.mr.updateMachineStatus(mid, self.mr.statusWorking)
-                    # update condor slot status in machine registry
+                    # number of cores = number of slots
                     self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                         machine_[self.reg_site_server_condor_name]]
-                    # number of cores = number of slots
                     self.mr.machines[mid][self.mr.regMachineCores] = len(
                         self.mr.machines[mid][self.reg_site_condor_status])
+                # Machine stuck integrating? -> PendingDisintegration
+                elif self.mr.calcLastStateChange(mid) > condor_timeout:
+                    self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
 
-            # check if machines with status pending disintegration can be shut down
-            if machine_[self.mr.regStatus] == self.mr.statusPendingDisintegration:
-                # is machine (still) listed in condor machines? Search for "condor name" - if it's
-                # no longer present, the machine was shut down.
+            # "Working" machines need machine load > 0.1, otherwise they are "unclaimed".
+            # -> "pending disintegration"
+            if machine_[self.mr.regStatus] == self.mr.statusWorking:
+                if machine_[self.reg_site_server_condor_name] in condor_machines:
+                    # update condor slot status & calculate machine load
+                    self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
+                        machine_[self.reg_site_server_condor_name]]
+                    self.calcMachineLoad(self.mr.machines[mid])
+
+                    if self.mr.machines[mid][self.mr.regMachineLoad] <= 0.1 \
+                            and self.mr.calcLastStateChange(mid) > condor_wait_working:
+                        self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
+                    # If slot activity/machine state indicate draining -> Pending Disintegration
+                    if self.calcDrainStatus(self.mr.machines[mid])[1] is True:
+                        self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
+                else:
+                    # Machine disappeared
+                    self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
+
+            # check if machines pending disintegration can be (disintegrating) or were shut down
+            # (disintegrated)
+            elif machine_[self.mr.regStatus] == self.mr.statusPendingDisintegration:
+                # is machine (still) listed in condor machines (search for "condor name")?
                 if self.reg_site_server_condor_name in machine_:
                     if machine_[self.reg_site_server_condor_name] in condor_machines:
-                        # update condor slot status in machine registry
+                        # update condor slot status & calculate machine load
                         self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                             machine_[self.reg_site_server_condor_name]]
                         self.calcMachineLoad(self.mr.machines[mid])
 
-                        # machine load > 0.1 -> at least one slot is claimed.
-                        # "PendingDisintegration" -> "Working"
+                        # machine load > 0.1 -> at least one slot is claimed -> re-enable
                         if self.mr.machines[mid][self.mr.regMachineLoad] > 0.1:
                             # Only re-enable non-draining nodes
                             if self.calcDrainStatus(self.mr.machines[mid])[1] is False:
                                 self.mr.updateMachineStatus(mid, self.mr.statusWorking)
-                            elif self.mr.calcLastStateChange(mid) > self.getConfig(
-                                    self.configCondorWaitPD) * 60:
-                                self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
+                        elif self.mr.calcLastStateChange(mid) > condor_wait_PD:
+                            self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
                     else:
                         self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
                 else:
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
 
-            # if machines are "working", check for machine load < 0.1.
-            # In that case, the machine is unclaimed. -> "pending disintegration".
-            if machine_[self.mr.regStatus] == self.mr.statusWorking:
-                if machine_[self.reg_site_server_condor_name] in condor_machines:
-                    # Update slot status & calc machine load
-                    self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
-                        machine_[self.reg_site_server_condor_name]]
-                    self.calcMachineLoad(self.mr.machines[mid])
-                    # time passed since last machine status change > threshold
-                    # & machine load < 0.1: machine -> pending disintegration
-                    if self.mr.machines[mid][self.mr.regMachineLoad] <= 0.1 \
-                            and self.mr.calcLastStateChange(mid) > self.getConfig(
-                                self.configCondorWaitWorking) * 60:
-                        self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
-                    # If slot activity or machine state indicates draining -> Pending Disintegration
-                    # This way the machine won't influence the broker's running machine count.
-                    if self.calcDrainStatus(self.mr.machines[mid])[1] is True:
-                        self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
-                else:
-                    # Machine disappeared from working
-                    self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
-                    continue
-
-            # Machine "disintegrating": Shutdown process should be started.
-            # Site adapter may be responsible for starting the shutdown process.
-            # If it's not listed in condor, it's done shutting down -> "disintegrated"
+            # "Disintegrating": -> Shutdown should be started (by site adapter)
+            # # If it's not listed in condor, it's done shutting down -> "disintegrated"
             if machine_[self.mr.regStatus] == self.mr.statusDisintegrating:
-                if machine_[self.reg_site_server_condor_name] not in condor_machines:
+                if (machine_[self.reg_site_server_condor_name] not in condor_machines or
+                        self.mr.calcLastStateChange(mid) > condor_timeout):
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
         self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
