@@ -551,7 +551,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at " + str(self.siteName) + " : " + str(
-            self.runningMachinesCount[self.getConfig(self.configMachines)[0]]))  # ["vm-default"]))
+            self.runningMachinesCount[self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
