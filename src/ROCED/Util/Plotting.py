@@ -304,8 +304,8 @@ def plot_to_file(logs_, plot_dict, style, time_scale, output, proportion, resolu
                            size=24)  # , x=0.5, y=0.88)
 
             logs_[site]["runtimes"] /= float(time_scales[time_scale][1])
-            plot.set_xlabel(r"Time / " + time_scales[time_scale][0], ha="right", x=1, size=24)
-            plot.set_ylabel(r"Number of Jobs/VMs", va="top", y=.7, labelpad=20.0, size=24)
+            plot.set_xlabel(r"Time [" + time_scales[time_scale][0] + "]", ha="right", x=1, size=24)
+            plot.set_ylabel(r"Number of Jobs/cpu slots", va="top", y=.7, labelpad=20.0, size=24)
             plot.tick_params(axis="x", labelsize=16, pad=10., length=10)
             plot.tick_params(axis="y", labelsize=16, pad=11., length=10)
 
@@ -358,8 +358,8 @@ def plot_to_file(logs_, plot_dict, style, time_scale, output, proportion, resolu
                            size=24)
 
             logs_[site]["runtimes"] /= float(time_scales[time_scale][1])
-            plot.set_xlabel(r"Time / " + time_scales[time_scale][0], ha="right", x=1, size=24)
-            plot.set_ylabel(r"Number of Jobs/VMs", va="top", y=.71, labelpad=37.0, size=24)
+            plot.set_xlabel(r"Time [" + time_scales[time_scale][0] +"]", ha="right", x=1, size=24)
+            plot.set_ylabel(r"Number of Jobs/cpu slots", va="top", y=.71, labelpad=37.0, size=24)
             plot.tick_params(axis="x", labelsize=20, pad=10., length=10)
             plot.tick_params(axis="y", labelsize=20, pad=11., length=10)
 

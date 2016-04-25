@@ -243,9 +243,9 @@ class CsvStats(object):
                 os.makedirs(dir_.__str__() + "/")
             except OSError:
                 logging.error("Error when creating /log/ folder")
-        cls.__fileName = str(dir_) + '/' + prefix + '_' + str(
-            datetime.today().strftime('%Y-%m-%d')) + str(
-            suffix) + ".csv"
+        if not cls.__fileName:
+            cls.__fileName = dir_.__str__() + '/' + prefix.__str__() + '_' + \
+                datetime.today().strftime('%Y-%m-%d').__str__() + suffix.__str__() + ".csv"
 
         # Existence check for log file
         if not os.path.isfile(cls.__fileName):
