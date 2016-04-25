@@ -58,11 +58,10 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
     @property
     def requirement(self):
-        server = self.getConfig(self.configCondorServer)
-        user = self.getConfig(self.configCondorUser)
-        key = self.getConfig(self.configCondorKey)
         requirement_string = self.getConfig(self.configCondorRequirement)
-        ssh = ScaleTools.Ssh(server, user, key)
+        ssh = ScaleTools.Ssh(host=self.getConfig(self.configCondorServer),
+                             username=self.getConfig(self.configCondorUser),
+                             key=self.getConfig(self.configCondorKey))
 
         # get running and idling jobs and the number of requested CPUs
         # job status ids: https://htcondor-wiki.cs.wisc.edu/index.cgi/wiki?p=MagicNumbers

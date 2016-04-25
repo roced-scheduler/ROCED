@@ -379,7 +379,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         idsRemoved = []
         idsInvalidated = []
         if result[0] <= 1:
-            ScaleTools.sshDebugOutput(self.logger, "FR-terminate", result)
+            ScaleTools.Ssh.debugOutput(self.logger, "FR-terminate", result)
             idsRemoved += re.findall("\'([0-9]+)\'", result[1])
             idsInvalidated += re.findall("invalid job specified \(([0-9]+)", result[2])
             if len(idsRemoved) > 0:

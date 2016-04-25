@@ -74,8 +74,9 @@ class TorqueIntegrationAdapterTest(ScaleTest.ScaleTestBase):
         self.mr.machines[mid_notorque][self.mr.regSite] = "cloud_site"
         self.mr.updateMachineStatus(mid_notorque, self.mr.statusWorking)
 
-        # todo: fix and re-enable
         ScaleTools.Ssh = FakeSsh
+        self.assertEqual(ScaleTools.Ssh.getSshOnMachine(self.mr.machines[mid]).host, "localhost")
+        # todo: fix and re-enable
         # FakeSsh.predefCommands[ "pbsnodes -x cloud-001"] = (0, "<Data><Node><name>cloud-001</name><state>offline, job-exclusive</state><np>1</np><ntype>cluster</ntype><status>opsys=linux,uname=Linux localhost.localdomain 2.6.31-14-server #48-Ubuntu SMP Fri Oct 16 15:07:34 UTC 2009 x86_64,sessions=? 15201,nsessions=? 15201,nusers=0,idletime=4945,totmem=2056456kb,availmem=1950652kb,physmem=2056456kb,ncpus=1,loadave=0.02,netload=2353631,state=free,jobs=,varattr=,rectime=1270214759</status></Node><Node><name>ekp-cloud-pbs</name><state>down</state><np>1</np><ntype>cluster</ntype></Node></Data>" )
 
         # registers the event listener on MachineRegistry

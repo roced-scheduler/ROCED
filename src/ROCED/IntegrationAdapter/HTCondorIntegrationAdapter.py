@@ -312,7 +312,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         # get a list of the condor machines (SSH)
         condor_result = condor_ssh.handleSshCall(call=cmd, quiet=True)
-        ScaleTools.sshDebugOutput(self.logger, "EKP-manage", condor_result)
+        condor_ssh.debugOutput(self.logger, "EKP-manage", condor_result)
 
         # condor_result is invalid if there was a connection problem
         valid_condor_info = True

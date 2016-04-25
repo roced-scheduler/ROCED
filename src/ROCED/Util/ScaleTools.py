@@ -216,12 +216,12 @@ class Ssh(object):
                 stdout.decode(encoding="utf-8"),
                 stderr.decode(encoding="utf-8"))
 
-
-def sshDebugOutput(logger, scope, result):
-    logger.debug("[" + scope + "] SSH return code: " + str(result[0]))
-    logger.debug("[" + scope + "] SSH stdout: " + str(result[1].strip()))
-    if result[2]:
-        logger.debug("[" + scope + "] SSH stderr: " + str(result[2].strip()))
+    @staticmethod
+    def debugOutput(logger, scope, result):
+        logger.debug("[" + scope + "] SSH return code: " + str(result[0]))
+        logger.debug("[" + scope + "] SSH stdout: " + str(result[1].strip()))
+        if result[2]:
+            logger.debug("[" + scope + "] SSH stderr: " + str(result[2].strip()))
 
 
 class Vpn(object):
