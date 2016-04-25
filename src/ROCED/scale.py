@@ -19,23 +19,21 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
+from __future__ import unicode_literals
 
 """
 ROCED main runtime file
-
 """
 
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import unittest
 import sys
 import argparse
 import configparser
-import datetime
 import os
 
 from Core.Core import ScaleCoreFactory
-
 
 # test classes here
 # import SiteTest
@@ -51,7 +49,8 @@ from Util.Daemon import DaemonBase
 class ScaleMain(object):
     def __init__(self):
         # initialize root logger with basic config
-        logging.basicConfig(format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        logging.basicConfig(format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                            datefmt='%Y-%m-%d %H:%M:%S')
         # initialize a class logger which inherits from root logger
         self.logger = logging.getLogger('Scale')
 
@@ -86,32 +85,40 @@ class ScaleMain(object):
         else:
             sys.exit(0)
 
-    def run(self, config_file_name, debug=False, iterations=None):
+    @staticmethod
+    def setupLogger(config, debug=False):
+        # type: (RawConfigParser, bool) -> None
+        """Set up logging object. Log rolls over at midnight."""
 
+        logger = logging.getLogger()
         if debug is True:
-            logging.getLogger().setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
         else:
-            logging.getLogger().setLevel(logging.INFO)
+            logger.setLevel(logging.INFO)
 
-        self.logger.info("Loading config " + str(config_file_name))
-        config = configparser.RawConfigParser()
-        config.readfp(open(config_file_name))
-
-        if config.has_option(Config.GeneralSection, Config.GeneralLogFolder):
+        if config.has_option(Config.GeneralSection, Config.GeneralLogFolder) is True:
             log_folder = config.get(Config.GeneralSection, Config.GeneralLogFolder)
-            # Existence check for log folder [log file creation requires existing folder]
+
             if os.path.isdir(log_folder.__str__()) is False:
                 try:
                     os.makedirs(log_folder.__str__() + "/")
                 except OSError:
                     logging.error("Error while creating /log/ folder")
-            fname = log_folder + "/roced-" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")) + ".log"
-            self.logger.info("Writing to log file " + fname)
-            # create file logging handler with format settings
-            file_handler = logging.FileHandler(fname)
+            fname = log_folder + "/roced.log"
+            logger.info("Writing to log file " + fname)
+            file_handler = TimedRotatingFileHandler(fname, when='midnight')
             file_handler.setFormatter(
-                logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s', '%Y-%m-%d %H:%M:%S'))
-            logging.getLogger().addHandler(file_handler)
+                logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s',
+                                  '%Y-%m-%d %H:%M:%S'))
+            logger.addHandler(file_handler)
+
+    def run(self, config_file_name, debug=False, iterations=None):
+
+        self.logger.info("Loading config " + str(config_file_name))
+        config = configparser.RawConfigParser()
+        config.readfp(open(config_file_name))
+
+        self.setupLogger(config=config, debug=debug)
 
         core_factory = ScaleCoreFactory()
         scaleCore = core_factory.getCore(config, maximumInterval=iterations)
@@ -121,6 +128,7 @@ class ScaleMain(object):
         scaleCore.startManage()
 
         # Run the server's main loop
+        self.logger.info("----------------------------------")
         self.logger.info(scaleCore.description + " running")
 
 
@@ -133,10 +141,12 @@ class MyDaemon(DaemonBase):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Run the ROCED scheduler')
-    parser.add_argument('--config', nargs=1, help="Run using a custom config file (default: /etc/roced/roced.conf)",
+    parser.add_argument('--config', nargs=1,
+                        help="Run using a custom config file (default: /etc/roced/roced.conf)",
                         default="/etc/roced/roced.conf")
 
-    parser.add_argument('--iterations', type=int, help="Number of control iterations to run (default: unlimited)",
+    parser.add_argument('--iterations', type=int,
+                        help="Number of control iterations to run (default: unlimited)",
                         default=None)
 
     parser.add_argument('--debug', action='store_true', help="Print debug information")
