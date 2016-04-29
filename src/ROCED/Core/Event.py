@@ -54,12 +54,12 @@ class EventPublisher(object):
         [listener.onEvent(evt) for listener in self.__listener]
 
     def registerListener(self, new_listener):
-        """Register a class as event listener. This class' method "onEvent" may be triggered."""
+        """Register a class as event listener. This class' method "onEvent" may get triggered."""
         if new_listener not in self.__listener:
             if not hasattr(new_listener, "onEvent"):
-                logging.error("Can't register listener " + type(new_listener).__name__ +
-                              ". Method \"onEvent\" is missing.")
-            logging.info("Registering new event listener: " + type(new_listener).__name__)
+                logging.error("Can't register listener %s. Method \"onEvent\" is missing."
+                              % type(new_listener).__name__)
+            logging.info("Registering new event listener: %s" % type(new_listener).__name__)
             self.__listener.append(new_listener)
 
     def clearListeners(self):

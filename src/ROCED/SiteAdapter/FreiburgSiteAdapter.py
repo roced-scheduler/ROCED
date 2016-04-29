@@ -275,12 +275,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         regular execution.
         """
         try:
-            if self.mr.machines[evt.id].get(self.mr.regSite) is not self.siteName:
+            if self.mr.machines[evt.id].get(self.mr.regSite, None) != self.siteName:
                 return
         except KeyError:
             return
 
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
+            self.logger.debug("Status Change Event: %s ")
             if evt.newStatus == self.mr.statusDisintegrated:
                 # If Integration Adapter tells us, that the machine disappeared or "deserves" to
                 # be shutdown (timeouts), cancel VM batch job in Freiburg
@@ -320,15 +321,19 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             # -> ROCED becomes aware of failed VM requests and asks for new ones.
             # A machine MAY fail to boot with return code 0. Could be regular shutdown -> shutdown
             if mr[mid][self.mr.regStatus] not in [self.mr.statusDown]:
-                if str(batchJobId) in frJobsCompleted:
+                if batchJobId in frJobsCompleted:
                     if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
                         self.logger.info("VM (%s) failed to boot!" % batchJobId)
                     else:
-                        if frJobsCompleted[str(batchJobId)] != "0":
+                        if frJobsCompleted[batchJobId] != "0":
                             self.logger.info("VM (%s) died!" % batchJobId)
                         else:
                             self.logger.debug("VM (%s) died with status 0!" % batchJobId)
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
+            elif batchJobId in frJobsCompleted:
+                # Machine remained in machine registry after cycle (with status "Down").
+                # This SHOULD never happen, since "OnEvent" should instantly handle the deletion.
+                self.mr.removeMachine(mid)
 
             # batch job running: machine -> up
             if mr[mid][self.mr.regStatus] is self.mr.statusBooting:
@@ -419,7 +424,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         Machine registry value "reg_site_server_condor_name" is used to communicate with
         HTCondorIntegrationAdapter. In Freiburg this name is built from the batch job id."""
-        return cls.__condorNamePrefix + str(batchJobId)
+        return cls.__condorNamePrefix + batchJobId
 
     @property
     def __userString(self):

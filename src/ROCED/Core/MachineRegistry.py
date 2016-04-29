@@ -107,9 +107,9 @@ class MachineRegistry(Event.EventPublisher):
         newd = dict()
 
         for (k, v) in self.machines.items():
-            if (site is None or v.get(self.regSite) == site) and \
-                    (status is None or v.get(self.regStatus) == status) and \
-                    (machineType is None or v.get(self.regMachineType) == machineType):
+            if ((site is None or v.get(self.regSite) == site) and
+                    (status is None or v.get(self.regStatus) == status) and
+                    (machineType is None or v.get(self.regMachineType) == machineType)):
                 newd[k] = v
 
         return newd
@@ -125,16 +125,12 @@ class MachineRegistry(Event.EventPublisher):
         oldStatus = self.machines[mid].get("status", None)
         self.machines[mid][self.regStatus] = newStatus
         self.machines[mid][self.regStatusLastUpdate] = newTime
-        self.machines[mid][self.statusChangeHistory].append(
-            {
-                "old_status": oldStatus,
-                "new_status": newStatus,
-                "timestamp": str(newTime),
-                "time_diff": str(diffTime)
-            }
-        )
+        self.machines[mid][self.statusChangeHistory].append({"old_status": oldStatus,
+                                                             "new_status": newStatus,
+                                                             "timestamp": str(newTime),
+                                                             "time_diff": str(diffTime)})
 
-        if (mid in self.machines) and (len(self.machines[mid][self.statusChangeHistory]) > 0):
+        if mid in self.machines and len(self.machines[mid][self.statusChangeHistory]) > 0:
             with CsvStats() as csv_stats:
                 if str("site") not in self.machines[mid]:
                     self.machines[mid]["site"] = "site"
@@ -149,8 +145,7 @@ class MachineRegistry(Event.EventPublisher):
                                        "time_diff"])
                 csv_stats.write_stats()
 
-        self.logger.info(
-            "updating status of " + str(mid) + ": " + str(oldStatus) + " -> " + newStatus)
+        self.logger.info("Updating status of %s: %s -> %s" % (mid, oldStatus, newStatus))
         self.publishEvent(StatusChangedEvent(mid, oldStatus, newStatus))
 
     def calcLastStateChange(self, mid):
@@ -168,34 +163,34 @@ class MachineRegistry(Event.EventPublisher):
         """Create comma-separated list of machines in different statuses."""
         info = "MachineState: "
         l = list(self.getMachines(status=self.statusBooting))
-        info += str(len(l)) + ","
+        info += "%d," % len(l)
         l = list(self.getMachines(status=self.statusUp))
-        info += str(len(l)) + ","
+        info += "%d," % len(l)
         l = list(self.getMachines(status=self.statusIntegrating))
-        info += str(len(l)) + ","
+        info += "%d," % len(l)
         l = list(self.getMachines(status=self.statusWorking))
-        info += str(len(l)) + ","
+        info += "%d," % len(l)
         l = list(self.getMachines(status=self.statusPendingDisintegration))
-        info += str(len(l)) + ","
+        info += "%d," % len(l)
         l = list(self.getMachines(status=self.statusDisintegrating))
-        info += str(len(l)) + ","
+        info += "%d," % len(l)
         l = list(self.getMachines(status=self.statusDisintegrated))
-        info += str(len(l)) + ","
+        info += "%d," % len(l)
         l = list(self.getMachines(status=self.statusDown))
-        info += str(len(l))
+        info += "%d" % len(l)
         return info
 
     def newMachine(self, mid=None):
         if mid is None:
             mid = str(uuid.uuid4())
-        self.logger.debug("adding machine with id " + mid)
+        self.logger.debug("adding machine with id %s" % mid)
         self.machines[mid] = dict()
         self.machines[mid][self.statusChangeHistory] = []
         self.publishEvent(NewMachineEvent(mid))
         return mid
 
     def removeMachine(self, mid):
-        self.logger.debug("removing machine with id " + str(mid))
+        self.logger.debug("removing machine with id %s" % mid)
         self.machines.pop(mid)
         self.publishEvent(MachineRemovedEvent(mid))
 

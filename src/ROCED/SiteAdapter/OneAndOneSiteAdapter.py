@@ -475,7 +475,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             if not self.reg_site_server_condor_name in machine_:
                 # if not check if ip is already available
                 if (oao_machines[machine_[self.reg_site_server_id]]["ips"] is not None and
-                   oao_machines[machine_[self.reg_site_server_id]]["ips"][0]["ip"] is not None):
+                            oao_machines[machine_[self.reg_site_server_id]]["ips"][0][
+                                "ip"] is not None):
                     # if so, set ip as condor name, remove "." from ip
                     self.mr.machines[mid][self.reg_site_server_condor_name] = (
                         self.generateCondorName(oao_machines[machine_[self.reg_site_server_id]]
@@ -535,7 +536,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         for vm in oao_machines:
             # check if machine is quid server
             if (self.getConfig(self.configSquid) is not None and
-               oao_machines[vm][self.oao_name] == self.getConfig(self.configSquid)):
+                        oao_machines[vm][self.oao_name] == self.getConfig(self.configSquid)):
                 continue
 
             # check if machine is already in machine registry
@@ -558,7 +559,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at %s: %d"
                          % (self.siteName, self.runningMachinesCount[
-                            self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
+            self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
