@@ -195,7 +195,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             servers[server[self.oao_id]] = {}
             for key in server:
                 # add all information to dict if it is not the ID
-                if key is not self.oao_id:
+                if key != self.oao_id:
                     servers[server[self.oao_id]][key] = server[key]
 
         # return the dictionary

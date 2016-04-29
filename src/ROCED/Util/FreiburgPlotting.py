@@ -135,7 +135,7 @@ def main():
                     try:
                         quantities[quantity][i_entry] = entry[site][quantity]
                     except (KeyError, TypeError):
-                        if quantity is 'condor_nodes_draining':
+                        if quantity == 'condor_nodes_draining':
                             quantities[quantity][i_entry] = 0
                         else:
                             quantities[quantity][i_entry] = np.NaN

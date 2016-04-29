@@ -259,7 +259,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 # Little trick: floor division with negative values: -9//4 = -3
                 nDrainedSlots = -nDrainedSlots
                 runningMachinesCount[machineType] = nMachines + nDrainedSlots // nCores
-                if nDrainedSlots is not 0:
+                if nDrainedSlots != 0:
                     self.logger.debug(
                         str(machineType) + ": running: " + str(nMachines) + ", drained slots: " +
                         str(nDrainedSlots) + " -> recalculated running machines count: " +
@@ -331,7 +331,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
 
             # batch job running: machine -> up
-            if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
+            if mr[mid][self.mr.regStatus] is self.mr.statusBooting:
                 if batchJobId in frJobsRunning:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                     frJobsRunning.pop(batchJobId)

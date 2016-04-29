@@ -405,8 +405,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                             to_terminate = mid
                             break
                         # if all machines are working, get the least one used
-                        if (self.mr.machines[mid][self.reg_site_server_status]
-                                is not self.reg_site_server_status_error):
+                        if (self.mr.machines[mid][self.reg_site_server_status] !=
+                                self.reg_site_server_status_error):
                             if (self.mr.regMachineLoad in self.mr.machines[mid] and
                                self.mr.regMachineLoad in self.mr.machines[to_terminate] and
                                self.mr.machines[mid][self.mr.regMachineLoad] <

@@ -198,7 +198,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             machine_ = self.mr.machines[mid]
 
             # Is an "Integrating" machine completely started up? (appears in condor) -> "Working"
-            if machine_[self.mr.regStatus] is self.mr.statusIntegrating:
+            if machine_[self.mr.regStatus] == self.mr.statusIntegrating:
                 if machine_[self.reg_site_server_condor_name] in condor_machines:
                     self.mr.updateMachineStatus(mid, self.mr.statusWorking)
                     # number of cores = number of slots
