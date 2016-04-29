@@ -104,10 +104,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     self.logger.debug("Couldn't assign machine " + machine_[self.regMachineJobId])
         for jobId in idleJobs:
             mid = self.mr.newMachine()
+            self.mr.machines[mid][self.mr.regSite] = self.siteName
+            self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
             self.mr.machines[mid][self.regMachineJobId] = jobId
             self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
                 jobId)
+            self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
     def spawnMachines(self, machineType, count):
         """Request machines in Freiburg via batch job containing startVM script.
@@ -139,13 +142,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             # std_out = batch job id
             if result[0] == 0 and result[1].strip().isdigit():
                 mid = self.mr.newMachine()
+                self.mr.machines[mid][self.mr.regSite] = self.siteName
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
                 self.mr.machines[mid][self.regMachineJobId] = result[1].strip()
                 self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
                     result[1].strip())
-                # This may be redundant. HTCondorIntegrationAdapter sets this value depending on the
-                # slot count.
-                self.mr.machines[mid][self.mr.regMachineCores] = machineSettings["cores"]
+                self.mr.machines[mid][self.mr.regSiteType] = self.siteType
+                self.mr.updateMachineStatus(mid, self.mr.statusBooting)
             else:
                 self.logger.warning(
                     "A (connection) problem occurred while requesting a new VM via msub in "
@@ -163,28 +166,23 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         :param count:
         :return:
         """
-        ###
-        # get a list of tuples of suitable machines that can be terminated
-        ###
-        # booting machines, sorted by request time (newest first)
+        # booting machines, sorted by request time (newest first).
         bootingMachines = self.getSiteMachines(self.mr.statusBooting, machineType)
         try:
-            bootingMachines = sorted(bootingMachines[machineType],
-                                     key=lambda machine_: machine_[1][self.mr.regStatusLastUpdate],
+            bootingMachines = sorted(bootingMachines.values(),
+                                     key=lambda machine_: machine_[self.mr.regStatusLastUpdate],
                                      reverse=True)
         except KeyError:
             bootingMachines = []
 
-        # Also drain working machines?
+        # Running machines, sorted by load (idle first). These machines are put into drain mode
         if self.getConfig(self.configDrainWorkingMachines) is True:
-            # get working machines, sorted by load (idle first)
-            # This is used to select suitable machines for termination (drain mode).
-            # The more slots on a machine are in use, the less likely it is to get drained.
-            workingMachines = self.getSiteMachinesAsDict([self.mr.statusIntegrating,
-                                                          self.mr.statusWorking,
-                                                          self.mr.statusPendingDisintegration])
+            workingMachines = self.__merge_dicts(
+                self.getSiteMachines(self.mr.statusIntegrating, machineType),
+                self.getSiteMachines(self.mr.statusWorking, machineType),
+                self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
             try:
-                workingMachines = sorted(workingMachines[machineType],
+                workingMachines = sorted(workingMachines.values(),
                                          key=lambda machine_: HTCondor.calcMachineLoad(machine_[1]),
                                          reverse=True)
             except KeyError:
@@ -193,43 +191,43 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             machinesToRemove = bootingMachines + workingMachines
         else:
             machinesToRemove = bootingMachines
+
         # needed amount of machines
         machinesToRemove = machinesToRemove[0:count]
 
-        # prepare list of machine ids to terminate/drain
+        # list of batch job ids to terminate/drain
         idsToTerminate = []
         idsToDrain = []
         idsRemoved = []
         idsInvalidated = []
-        for mid in machinesToRemove:
-            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting:
+
+        for machine in machinesToRemove:
+            if machine[self.mr.regStatus] == self.mr.statusBooting:
                 # booting machines can be terminated immediately
-                idsToTerminate.append(self.mr.machines[mid][self.regMachineJobId])
+                idsToTerminate.append(machine[self.regMachineJobId])
             elif self.getConfig(self.configDrainWorkingMachines):
-                if HTCondor.calcDrainStatus(self.mr.machines[mid])[1] is True:
+                if HTCondor.calcDrainStatus(machine)[1] is True:
                     continue
                 # working machines should be set to drain mode
-                idsToDrain.append(self.mr.machines[mid][self.regMachineJobId])
-        self.logger.debug("Machines to terminate (" + str(len(idsToTerminate)) + "): " +
-                          ", ".join(idsToTerminate))
-        self.logger.debug(
-            "Machines to drain (" + str(len(idsToDrain)) + "): " + ", ".join(idsToDrain))
+                idsToDrain.append(machine[self.regMachineJobId])
 
+        self.logger.debug("Machines to terminate (%d): %s"
+                          % (len(idsToTerminate), ", ".join(idsToTerminate)))
         if idsToTerminate:
             idsRemoved, idsInvalidated = self.__cancelFreiburgMachines(idsToTerminate)
 
+        self.logger.debug("Machines to drain (%d): %s"
+                          % (len(idsToDrain), ", ".join(idsToDrain)))
         if idsToDrain:
             for batchJobID in idsToDrain:
-                [HTCondor.drainMachine(machine) for machine in self.mr.machines.values()
+                [HTCondor.drainMachine(machine) for machine in self.getSiteMachines().values()
                  if machine[self.regMachineJobId] == batchJobID]
 
         if len(idsRemoved + idsInvalidated) > 0:
-            mr = self.getSiteMachines()
-
-            # set status of terminated (cancelled and invalid) machines to shutdown
-            for mid in mr:
-                if mr[mid][self.regMachineJobId] in idsRemoved + idsInvalidated:
-                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
+            # update status
+            [self.mr.updateMachineStatus(mid, self.mr.statusDown) for mid, machine
+             in self.getSiteMachines().items()
+             if machine[self.regMachineJobId] in idsRemoved + idsInvalidated]
 
     @property
     def runningMachinesCount(self):
@@ -269,35 +267,32 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             return runningMachinesCount
 
     def onEvent(self, evt):
-        # type: (MachineRegistry.StatusChangedEvent) -> None
+        # type: (MachineRegistry.MachineEvent) -> None
         """Event handler: Handles machine status changes.
 
         Freiburg has some special logic here, since machines shutdown themselves after a 5 minute
         delay. This means we only have to cancel jobs, if we change to "Disintegrated" outside the
         regular execution.
-
-        :param evt:
-        :type evt: MachineRegistry.StatusChangedEvent
-        :return:
         """
-        if isinstance(evt, MachineRegistry.NewMachineEvent):
-            self.mr.machines[evt.id][self.mr.regSite] = self.siteName
-            self.mr.machines[evt.id][self.mr.regSiteType] = self.siteType
-            self.mr.updateMachineStatus(evt.id, self.mr.statusBooting)
-        elif isinstance(evt, MachineRegistry.StatusChangedEvent):
-            if self.mr.machines[evt.id].get(self.mr.regSite) == self.siteName:
-                if evt.newStatus == self.mr.statusDisintegrated:
-                    # If Integration Adapter tells us, that the machine disappeared or "deserves" to
-                    # be shutdown (timeouts), cancel VM batch job in Freiburg
-                    frJobsRunning = self.__runningJobs
-                    if self.mr.machines[evt.id].get(self.regMachineJobId) in frJobsRunning:
-                        self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
-                            self.regMachineJobId)])
-                    self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
-                elif evt.newStatus == self.mr.statusDown:
-                    self.mr.removeMachine(evt.id)
+        try:
+            if self.mr.machines[evt.id].get(self.mr.regSite) is not self.siteName:
+                return
+        except KeyError:
+            return
+
+        if isinstance(evt, MachineRegistry.StatusChangedEvent):
+            if evt.newStatus == self.mr.statusDisintegrated:
+                # If Integration Adapter tells us, that the machine disappeared or "deserves" to
+                # be shutdown (timeouts), cancel VM batch job in Freiburg
+                if self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs:
+                    self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
+                        self.regMachineJobId)])
+                self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
+            elif evt.newStatus == self.mr.statusDown:
+                self.mr.removeMachine(evt.id)
 
     def manage(self):
+        # type: () -> None
         """Manages status changes of machines by checking  jobs in Freiburg.
 
         Booting = Freiburg batch job for machine was submitted
@@ -306,20 +301,16 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         HTCondorIntegrationAdapter is responsible for handling Integrating, Working,
         PendingDisintegration, Disintegrating
-
-        :return:
         """
-
         frJobsRunning = self.__runningJobs
         frJobsCompleted = self.__completedJobs
         mr = self.getSiteMachines()
         for mid in mr:
             batchJobId = mr[mid][self.regMachineJobId]
             # Status handled by Integration Adapter
-            if self.mr.machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating,
-                                                            self.mr.statusWorking,
-                                                            self.mr.statusPendingDisintegration,
-                                                            self.mr.statusDisintegrating]:
+            if mr[mid][self.mr.regStatus] in [self.mr.statusIntegrating, self.mr.statusWorking,
+                                              self.mr.statusPendingDisintegration,
+                                              self.mr.statusDisintegrating]:
                 try:
                     frJobsRunning.pop(batchJobId)
                     continue
@@ -345,10 +336,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                     frJobsRunning.pop(batchJobId)
 
-        # Handles machines manually started.
+        # All remaining unaccounted batch jobs
         for batchJobId in frJobsRunning:
             mid = self.mr.newMachine()
-            # TODO: try to identify machine type, using cores & walltime
+            # TODO: try to identify machine type, using cores & wall-time
+            self.mr.machines[mid][self.mr.regSite] = self.siteName
+            self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
             self.mr.machines[mid][self.regMachineJobId] = batchJobId
             self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
@@ -533,3 +526,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         self.logger.debug("Completed: \n" + str(frJobsCompleted))
         return frJobsCompleted
+
+    @staticmethod
+    def __merge_dicts(*dict_args):
+        # type: (*dict) -> dict
+        """Given any number of dicts, shallow copy and merge into a new dict.
+        Precedence goes to key value pairs in latter dicts.
+        """
+        result = {}
+        for dictionary in dict_args:
+            result.update(dictionary)
+        return result
