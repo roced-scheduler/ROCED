@@ -168,9 +168,11 @@ class AdapterBoxBase(object):
         # self.rpcServer = "https://localhost:8000"
 
     def addAdapter(self, a):
+        # type: (AdapterBase) -> None
         self._adapterList.append(a)
 
     def addAdapterList(self, alist):
+        # type: (List(AdapterBase)) -> None
         self._adapterList += alist
 
     def manage(self):

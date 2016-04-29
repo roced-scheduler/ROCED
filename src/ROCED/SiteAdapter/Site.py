@@ -19,7 +19,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
+from __future__ import unicode_literals
 
 import abc
 import copy
@@ -81,6 +81,7 @@ class SiteAdapterBase(AdapterBase):
 
     @abc.abstractmethod
     def spawnMachines(self, machineType, count):
+        # type: (str, int) -> None
         """
         Spawn machines on the corresponding cloud site.
 
@@ -88,7 +89,7 @@ class SiteAdapterBase(AdapterBase):
         :param count:
         :return:
         """
-        pass
+        self.logger.debug("Spawning %d machines of type %s" % (count, machineType))
 
     def terminateMachines(self, machineType, count):
         """
@@ -141,7 +142,7 @@ class SiteAdapterBase(AdapterBase):
                         str(decision[machine_type] + n_running_machines) + ">" + str(max_machines) +
                         ")! ")
                     self.logger.info("Will spawn " + str(
-                            max(0, max_machines - n_running_machines)) + " machines.")
+                        max(0, max_machines - n_running_machines)) + " machines.")
                     decision[machine_type] = max_machines - n_running_machines
                     # is the new decision valid?
                     if decision[machine_type] > 0:

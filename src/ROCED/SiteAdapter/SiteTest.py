@@ -22,6 +22,7 @@
 # from SiteAdapter.Ec2SiteAdapter import EucaSiteAdapter
 from Core import MachineRegistry, ScaleTest
 
+
 # import EucaUtil
 
 
@@ -67,7 +68,7 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
 
     def getDefaultMachines(self):
         return dict({'euca-default': self.getDefaultMachine(),
-                     'euca-alt-default': self.getAltDefaultMachine(), })
+                     'euca-alt-default': self.getAltDefaultMachine(),})
 
     def test_getMachineAvailable(self):
         espawn = EucaSiteAdapter()

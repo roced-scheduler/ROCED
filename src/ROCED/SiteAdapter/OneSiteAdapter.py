@@ -24,8 +24,9 @@ import datetime
 import hashlib
 import logging
 import socket
-import xmlrpc.client
 from xml.dom import minidom
+
+import xmlrpc.client
 
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase
@@ -258,7 +259,7 @@ class OneSiteAdapter(SiteAdapterBase):
                                     myMachines[mid]["vpn_cert_is_valid"] = True
 
                             if myMachines[mid]["vpn_cert_is_valid"] == True and \
-                                    myMachines[mid]["vpn_ip"] is None:
+                                            myMachines[mid]["vpn_ip"] is None:
                                 if (vpn.copyCertificate(myMachines[mid]["vpn_cert"],
                                                         myMachines[mid]) == 0):
                                     if (vpn.connectVPN(myMachines[mid]["vpn_cert"],
@@ -272,7 +273,7 @@ class OneSiteAdapter(SiteAdapterBase):
                                             print("getting VPN IP failed!!")
 
                             if (myMachines[mid]["vpn_cert_is_valid"] == True and myMachines[mid][
-                               "vpn_ip"] is not None):
+                                "vpn_ip"] is not None):
                                 # if( vpn.revokeCertificate(myMachines[k]["vpn_cert"]) == 0):
                                 #    myMachines[k]["vpn_cert_is_valid"] == False
                                 self.mr.updateMachineStatus(mid, self.mr.statusUp)

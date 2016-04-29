@@ -29,7 +29,6 @@ except ImportError:
 
 
 class E2basedUtil(object):
-
     def __init__(self):
         self.imagesCache = None
 

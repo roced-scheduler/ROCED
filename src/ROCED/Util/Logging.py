@@ -21,15 +21,13 @@
 # ===============================================================================
 from __future__ import print_function, unicode_literals
 
-
 import csv
 import json
 import logging
 import os
+import sys
 import time
 from datetime import datetime
-
-import sys
 
 PY3 = sys.version_info > (3,)
 
@@ -55,16 +53,15 @@ class JsonLog(object):
         Initialize log folder and log file
         """
         # Existence check for log folder [log file creation requires existing folder]
-        if os.path.isdir(dir_.__str__()) is False:
+        if os.path.isdir(dir_) is False:
             try:
-                os.makedirs(dir_.__str__() + "/")
+                os.makedirs("%s/" % dir_)
             except OSError:
-                logging.error("Error when creating /log/ folder")
+                logging.error("Error when creating %s folder" % dir_)
         # Build log file name
         if not cls.__fileName:
-            cls.__fileName = (dir_.__str__() + "/" + prefix.__str__() + "_" +
-                              str(datetime.today().strftime("%Y-%m-%d")) +
-                              suffix.__str__() + ".json")
+            cls.__fileName = ("%s/%s_%s%s.json"
+                              % (dir_, prefix, datetime.today().strftime('%Y-%m-%d'), suffix))
 
     @classmethod
     def __enter__(cls):
@@ -117,7 +114,7 @@ class JsonLog(object):
 
         Format: | Timestamp: Log Output
         """
-        print(str(int(time.time())) + ": " + str(cls.__jsonLog))
+        print("%s: %s" % (int(time.time()), cls.__jsonLog))
 
 
 class JsonStats(object):
@@ -130,16 +127,15 @@ class JsonStats(object):
         Initialize log folder and log file
         """
         # Existence check for log folder [log file creation requires existing folder]
-        if os.path.isdir(dir_.__str__()) is False:
+        if os.path.isdir(dir_) is False:
             try:
-                os.makedirs(dir_.__str__() + "/")
+                os.makedirs("%s/" % dir_)
             except OSError:
-                logging.error("Error when creating /log/ folder")
+                logging.error("Error when creating %s folder" % dir_)
         # Build log file name
         if not cls.__fileName:
-            cls.__fileName = (dir_.__str__() + "/" + prefix.__str__() + "_" +
-                              str(datetime.today().strftime("%Y-%m-%d")) +
-                              suffix.__str__() + ".json")
+            cls.__fileName = ("%s/%s_%s%s.json"
+                              % (dir_, prefix, datetime.today().strftime('%Y-%m-%d'), suffix))
 
     @classmethod
     def add_item(cls, site, mid, value):
@@ -168,8 +164,9 @@ class JsonStats(object):
                     except ValueError:
                         logging.error("Could not parse JSON log!")
                         for site in cls.__jsonStats:
-                            for mid in cls.__jsonStats[site]:
-                                oldStats = {site: {mid: cls.__jsonStats[mid]}}
+                            oldStats = {site: {mid: cls.__jsonStats[mid]}
+                                        for mid in cls.__jsonStats[site]}
+
             except IOError:
                 logging.error("JSON file could not be opened for logging!")
         else:
@@ -187,8 +184,7 @@ class JsonStats(object):
 
     @classmethod
     def printStats(cls):
-        for mid in cls.__jsonStats:
-            print(str(mid) + ": " + str(cls.__jsonStats[mid]))
+        [print("%s: %s" % (mid, cls.__jsonStats[mid])) for mid in cls.__jsonStats]
 
 
 class UnicodeWriter(object):
@@ -237,14 +233,14 @@ class CsvStats(object):
     @classmethod
     def __init__(cls, dir_="log", prefix="stats", suffix=""):
         # Existence check for log folder [log file creation requires existing folder]
-        if os.path.isdir(dir_.__str__()) is False:
+        if os.path.isdir(dir_) is False:
             try:
-                os.makedirs(dir_.__str__() + "/")
+                os.makedirs("%s/" % dir_)
             except OSError:
-                logging.error("Error when creating /log/ folder")
+                logging.error("Error when creating %s folder" % dir_)
         if not cls.__fileName:
-            cls.__fileName = dir_.__str__() + '/' + prefix.__str__() + '_' + \
-                datetime.today().strftime('%Y-%m-%d').__str__() + suffix.__str__() + ".csv"
+            cls.__fileName = ("%s/%s_%s%s.csv"
+                              % (dir_, prefix, datetime.today().strftime('%Y-%m-%d'), suffix))
 
         # Existence check for log file
         if not os.path.isfile(cls.__fileName):

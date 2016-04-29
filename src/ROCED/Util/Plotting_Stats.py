@@ -21,11 +21,12 @@
 # ===============================================================================
 
 
-import os
-import csv
 import argparse
+import csv
 import datetime
 import numpy as np
+import os
+
 import matplotlib.pyplot as plt
 
 # keywords
@@ -51,13 +52,18 @@ statusDown = "down"
 
 # dictionaries to plot
 stats_dict = [
-    {title: str(statusBooting + to + statusWorking), old_status: statusBooting, new_status: statusWorking},
-    {title: str(statusBooting + to + statusDown), old_status: statusBooting, new_status: statusDown}]
+    {title: str(statusBooting + to + statusWorking), old_status: statusBooting,
+     new_status: statusWorking},
+    {title: str(statusBooting + to + statusDown), old_status: statusBooting,
+     new_status: statusDown}]
 total_stats_dict = [
-    {title: str(statusBooting + to + statusDown), old_status: statusBooting, new_status: statusDown},
-    {title: str(statusBooting + to + statusWorking), old_status: statusBooting, new_status: statusWorking}]
+    {title: str(statusBooting + to + statusDown), old_status: statusBooting,
+     new_status: statusDown},
+    {title: str(statusBooting + to + statusWorking), old_status: statusBooting,
+     new_status: statusWorking}]
 
-time_scales = {"s": ("second", 1), "m": ("minute", 60), "h": ("hour", 60 * 60), "d": ("day", 60 * 60 * 24)}
+time_scales = {"s": ("second", 1), "m": ("minute", 60), "h": ("hour", 60 * 60),
+               "d": ("day", 60 * 60 * 24)}
 
 
 class Stats(object):
@@ -98,7 +104,8 @@ class Stats(object):
                                 self.sites[tmp_site][tmp_mid] = []
                             self.sites[tmp_site][tmp_mid].append(
                                 {old_status: tmp_old_status, new_status: tmp_new_status,
-                                 timestamp: datetime.datetime.strptime(tmp_timestamp, "%Y-%m-%d %H:%M:%S.%f")})
+                                 timestamp: datetime.datetime.strptime(tmp_timestamp,
+                                                                       "%Y-%m-%d %H:%M:%S.%f")})
 
     def calc_stats(self, stat):
         for site_ in self.sites:
@@ -114,13 +121,14 @@ class Stats(object):
                     time_diff = np.nan
 
                 try:
-                    self.stats[site_][stat[title]] = np.append(self.stats[site_][stat[title]], [time_diff])
+                    self.stats[site_][stat[title]] = np.append(self.stats[site_][stat[title]],
+                                                               [time_diff])
                 except KeyError:
                     if not site_ in self.stats:
                         self.stats[site_] = {}
                     if not stat[title] in self.stats[site_]:
                         self.stats[site_][stat[title]] = np.array([time_diff])
-                    #        print self.stats
+                        #        print self.stats
 
     def calc_total_stats(self, stat):
         for site_ in self.sites:
@@ -135,11 +143,11 @@ class Stats(object):
                             max_ = status_change[timestamp]
             try:
                 self.total_stats[site_][stat[title]] = {machines: len(self.sites[site_]),
-                                                       timediff: (max_ - min_).total_seconds()}
+                                                        timediff: (max_ - min_).total_seconds()}
             except KeyError:
                 self.total_stats[site_] = {}
                 self.total_stats[site_][stat[title]] = {machines: len(self.sites[site_]),
-                                                       timediff: (max_ - min_).total_seconds()}
+                                                        timediff: (max_ - min_).total_seconds()}
 
             fieldnames = [machines, timediff]
             filename = str(site_ + stat[title] + "_total_stats.csv")
@@ -174,8 +182,10 @@ class Stats(object):
                 plot = plots[i]
                 plot.set_title(stat)
 
-                self.stats[site_][stat] = np.divide(self.stats[site_][stat], float(time_scales[self.args.time_scale][1]))
-                plot.set_xlabel(r"Time (" + time_scales[self.args.time_scale][0] + ")", ha="right", x=1)
+                self.stats[site_][stat] = np.divide(self.stats[site_][stat],
+                                                    float(time_scales[self.args.time_scale][1]))
+                plot.set_xlabel(r"Time (" + time_scales[self.args.time_scale][0] + ")", ha="right",
+                                x=1)
                 plot.set_ylabel(r"Number of VMs", va="top", y=.7, labelpad=20.0)
 
                 plot.hist(self.stats[site_][stat])

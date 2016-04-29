@@ -23,10 +23,11 @@ import logging
 import re
 import time
 
+from oneandone.client import OneAndOneService, Server, Hdd
+
 from Core import Config, MachineRegistry
 from SiteAdapter.Site import SiteAdapterBase
 from Util.Logging import JsonLog
-from oneandone.client import OneAndOneService, Server, Hdd
 
 
 class OneAndOneSiteAdapter(SiteAdapterBase):
@@ -246,10 +247,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         """
         ip_string = ""
         for ip_part in re.split(r'\.', ip):
-            ip_string = ip_string + "{0:0>3}".format(ip_part)
+            ip_string += "{0:0>3}".format(ip_part)
 
         return ip_string
-
 
     def getRunningMachines(self):
         """
@@ -271,11 +271,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
         # filter for machines in status booting, up, integrating, working or pending disintegration
         for (k, v) in myMachines.items():
-            if v.get(self.mr.regStatus) == self.mr.statusBooting or \
-                    v.get(self.mr.regStatus) == self.mr.statusUp or \
-                    v.get(self.mr.regStatus) == self.mr.statusIntegrating or \
-                    v.get(self.mr.regStatus) == self.mr.statusWorking or \
-                    v.get(self.mr.regStatus) == self.mr.statusPendingDisintegration:
+            if v.get(self.mr.regStatus) in [self.mr.statusBooting, self.mr.statusUp,
+                                            self.mr.statusIntegrating, self.mr.statusWorking,
+                                            self.mr.statusPendingDisintegration]:
                 # add machine to previously defined list
                 machineList[v[self.mr.regMachineType]].append(k)
 
@@ -361,12 +359,14 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # check if machine status is on or off, if so shut down the machine
         if action in [self.oao_state_power_on, self.oao_state_power_off]:
             try:
-                client.modify_server_status(server_id=self.mr.machines[mid][self.reg_site_server_id], action=action,
-                                        method=method)
+                client.modify_server_status(
+                    server_id=self.mr.machines[mid][self.reg_site_server_id],
+                    action=action,
+                    method=method)
             except Exception as e:
-                self.logger.info(
-                    "Machine " + str(self.mr.machines[mid][self.reg_site_server_name]) + " already shutting down")
-                self.logger.warning(str(e))
+                self.logger.info("Machine %s already shutting down."
+                                 % self.mr.machines[mid][self.reg_site_server_name])
+                self.logger.warning(e.message)
         # check if machine should be deleted
         if action == self.oao_delete:
             # if so, try to delete the machine on 1and1 Cloud Site
@@ -375,10 +375,10 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             # else raise exception
             # this could happen, if machine is arleady deleted
             except Exception as e:
-                self.logger.info(
-                    "Machine " + str(self.mr.machines[mid][self.reg_site_server_name]) + " already deleted")
+                self.logger.info("Machine %s already deleted."
+                                 % self.mr.machines[mid][self.reg_site_server_name])
                 # self.logger.warning("Could not establish connection to 1&1 Cloud Site")
-                self.logger.warning(str(e))
+                self.logger.warning(e.message)
 
         # wait 1 second with the next action due to 1and1's firewall policies (1 request/second)
         time.sleep(1)
@@ -447,90 +447,95 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
         # loop over all machines on 1and1 Cloud Site and already in machine registry
         for mid in self.mr.getMachines(self.siteName):
+            machine_ = self.mr.machines[mid]
             # TODO: is this needed?
             # check if machine is already deleted on site
-            if not self.mr.machines[mid][self.reg_site_server_id] in oao_machines:
-                if self.mr.machines[mid][self.mr.regStatus] != self.mr.statusDown:
+            if not machine_[self.reg_site_server_id] in oao_machines:
+                if machine_[self.mr.regStatus] != self.mr.statusDown:
                     # if so remove machine from machine registry
                     self.mr.removeMachine(mid)
                     continue
 
             # down -> removed from machine registry
             # if machine status in machine registry is down
-            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDown:
+            if machine_[self.mr.regStatus] == self.mr.statusDown:
                 # if machine is not in 1and1 Cloud Site list
-                if not self.mr.machines[mid][self.reg_site_server_id] in oao_machines:
+                if not machine_[self.reg_site_server_id] in oao_machines:
                     # remove machine from machine registry
                     self.mr.removeMachine(mid)
                     continue
                 # else check if machine is still in 1and1 Cloud Site list
                 # TODO: could be handled by else condition?
-                elif self.mr.machines[mid][self.reg_site_server_id] in oao_machines:
+                elif machine_[self.reg_site_server_id] in oao_machines:
                     # delete machine on 1and1 Cloud Site
                     self.modifyMachineStatus(mid, self.oao_delete)
-                    del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
+                    del oao_machines[machine_[self.reg_site_server_id]]
 
             # check if condor name is set
-            if not self.reg_site_server_condor_name in self.mr.machines[mid]:
+            if not self.reg_site_server_condor_name in machine_:
                 # if not check if ip is already available
-                if (oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"] is not None) and (
-                            oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"] is not None):
+                if (oao_machines[machine_[self.reg_site_server_id]]["ips"] is not None and
+                   oao_machines[machine_[self.reg_site_server_id]]["ips"][0]["ip"] is not None):
                     # if so, set ip as condor name, remove "." from ip
-                    self.mr.machines[mid][self.reg_site_server_condor_name] = \
-                        self.generateCondorName(oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"])
-                        # oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"].replace(".", "")
+                    self.mr.machines[mid][self.reg_site_server_condor_name] = (
+                        self.generateCondorName(oao_machines[machine_[self.reg_site_server_id]]
+                                                ["ips"][0]["ip"]))
+                    # oao_machines[self.mr.machines[mid][self.reg_site_server_id]]["ips"][0]["ip"].replace(".", "")
 
             # check for status which is handled by integration adapter
-            if self.mr.machines[mid][self.mr.regStatus] in [self.mr.statusIntegrating, self.mr.statusWorking,
-                                                            self.mr.statusPendingDisintegration]:
-                del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
+            if machine_[self.mr.regStatus] in [self.mr.statusIntegrating,
+                                               self.mr.statusWorking,
+                                               self.mr.statusPendingDisintegration]:
+                del oao_machines[machine_[self.reg_site_server_id]]
 
             # booting -> up
             # check if machine status is booting
-            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting:
+            try:
+                oao_state = oao_machines[machine_[self.reg_site_server_id]][self.oao_status][
+                    self.oao_state]
+            except KeyError:
+                pass
+            if machine_[self.mr.regStatus] == self.mr.statusBooting:
                 # machines that are powered off have to be assigned to a private network
-                if oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status][
-                    self.oao_state] == self.oao_state_powered_off:
+                if oao_state == self.oao_state_powered_off:
                     # assign the network
                     self.assignPrivateNetwork(mid, self.getConfig(self.configPrivateNetworkID))
                     # boot up the machine afterwards
                     self.modifyMachineStatus(mid, self.oao_state_power_on)
                 # check if machine status on 1and1 Cloud Site is already powered on
-                if oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status][
-                    self.oao_state] == self.oao_state_powered_on:
+                elif oao_state == self.oao_state_powered_on:
                     # if so, update machine registry status to up
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                     # and write 1and1 Cloud Site status to machine registry
                     # TODO: is this needed by any other function?
-                    self.mr.machines[mid][self.reg_site_server_status] = \
-                        oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status]
+                    self.mr.machines[mid][self.reg_site_server_status] = (
+                        oao_machines[machine_[self.reg_site_server_id]][self.oao_status])
                 # remove from 1and1 machine list
-                del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
+                del oao_machines[machine_[mid][self.reg_site_server_id]]
 
             # disintegrating
             # check if machine is in status disintegrating
-            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDisintegrating:
+            if machine_[self.mr.regStatus] == self.mr.statusDisintegrating:
                 # if so, power off machine
-                # machine gets moved to disintegrated when it dissappears from condor list
+                # machine gets moved to disintegrated when it disappears from condor list
                 # -> handled by IntegrationAdapter
                 self.modifyMachineStatus(mid, self.oao_state_power_off)
-                del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
+                del oao_machines[machine_[self.reg_site_server_id]]
 
             # disintegrated -> down
             # check if machine is disintegrated
-            if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusDisintegrated:
+            if machine_[self.mr.regStatus] == self.mr.statusDisintegrated:
                 # if so, check if machine is already powered off on 1and1 Cloud Site
-                if oao_machines[self.mr.machines[mid][self.reg_site_server_id]][self.oao_status][
-                    self.oao_state] == self.oao_state_powered_off:
+                if oao_state == self.oao_state_powered_off:
                     # if so, update machine status to down
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
-                del oao_machines[self.mr.machines[mid][self.reg_site_server_id]]
+                del oao_machines[machine_[self.reg_site_server_id]]
 
         # add all machines remaining in machine list from 1&1
         for vm in oao_machines:
             # check if machine is quid server
-            if (self.getConfig(self.configSquid) is not None) and (
-                oao_machines[vm][self.oao_name] == self.getConfig(self.configSquid)):
+            if (self.getConfig(self.configSquid) is not None and
+               oao_machines[vm][self.oao_name] == self.getConfig(self.configSquid)):
                 continue
 
             # check if machine is already in machine registry
@@ -545,19 +550,22 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.mr.regMachineType] = self.oao  # machineType
             self.mr.machines[mid][self.reg_site_server_name] = oao_machines[vm][self.oao_name]
             self.mr.machines[mid][self.reg_site_server_id] = oao_machines[vm][self.oao_id]
-            self.mr.machines[mid][self.reg_site_server_status] = oao_machines[vm][self.oao_status][self.oao_state]
+            self.mr.machines[mid][self.reg_site_server_status] = (
+                oao_machines[vm][self.oao_status][self.oao_state])
 
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
         # add current amounts of machines to Json log file
-        self.logger.info("Current machines running at " + str(self.siteName) + " : " + str(
-            self.runningMachinesCount[self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
+        self.logger.info("Current machines running at %s: %d"
+                         % (self.siteName, self.runningMachinesCount[
+                            self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                              len(self.getSiteMachines(status=self.mr.statusUp)) +
                              len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        json_log.addItem(self.siteName, 'condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
+        json_log.addItem(self.siteName, 'condor_nodes',
+                         len(self.getSiteMachines(status=self.mr.statusWorking)))
         json_log.addItem(self.siteName, 'condor_nodes_draining',
                          len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 

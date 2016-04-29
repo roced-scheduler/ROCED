@@ -20,8 +20,8 @@
 # ===============================================================================
 
 
-import unittest
 import logging
+import unittest
 
 
 class ScaleTestBase(unittest.TestCase):

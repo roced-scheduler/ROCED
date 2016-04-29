@@ -45,8 +45,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     reg_site_server_condor_name = HTCondor.reg_site_server_condor_name
     regMachineJobId = "batch_job_id"
     __vmStartScript = "startVM.py"
-    """Python script to be executed in Freiburg. This start the VM with the corresponding image.
-
+    """Python script to be executed in Freiburg. This starts the VM with the corresponding image.
     This python script has to be adapted on the server with user name, OpenStack Dashboard PW,
     image GUID, etc.
     """
@@ -101,7 +100,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 elif machine_[self.regMachineJobId] in completedJobs:
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
                 else:
-                    self.logger.debug("Couldn't assign machine " + machine_[self.regMachineJobId])
+                    self.logger.debug("Couldn't assign machine %s."
+                                      % machine_[self.regMachineJobId])
         for jobId in idleJobs:
             mid = self.mr.newMachine()
             self.mr.machines[mid][self.mr.regSite] = self.siteName
@@ -111,6 +111,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
                 jobId)
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
+        self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
 
     def spawnMachines(self, machineType, count):
         """Request machines in Freiburg via batch job containing startVM script.
@@ -122,22 +123,21 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         :param count:
         :return:
         """
-        self.logger.info("Spawning " + str(count) + " of type " + str(machineType))
+        super(FreiburgSiteAdapter, self).spawnMachines(machineType, count)
 
         maxMachinesPerCycle = self.getConfig(self.configMaxMachinesPerCycle)
         machineSettings = self.getConfig(self.ConfigMachines)[machineType]
 
         if count > maxMachinesPerCycle:
-            self.logger.info(str(count) + " machines requested, limited to " +
-                             str(maxMachinesPerCycle) + " for this cycle")
+            self.logger.info("%d machines requested, limited to %d for this cycle."
+                             % (count, maxMachinesPerCycle))
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
-            result = self.__execCmdInFreiburg("msub -l "
-                                              "walltime=" + str(machineSettings["walltime"]) +
-                                              ",mem=" + str(machineSettings["memory"]) +
-                                              ",nodes=1:ppn=" + str(machineSettings["cores"]) +
-                                              " " + self.__vmStartScript.__str__())
+            result = self.__execCmdInFreiburg("msub -l walltime=%s,mem=%s,nodes=1:ppn=%d %s"
+                                              % (machineSettings["walltime"],
+                                                 machineSettings["memory"],
+                                                 machineSettings["cores"], self.__vmStartScript))
 
             # std_out = batch job id
             if result[0] == 0 and result[1].strip().isdigit():
@@ -150,14 +150,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regSiteType] = self.siteType
                 self.mr.updateMachineStatus(mid, self.mr.statusBooting)
             else:
-                self.logger.warning(
-                    "A (connection) problem occurred while requesting a new VM via msub in "
-                    "Freiburg. Stopping requesting new machines for now." + " (" + str(result[0]) +
-                    "): stdout: " + str(result[1]) + ", stderr:" + str(result[2]))
+                self.logger.warning("A (connection) problem occurred while requesting VMs. "
+                                    "Stopping requesting new machines for now. "
+                                    "RC %d: stdout: %s, stderr: %s"
+                                    % (result[0], result[1], result[2]))
                 break
 
     def terminateMachines(self, machineType, count):
-        """Terminate (booting) machines in Freiburg.
+        """Terminate machines in Freiburg.
 
         Working machines are untouched by default, but they may get put into drain mode if
         the configuration is set accordingly.
@@ -260,10 +260,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 nDrainedSlots = -nDrainedSlots
                 runningMachinesCount[machineType] = nMachines + nDrainedSlots // nCores
                 if nDrainedSlots != 0:
-                    self.logger.debug(
-                        str(machineType) + ": running: " + str(nMachines) + ", drained slots: " +
-                        str(nDrainedSlots) + " -> recalculated running machines count: " +
-                        str(runningMachinesCount[machineType]))
+                    self.logger.debug("%s: running: %d, drained slots: %d"
+                                      " -> recalculated running machines count: %s"
+                                      % (machineType, nMachines, nDrainedSlots,
+                                         runningMachinesCount[machineType]))
             return runningMachinesCount
 
     def onEvent(self, evt):
@@ -322,12 +322,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             if mr[mid][self.mr.regStatus] not in [self.mr.statusDown]:
                 if str(batchJobId) in frJobsCompleted:
                     if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
-                        self.logger.info("VM (" + str(batchJobId) + ") failed to boot!")
+                        self.logger.info("VM (%s) failed to boot!" % batchJobId)
                     else:
-                        if frJobsCompleted[str(batchJobId)] is not "0":
-                            self.logger.info("VM (" + str(batchJobId) + ") died!")
+                        if frJobsCompleted[str(batchJobId)] != "0":
+                            self.logger.info("VM (%s) died!" % batchJobId)
                         else:
-                            self.logger.debug("VM (" + str(batchJobId) + ") died with status 0!")
+                            self.logger.debug("VM (%s) died with status 0!" % batchJobId)
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
 
             # batch job running: machine -> up
@@ -348,8 +348,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 batchJobId)
             self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
-        self.logger.info("Machines using resources in Freiburg: " +
-                         str(self.cloudOccupyingMachinesCount))
+        self.logger.info("Machines using resources (Freiburg): %d"
+                         % self.cloudOccupyingMachinesCount)
 
         with JsonLog() as jsonLog:
             jsonLog.addItem(self.siteName, "condor_nodes",
@@ -385,7 +385,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         if not isinstance(batchJobIds, (list, tuple)):
             batchJobIds = [batchJobIds]
         for batchJobId in batchJobIds:
-            command += "mjobctl -c " + batchJobId + "; "
+            command += "mjobctl -c %s; " % batchJobId
         result = self.__execCmdInFreiburg(command)
 
         # catch 0:"successful" and 1:"invalid job id" return codes
@@ -398,20 +398,19 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             idsRemoved += re.findall("\'(\d+)\'", result[1])
             idsInvalidated += re.findall("invalid job specified \((\d+)", result[2])
             if len(idsRemoved) > 0:
-                self.logger.info(
-                    "Terminated machines (" + str(len(idsRemoved)) + "): " + ", ".join(idsRemoved))
+                self.logger.info("Terminated machines (%d): %s"
+                                 % (len(idsRemoved), ", ".join(idsRemoved)))
             if len(idsInvalidated) > 0:
-                self.logger.warning(
-                    "Removed invalid machines (" + str(len(idsInvalidated)) + "): " + ", ".join(
-                        idsInvalidated))
+                self.logger.warning("Removed invalid machines (%d): %s"
+                                    % (len(idsInvalidated), ", ".join(idsInvalidated)))
             if (len(idsRemoved) + len(idsInvalidated)) == 0:
                 self.logger.warning(
-                    "A problem occurred while canceling VMs in Freiburg (return code " +
-                    str(result[0]) + "):\n" + str(result[2]))
+                    "A problem occurred while canceling VMs (RC %d):\n%s"
+                    % (result[0], result[2]))
         else:
             self.logger.warning(
-                "A problem occurred while canceling VMs in Freiburg (return code " +
-                str(result[0]) + "):\n" + str(result[2]))
+                "A problem occurred while canceling VMs (RC %d):\n%s"
+                % (result[0], result[2]))
         return idsRemoved, idsInvalidated
 
     @classmethod
@@ -461,14 +460,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                     """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsRunning = {}
-            self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
+            self.logger.warning("SSH connection (showq -r) could not be established.")
         else:
             frJobsRunning = {}
-            self.logger.warning(
-                "Problem running remote command in Freiburg (showq -r) (return code " +
-                str(frResult[0]) + "):\n" + str(frResult[2]))
+            self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s"
+                                % (frResult[0], frResult[2]))
 
-        self.logger.debug("Running: \n" + str(frJobsRunning))
+        self.logger.debug("Running: \n%s" % frJobsRunning)
         return frJobsRunning
 
     @property
@@ -485,14 +483,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             frJobsIdle = re.findall("^^(\d+)\s+(?!eligible)", frResult[1], re.MULTILINE)
         elif frResult[0] == 255:
             frJobsIdle = []
-            self.logger.warning("SSH connection to Freiburg (showq -r) could not be established.")
+            self.logger.warning("SSH connection (showq -r) could not be established.")
         else:
             frJobsIdle = []
-            self.logger.warning(
-                "Problem running remote command in Freiburg (showq -r) (return code " +
-                str(frResult[0]) + "):\n" + str(frResult[2]))
+            self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s"
+                                % (frResult[0], frResult[2]))
 
-        self.logger.debug("Idle: \n" + str(frJobsIdle))
+        self.logger.debug("Idle: \n%s" % frJobsIdle)
         return frJobsIdle
 
     @property
@@ -517,14 +514,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsCompleted = {}
-            self.logger.warning("SSH connection to Freiburg (showq -c) could not be established.")
+            self.logger.warning("SSH connection (showq -c) could not be established.")
         else:
             frJobsCompleted = {}
-            self.logger.warning(
-                "Problem running remote command in Freiburg (showq -c) (return code " +
-                str(frResult[0]) + "):\n" + str(frResult[2]))
+            self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s"
+                                % (frResult[0], frResult[2]))
 
-        self.logger.debug("Completed: \n" + str(frJobsCompleted))
+        self.logger.debug("Completed: \n%s" % frJobsCompleted)
         return frJobsCompleted
 
     @staticmethod

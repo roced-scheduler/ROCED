@@ -25,11 +25,11 @@ Plots useful information from HTCondorRequirementAdapter and FreiburgSiteAdapter
 """
 from __future__ import print_function
 
-import json
 import argparse
-from os import path
-import sys
+import json
 import numpy as np
+import sys
+from os import path
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -107,17 +107,20 @@ def main():
         index_offset = 0
         for index in indices[0]:
             print('Begin: ' + str(rel_times[index + index_offset]) + 's, End: ' + str(
-                  rel_times[index + 1 + index_offset]) + 's, Diff: ' +
+                rel_times[index + 1 + index_offset]) + 's, Diff: ' +
                   str(rel_times[index + 1 + index_offset] - rel_times[index + index_offset]) + 's')
             # add two entries to time axis
-            rel_times = np.insert(rel_times, index + index_offset + 1, rel_times[index + index_offset] + 1)
-            rel_times = np.insert(rel_times, index + index_offset + 2, rel_times[index + index_offset + 2] - 1)
+            rel_times = np.insert(rel_times, index + index_offset + 1,
+                                  rel_times[index + index_offset] + 1)
+            rel_times = np.insert(rel_times, index + index_offset + 2,
+                                  rel_times[index + index_offset + 2] - 1)
             # add two entries to y axis containing nothing
             content.insert(index + index_offset, None)
             content.insert(index + index_offset + 1, None)
             index_offset += 2
 
-    time_scales = {'s': ('second', 1), 'm': ('minute', 60), 'h': ('hour', 60 * 60), 'd': ('day', 60 * 60 * 24)}
+    time_scales = {'s': ('second', 1), 'm': ('minute', 60), 'h': ('hour', 60 * 60),
+                   'd': ('day', 60 * 60 * 24)}
     rel_times /= float(time_scales.get(args.time_scale, 'm')[1])
 
     quantities = {}
@@ -151,7 +154,8 @@ def main():
     jobs_idle = np.add(quantities['jobs_idle'], quantities['jobs_running'])
     jobs_running = quantities['jobs_running']
     machines_requested = 4 * np.add(quantities['machines_requested'],
-                                    np.add(quantities['condor_nodes'], quantities['condor_nodes_draining']))
+                                    np.add(quantities['condor_nodes'],
+                                           quantities['condor_nodes_draining']))
     condor_nodes = 4 * np.add(quantities['condor_nodes'], quantities['condor_nodes_draining'])
     condor_nodes_draining = 4 * quantities['condor_nodes_draining']
 
@@ -159,37 +163,46 @@ def main():
         ax.set_xlabel(r'Time / ' + time_scales.get(args.time_scale, 'm')[0], ha='right', x=1)
         ax.set_ylabel(r'Number of Jobs/VMs', va='top', y=.7, labelpad=20.0)
 
-        stack1 = plt.fill_between(rel_times, jobs_idle, facecolor=plot_dict['jobs_idle'][1], color=None, edgecolor=None,
+        stack1 = plt.fill_between(rel_times, jobs_idle, facecolor=plot_dict['jobs_idle'][1],
+                                  color=None, edgecolor=None,
                                   linewidth=0.0, label=plot_dict['jobs_idle'][0])
-        stack2 = plt.fill_between(rel_times, jobs_running, facecolor=plot_dict['jobs_running'][1], color=None,
+        stack2 = plt.fill_between(rel_times, jobs_running, facecolor=plot_dict['jobs_running'][1],
+                                  color=None,
                                   edgecolor=None, linewidth=0.0, label=plot_dict['jobs_running'][0])
         for entry in stack1, stack2:
             plt.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())
         plt.plot(rel_times, machines_requested, label=plot_dict['machines_requested'][0],
                  color=plot_dict['machines_requested'][1], linestyle='-', marker='', linewidth=2.0)
-        plt.plot(rel_times, condor_nodes, label=plot_dict['condor_nodes'][0], color=plot_dict['condor_nodes'][1],
+        plt.plot(rel_times, condor_nodes, label=plot_dict['condor_nodes'][0],
+                 color=plot_dict['condor_nodes'][1],
                  linestyle='-', marker='', linewidth=2.0)
         plt.plot(rel_times, condor_nodes_draining, label=plot_dict['condor_nodes_draining'][0],
-                 color=plot_dict['condor_nodes_draining'][1], linestyle='-', marker='', linewidth=2.0)
+                 color=plot_dict['condor_nodes_draining'][1], linestyle='-', marker='',
+                 linewidth=2.0)
 
         # legend settings and plot output
         plt.legend(loc='upper right', numpoints=1, frameon=False)
 
     elif args.style == 'fr-slide':
-        ax.set_xlabel(r'Time / ' + time_scales.get(args.time_scale, 'm')[0], ha='right', x=1, size=36.0)
+        ax.set_xlabel(r'Time / ' + time_scales.get(args.time_scale, 'm')[0], ha='right', x=1,
+                      size=36.0)
         ax.set_ylabel(r'Number of Jobs/VMs', va='top', y=.71, labelpad=37.0, size=33.0)
         ax.tick_params(axis='x', labelsize=34, pad=10., length=10)
         ax.tick_params(axis='y', labelsize=34, length=10)
 
         plt.plot(rel_times, machines_requested, label=plot_dict['machines_requested'][0],
                  color=plot_dict['machines_requested'][1], linestyle='-', marker='', linewidth=2.0)
-        plt.plot(rel_times, condor_nodes, label=plot_dict['condor_nodes'][0], color=plot_dict['condor_nodes'][1],
+        plt.plot(rel_times, condor_nodes, label=plot_dict['condor_nodes'][0],
+                 color=plot_dict['condor_nodes'][1],
                  linestyle='-', marker='', linewidth=2.0)
         plt.plot(rel_times, condor_nodes_draining, label=plot_dict['condor_nodes_draining'][0],
-                 color=plot_dict['condor_nodes_draining'][1], linestyle='-', marker='', linewidth=2.0)
-        stack1 = plt.fill_between(rel_times, jobs_idle, facecolor=plot_dict['jobs_idle'][1], color=None, edgecolor=None,
+                 color=plot_dict['condor_nodes_draining'][1], linestyle='-', marker='',
+                 linewidth=2.0)
+        stack1 = plt.fill_between(rel_times, jobs_idle, facecolor=plot_dict['jobs_idle'][1],
+                                  color=None, edgecolor=None,
                                   linewidth=0.0, label=plot_dict['jobs_idle'][0])
-        stack2 = plt.fill_between(rel_times, jobs_running, facecolor=plot_dict['jobs_running'][1], color=None,
+        stack2 = plt.fill_between(rel_times, jobs_running, facecolor=plot_dict['jobs_running'][1],
+                                  color=None,
                                   edgecolor=None, linewidth=0.0, label=plot_dict['jobs_running'][0])
         for entry in stack1, stack2:
             plt.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())

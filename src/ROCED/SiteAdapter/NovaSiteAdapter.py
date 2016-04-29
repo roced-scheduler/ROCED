@@ -22,9 +22,8 @@
 
 # from EucaUtil import EucaUtil
 # from EucaUtil import Ec2Util
-import logging
 import datetime
-import sys
+import logging
 
 # see http://docs.pythonboto.org/
 import boto.exception
@@ -70,7 +69,8 @@ class NovaSiteAdapter(SiteAdapterBase):
                 # check correct site etc...
                 if evt.newStatus == self.mr.statusDisintegrated:
                     # ha, machine to kill
-                    self.eucaTerminateMachines([self.mr.machines[evt.id].get(self.reg_site_euca_instance_id)])
+                    self.eucaTerminateMachines(
+                        [self.mr.machines[evt.id].get(self.reg_site_euca_instance_id)])
                     # TODO maybe use shutdown in between ?
                     self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
@@ -96,7 +96,8 @@ class NovaSiteAdapter(SiteAdapterBase):
         if firstCheck is None:
             self.mr.machines[mid][self.reg_site_euca_first_dead_check] = datetime.datetime.now()
         else:
-            if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(self.ConfigMachineBootTimeout):
+            if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(
+                    self.ConfigMachineBootTimeout):
                 logging.warning("Machine " + str(mid) + " did not boot in time. Shutting down")
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
@@ -119,16 +120,19 @@ class NovaSiteAdapter(SiteAdapterBase):
                 mach = self.getMachineByEucaId(myMachines, i.id)
                 if mach is not None:
 
-                    if i.state == "terminated" and not mach[1].get(self.mr.regStatus) == self.mr.statusDown:
+                    if i.state == "terminated" and not mach[1].get(
+                            self.mr.regStatus) == self.mr.statusDown:
                         self.mr.updateMachineStatus(mach[0], self.mr.statusDown)
-                    if i.state == "running" and mach[1].get(self.mr.regStatus) == self.mr.statusBooting:
+                    if i.state == "running" and mach[1].get(
+                            self.mr.regStatus) == self.mr.statusBooting:
                         self.transferInstanceData(i, mach[0])
                         if self.checkIfMachineIsUp(mach[0]):
                             self.mr.updateMachineStatus(mach[0], self.mr.statusUp)
                         else:
                             self.checkForDeadMachine(mach[0])
 
-                    if i.state == "shutting-down" and mach[1].get(self.mr.regStatus) == self.mr.statusBooting:
+                    if i.state == "shutting-down" and mach[1].get(
+                            self.mr.regStatus) == self.mr.statusBooting:
                         self.mr.updateMachineStatus(mach[0], self.mr.statusShutdown)
                 else:
                     # is ok, this machine is not managed by us... integrate
@@ -225,8 +229,9 @@ class NovaSiteAdapter(SiteAdapterBase):
             slotsLeft = self.getConfig(self.ConfigMaxMachines) - machineCount
 
             if slotsLeft < count:
-                logging.warning("Site " + self.siteName + " reached MaxMachines, truncating to " + str(
-                    slotsLeft) + " new machines")
+                logging.warning(
+                    "Site " + self.siteName + " reached MaxMachines, truncating to " + str(
+                        slotsLeft) + " new machines")
                 count = max(0, slotsLeft)
 
         if count == 0:
@@ -242,7 +247,8 @@ class NovaSiteAdapter(SiteAdapterBase):
             else:
                 secGroup = [machineConf.securityGroup]
 
-            logging.info("EucaSpawnAdapter: running " + str(count) + " instances of image " + machineConf.imageName)
+            logging.info("EucaSpawnAdapter: running " + str(
+                count) + " instances of image " + machineConf.imageName)
             reservation = euca_conn.run_instances(image_id=imgId,
                                                   min_count=count,
                                                   max_count=count,

@@ -133,7 +133,8 @@ class StupidBroker(SiteBrokerBase):
                 if tospawn < 0:
                     if mname in site.supportedMachineTypes:
                         if self.delayedShutdownTime is not None:
-                            if (datetime.now() - self.delayedShutdownTime).seconds > self.shutdownDelay:
+                            if ((datetime.now() - self.delayedShutdownTime).seconds >
+                                    self.shutdownDelay):
                                 self.modSiteOrders(siteOrders, site.siteName, mname, tospawn)
                                 self.delayedShutdownTime = None
                         else:

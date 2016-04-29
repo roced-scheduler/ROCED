@@ -23,9 +23,9 @@
 import logging
 
 from Core import MachineRegistry
+from Core import ScaleTest
 from IntegrationAdapter import TorqueIntegrationAdapter
 from Util import ScaleTools
-from Core import ScaleTest
 
 
 class FakeSsh(ScaleTools.Ssh):

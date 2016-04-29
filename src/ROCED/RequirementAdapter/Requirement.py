@@ -44,7 +44,8 @@ class RequirementAdapterBase(AdapterBase):
     def init(self):
         super(RequirementAdapterBase, self).init()
         self.exportMethod(lambda requirement_: self.__setattr__(name="requirement",
-                          value=requirement_), type(self).__name__ + "_setRequirement")
+                                                                value=requirement_),
+                          type(self).__name__ + "_setRequirement")
 
     @property
     def name(self):

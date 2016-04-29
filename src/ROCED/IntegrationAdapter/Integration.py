@@ -24,7 +24,6 @@ The IntegrationAdapters are responsible for adding and removing cloud machines
 to batch servers or other scheduling infrastructure
 """
 
-
 import abc
 
 from Core import Adapter

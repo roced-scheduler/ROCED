@@ -19,7 +19,6 @@
 #
 # ===============================================================================
 
-import logging
 import random
 
 from Core import MachineRegistry
@@ -54,12 +53,11 @@ class FakeSiteAdapter(SiteAdapterBase):
 
     def manage(self):
         for machineType in self.runningMachines:
-            for mid in self.runningMachines[machineType]:
-                if self.mr.calcLastStateChange(mid) > random.gauss(
-                   self.bootTimeMu, self.bootTimeSigma) and self.mr.machines[mid][
-                        self.mr.regStatus] == self.mr.statusBooting:
-                    logging.info("Machine " + str(mid) + " is done booting")
-                    self.mr.updateMachineStatus(mid, self.mr.statusUp)
+            [self.mr.updateMachineStatus(mid, self.mr.statusUp)
+             for mid in self.runningMachines[machineType]
+             if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting and
+             self.mr.calcLastStateChange(mid) > random.gauss(self.bootTimeMu,
+                                                             self.bootTimeSigma)]
 
     def spawnMachines(self, machineType, count):
         for i in range(0, count):

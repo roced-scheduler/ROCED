@@ -59,7 +59,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
         # check if fully offline
         mlist = ""
 
-        for (mid, machine) in disint:
+        for mid, machine in disint.items():
             mlist += machine.get(self.reg_torque_node_name) + " "
 
         if len(mlist) == 0:
@@ -71,7 +71,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
             try:
                 xd = etree.parse(xmlRes)
 
-                for (mid, machine) in disint:
+                for mid, machine in disint.items():
                     nodeName = machine.get(self.reg_torque_node_name)
                     stateLs = xd.xpath("/Data/Node[name='%s']/state" % nodeName)
                     if len(stateLs) > 0:
@@ -180,10 +180,9 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
                 if self.mr.machines[evt.id].get(self.reg_torque_node_name, None) is None:
                     # not listed internally, try to find the node name
 
-                    (res, nodeName) = self.runCommandOnPbs("python torqconf.py get_node_name %s"
-                                                           % self.mr.machines[evt.id].get(
-                                                               self.reg_torque_node_ip,
-                                                               "xxx.xxx.xxx.xxy"))
+                    (res, nodeName) = self.runCommandOnPbs(
+                        "python torqconf.py get_node_name %s" %
+                        self.mr.machines[evt.id].get(self.reg_torque_node_ip, "xxx.xxx.xxx.xxy"))
                     nodeName = nodeName.strip()
 
                     if (res == 0) and (len(nodeName) > 0):

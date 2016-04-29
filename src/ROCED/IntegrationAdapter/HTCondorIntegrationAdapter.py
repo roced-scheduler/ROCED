@@ -256,11 +256,11 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             # # If it's not listed in condor, it's done shutting down -> "disintegrated"
             if machine_[self.mr.regStatus] == self.mr.statusDisintegrating:
                 if (machine_[self.reg_site_server_condor_name] not in condor_machines or
-                        self.mr.calcLastStateChange(mid) > condor_timeout):
+                            self.mr.calcLastStateChange(mid) > condor_timeout):
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
-        self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
-        self.logger.debug("Content of condor machines:\n" + str(condor_machines.items()))
+        self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
+        self.logger.debug("Content of condor machines:\n%s" % condor_machines.items())
 
     def onEvent(self, evt):
         """Event handler
@@ -298,8 +298,8 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         condor_requirement = self.getConfig(self.configCondorRequirement)
         condor_ssh = ScaleTools.Ssh(condor_server, condor_user, condor_key)
 
-        cmd = ("condor_status -constraint '" + condor_requirement +
-               "' -autoformat: Machine State Activity")
+        cmd = ("condor_status -constraint '%s' -autoformat: Machine State Activity"
+               % condor_requirement)
 
         # get a list of the condor machines (SSH)
         condor_result = condor_ssh.handleSshCall(call=cmd, quiet=True)
@@ -312,7 +312,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             valid_condor_info = False
 
         # prepare list of condor machines
-        tmp_condor_machines = re.findall('([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)',
+        tmp_condor_machines = re.findall("([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)",
                                          condor_result[1], re.MULTILINE)
 
         # transform list into dictionary with one list per slot
@@ -327,6 +327,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
     @classmethod
     def drainMachine(cls, machine):
+        # type: (dict) -> None
         """ Send "condor_drain" command to machine (draining machines won't accept new jobs).
 
         This usually happens in preparation of shutting the machine down. condor_drain is an

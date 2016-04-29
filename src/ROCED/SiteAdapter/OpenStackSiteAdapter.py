@@ -373,7 +373,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             for mid in self.mr.getMachines(self.siteName):
                 # if hypervisor is not set or None, set the hypervisor correctly
                 if (self.reg_site_server_hypervisor not in self.mr.machines[mid] or
-                        self.mr.machines[mid][self.reg_site_server_hypervisor] is None):
+                            self.mr.machines[mid][self.reg_site_server_hypervisor] is None):
                     self.mr.machines[mid][self.reg_site_server_hypervisor] = self.__getHypervisor(
                         self.mr.machines[mid][self.reg_site_server_id])
                 # get the hypervisor from machine registry
@@ -408,9 +408,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                         if (self.mr.machines[mid][self.reg_site_server_status] !=
                                 self.reg_site_server_status_error):
                             if (self.mr.regMachineLoad in self.mr.machines[mid] and
-                               self.mr.regMachineLoad in self.mr.machines[to_terminate] and
-                               self.mr.machines[mid][self.mr.regMachineLoad] <
-                               self.mr.machines[to_terminate][self.mr.regMachineLoad]):
+                                        self.mr.regMachineLoad in self.mr.machines[to_terminate] and
+                                        self.mr.machines[mid][self.mr.regMachineLoad] <
+                                        self.mr.machines[to_terminate][self.mr.regMachineLoad]):
                                 to_terminate = mid
                         # if all are used the same, just take the first one
                         else:
