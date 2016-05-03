@@ -19,15 +19,19 @@
 #
 # ==============================================================================
 
+from __future__ import unicode_literals
 import logging
 import re
 import time
+import sys
 
 from oneandone.client import OneAndOneService, Server, Hdd
 
 from Core import Config, MachineRegistry
 from SiteAdapter.Site import SiteAdapterBase
 from Util.Logging import JsonLog
+
+PY3 = sys.version_info > (3,)
 
 
 class OneAndOneSiteAdapter(SiteAdapterBase):
@@ -45,9 +49,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
     # machine specific settings
     configMachines = "machines"
-    configAppliance = "appliance"
-    configFirewallPolicy = "firewall_policy"
-    configMonitoringPolicy = "monitoring_policy"
+    configApplianceID = "appliance_id"
+    configFirewallPolicyID = "firewall_policy_id"
+    configMonitoringPolicyID = "monitoring_policy_id"
     configHddSize = "hdd_size"
     configVcores = "vcores"
     configCoresPerProcessor = "cores_per_processor"
@@ -107,12 +111,12 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # load machine specific settings
         self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeDictionary,
                                      description="Machine type")
-        self.addCompulsoryConfigKeys(self.configAppliance, Config.ConfigTypeString,
+        self.addCompulsoryConfigKeys(self.configApplianceID, Config.ConfigTypeString,
                                      description="Appliance to boot VM")
-        self.addOptionalConfigKeys(self.configFirewallPolicy, Config.ConfigTypeString,
+        self.addOptionalConfigKeys(self.configFirewallPolicyID, Config.ConfigTypeString,
                                    description="Firewall policy for VM",
                                    default="")
-        self.addOptionalConfigKeys(self.configMonitoringPolicy, Config.ConfigTypeString,
+        self.addOptionalConfigKeys(self.configMonitoringPolicyID, Config.ConfigTypeString,
                                    description="Monitoring policy for VM",
                                    default="None")
         self.addOptionalConfigKeys(self.configCoresPerProcessor, Config.ConfigTypeInt,
@@ -136,6 +140,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configSquid, Config.ConfigTypeString,
                                    description="Squid server name",
                                    default=None)
+        self.addOptionalConfigKeys(self.configPNVM, Config.ConfigTypeString,
+                                   description="VM for protecting private network deletion",
+                                   default=None)
 
         # site settings
         self.addOptionalConfigKeys(self.configMaxMachines, Config.ConfigTypeInt,
@@ -151,7 +158,10 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         super(OneAndOneSiteAdapter, self).init()
 
         # disable urllib3 logging
-        urllib3_logger = logging.getLogger("requests")
+        if PY3:
+            urllib3_logger = logging.getLogger("urllib3.connectionpool")
+        else:
+            urllib3_logger = logging.getLogger("requests.packages.urllib3.connectionpool")
         urllib3_logger.setLevel(logging.CRITICAL)
 
         self.mr.registerListener(self)
@@ -288,7 +298,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         """
 
         # check if machine type is requested machine type
-        if not machineType == self.getConfig(self.configMachines)[0]:
+        if not machineType == list(self.getConfig(self.configMachines).keys())[0]:
             return 0
 
         # get 1and1 client and machine list
@@ -303,12 +313,12 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             vm_name = "roced-" + "{0:0>3}".format(index.pop(0))  # str(index.pop(0))
             # create machine with all required information
             server = Server(name=vm_name,
-                            appliance_id=self.getConfig(self.configAppliance),
+                            appliance_id=self.getConfig(self.configApplianceID),
                             vcore=self.getConfig(self.configVcores),
                             cores_per_processor=self.getConfig(self.configCoresPerProcessor),
                             ram=self.getConfig(self.configRam),
-                            firewall_policy_id=self.getConfig(self.configFirewallPolicy),
-                            monitoring_policy_id=self.getConfig(self.configMonitoringPolicy),
+                            firewall_policy_id=self.getConfig(self.configFirewallPolicyID),
+                            monitoring_policy_id=self.getConfig(self.configMonitoringPolicyID),
                             power_on=(not self.getConfig(self.configPrivateNetworkID))
                             )
 
