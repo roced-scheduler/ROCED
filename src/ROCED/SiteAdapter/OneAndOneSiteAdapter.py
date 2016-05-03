@@ -140,9 +140,6 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configSquid, Config.ConfigTypeString,
                                    description="Squid server name",
                                    default=None)
-        self.addOptionalConfigKeys(self.configPNVM, Config.ConfigTypeString,
-                                   description="VM for protecting private network deletion",
-                                   default=None)
 
         # site settings
         self.addOptionalConfigKeys(self.configMaxMachines, Config.ConfigTypeInt,
@@ -546,7 +543,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         for vm in oao_machines:
             # check if machine is quid server
             if (self.getConfig(self.configSquid) is not None and
-                        oao_machines[vm][self.oao_name] == self.getConfig(self.configSquid)):
+                        oao_machines[vm][self.oao_name] in self.getConfig(self.configSquid)):
                 continue
 
             # check if machine is already in machine registry
