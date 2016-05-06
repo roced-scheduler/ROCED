@@ -174,8 +174,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             client = OneAndOneService(self.getConfig(self.configApiToken))
         # If initializing failed return nothing
         except Exception as e:
-            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR:")
-            self.logger.warning(str(e))
+            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR: %s"
+                                % e.message)
             return
 
         return client
@@ -192,8 +192,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             tmp = client.list_servers()
         # if it fails raise exception and return nothing
         except Exception as e:
-            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR:")
-            self.logger.warning(str(e))
+            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR: %s"
+                                % e.message)
             return
 
         # build a dictionary containing the machines
@@ -328,8 +328,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                 vm = client.create_server(server=server, hdds=hdds)
             # if it failes raise exception and continue with next machine
             except Exception as e:
-                self.logger.warning("Could not start server on OneAndOne Cloud Service")
-                self.logger.warning(str(e))
+                self.logger.warning("Could not start server on OneAndOne Cloud Service. %s"
+                                    % e.message)
                 continue
 
             # create new machine in machine registry

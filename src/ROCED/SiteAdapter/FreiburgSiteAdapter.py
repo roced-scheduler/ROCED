@@ -281,7 +281,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             return
 
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
-            self.logger.debug("Status Change Event: %s ")
+            self.logger.debug("Status Change Event: %s (%s->%s)"
+                              % (evt.id, evt.oldStatus, evt.newStatus))
             if evt.newStatus == self.mr.statusDisintegrated:
                 # If Integration Adapter tells us, that the machine disappeared or "deserves" to
                 # be shutdown (timeouts), cancel VM batch job in Freiburg
@@ -409,13 +410,11 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.logger.warning("Removed invalid machines (%d): %s"
                                     % (len(idsInvalidated), ", ".join(idsInvalidated)))
             if (len(idsRemoved) + len(idsInvalidated)) == 0:
-                self.logger.warning(
-                    "A problem occurred while canceling VMs (RC %d):\n%s"
-                    % (result[0], result[2]))
+                self.logger.warning("A problem occurred while canceling VMs (RC %d):\n%s"
+                                    % (result[0], result[2]))
         else:
-            self.logger.warning(
-                "A problem occurred while canceling VMs (RC %d):\n%s"
-                % (result[0], result[2]))
+            self.logger.warning("A problem occurred while canceling VMs (RC %d):\n%s"
+                                % (result[0], result[2]))
         return idsRemoved, idsInvalidated
 
     @classmethod
@@ -471,7 +470,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s"
                                 % (frResult[0], frResult[2]))
 
-        self.logger.debug("Running: \n%s" % frJobsRunning)
+        self.logger.debug("Running:\n%s" % frJobsRunning)
         return frJobsRunning
 
     @property
@@ -485,16 +484,16 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         if frResult[0] == 0:
             # returns a list containing all running batch jobs in Freiburg
             # Negative lookahead for "eligible", otherwise he catches "0 eligible jobs".
-            frJobsIdle = re.findall("^^(\d+)\s+(?!eligible)", frResult[1], re.MULTILINE)
+            frJobsIdle = re.findall("^(\d+)\s+(?!eligible)", frResult[1], re.MULTILINE)
         elif frResult[0] == 255:
             frJobsIdle = []
-            self.logger.warning("SSH connection (showq -r) could not be established.")
+            self.logger.warning("SSH connection (showq -i) could not be established.")
         else:
             frJobsIdle = []
-            self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s"
+            self.logger.warning("Problem running remote command (showq -i) (RC %d):\n%s"
                                 % (frResult[0], frResult[2]))
 
-        self.logger.debug("Idle: \n%s" % frJobsIdle)
+        self.logger.debug("Idle:\n%s" % frJobsIdle)
         return frJobsIdle
 
     @property
@@ -522,10 +521,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.warning("SSH connection (showq -c) could not be established.")
         else:
             frJobsCompleted = {}
-            self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s"
+            self.logger.warning("Problem running remote command (showq -c) (RC %d):\n%s"
                                 % (frResult[0], frResult[2]))
 
-        self.logger.debug("Completed: \n%s" % frJobsCompleted)
+        self.logger.debug("Completed:\n%s" % frJobsCompleted)
         return frJobsCompleted
 
     @staticmethod

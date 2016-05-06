@@ -190,7 +190,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         # get list of condor machines and validity (condor_status returncode)
         condor_machines, valid_condor_info = self.condorList
         if len(self.mr.getMachines(self.siteName)) == 0 or valid_condor_info is False:
-            self.logger.debug("Content of machine registry:\n" + str(self.getSiteMachines()))
+            self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
             return None
 
         # check machine registry
