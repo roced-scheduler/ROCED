@@ -84,6 +84,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
         super(FreiburgSiteAdapter, self).init()
 
+        # TODO: This information is lost, when loading the previous machine registry.
         ###
         # Try to add "booting" machines (submitted batch jobs) to machine registry.
         ###
@@ -286,7 +287,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             if evt.newStatus == self.mr.statusDisintegrated:
                 # If Integration Adapter tells us, that the machine disappeared or "deserves" to
                 # be shutdown (timeouts), cancel VM batch job in Freiburg
-                if self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs:
+                # Caution: Periodic check in Freiburg happens every 30 seconds. Don't
+                # cancel jobs which are about to finish successfully.
+                if (self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs and
+                        evt.oldStatus != self.mr.statusDisintegrating):
                     self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
                         self.regMachineJobId)])
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
@@ -321,7 +325,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             # Machines which failed to boot/died/got canceled (return code != 0) -> down
             # -> ROCED becomes aware of failed VM requests and asks for new ones.
             # A machine MAY fail to boot with return code 0. Could be regular shutdown -> shutdown
-            if mr[mid][self.mr.regStatus] not in [self.mr.statusDown]:
+            if mr[mid][self.mr.regStatus] != self.mr.statusDown:
                 if batchJobId in frJobsCompleted:
                     if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
                         self.logger.info("VM (%s) failed to boot!" % batchJobId)
