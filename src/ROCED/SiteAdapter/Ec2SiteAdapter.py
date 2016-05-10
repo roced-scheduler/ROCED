@@ -1,327 +1,389 @@
-# ===============================================================================
+# ================================================================================
 #
-# Copyright (c) 2010, 2011 by Thomas Hauth and Stephan Riedel
-# 
+# Copyright (c) 2010, 2011, 2016 by Thomas Hauth, Stephan Riedel and Guenther Erli
+#
 # This file is part of ROCED.
-# 
+#
 # ROCED is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # ROCED is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
-# ===============================================================================
+# ================================================================================
 
 
-# from EucaUtil import EucaUtil
-# from EucaUtil import Ec2Util
-import datetime
 import logging
+import re
+import time
 import sys
+import boto3
 
-# see http://docs.pythonboto.org/
-import boto.exception
-from .Site import SiteAdapterBase
-from Core import MachineRegistry
-from Util import ScaleTools
+from Core import Config, MachineRegistry
+from SiteAdapter.Site import SiteAdapterBase
+from Util.Logging import JsonLog
 
-sys.path.append("../")
+PY3 = sys.version_info > (3,)
 
 
-class Ec2BasedSiteAdapter(SiteAdapterBase):
-    class Ec2MachineConfig(object):
+class Ec2SiteAdapter(SiteAdapterBase):
+    """
+    Site Adapter for Amazon EC2 Cloud
 
-        def __init__(self):
-            self.imageName = None
-            self.userData = ""
-            self.instanceType = None
-            self.instanceKey = None
+    responsible for booting up and shutting down machines
+    """
 
-            self.gatewayIp = None
-            self.gatewayUser = None
-            self.gatewayKey = None
+    # name for this adapter to be shown in ROCED output
+    configSiteLogger = 'logger_name'
 
-            self.usesGateway = False
-            self.securityGroup = None
-            self.addressingType = "public"
+    # machine specific settings
+    configMachines = 'machines'
+    configImageID = 'image_id'
+    configUserData = 'user_data'
+    configSecurityGroupIDs = 'security_group_ids'
+    configInstanceType = 'instance_type'
 
-            self.kernelId = None
-            self.ramdiskId = None
+    # site settings
+    configMinCount = 'min_count'
+    configMaxCount = 'max_count'
 
-    reg_site_euca_instance_id = "site_euca_instance_id"
-    reg_site_euca_first_dead_check = "site_euca_first_dead_check"
+    # keywords for EC2
+    ec2 = 'ec2'
+    ec2_instance_statuses = 'InstanceStatuses'
+    ec2_instance_id = 'InstanceId'
+    ec2_instance_state = 'InstanceState'
+    ec2_instance_status = 'InstanceStatus'
+    ec2_availability_zone = 'AvailabilityZone'
+    ec2_system_status = 'SystemStatus'
+
+    # keywords for machine registry
+    reg_site_server_id = "reg_site_server_id"
+    reg_site_server_status = "reg_site_server_status"
+    reg_site_server_name = "reg_site_server_name"
+    reg_site_server_condor_name = "reg_site_server_condor_name"
+
+    stop = 'stop'
+    terminate = 'terminate'
 
     def __init__(self):
-        super(Ec2BasedSiteAdapter, self).__init__()
+        """Init function
+
+        load config keys from config files
+
+        :return:
+        """
+        super(Ec2SiteAdapter, self).__init__()
+
+        # load SiteAdapter name
+        self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
+                                   description='Logger name of SiteAdapter',
+                                   default='EC2_Site')
+
+        # load machine specific settings
+        self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeDictionary,
+                                     description='Machine type')
+        self.addCompulsoryConfigKeys(self.configImageID, Config.ConfigTypeString,
+                                     description='ID of Image to boot')
+        self.addOptionalConfigKeys(self.configUserData, Config.ConfigTypeString,
+                                   description='Path to Cloud-Init Script',
+                                   default=None)
+        self.addOptionalConfigKeys(self.configSecurityGroupIDs, Config.ConfigTypeString,
+                                   description='ID of Security group to apply',
+                                   default=None)
+        self.addOptionalConfigKeys(self.configInstanceType, Config.ConfigTypeString,
+                                   description='Instance type',
+                                   default='t2.large')
+        self.addOptionalConfigKeys(self.configMinCount, Config.ConfigTypeInt,
+                                   description='Number of machines to boot at least',
+                                   default=None)
+        self.addOptionalConfigKeys(self.configMaxCount, Config.ConfigTypeInt,
+                                   description='Number of machines to boot max')
+
         self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):
-        # todo: see whats running as we start up
+        super(Ec2SiteAdapter, self).init()
+
+        # disable urllib3 logging
+        if PY3:
+            urllib3_logger = logging.getLogger('botocore.vendored.requests.packages.urllib3.connectionpool')
+            botocore_logger = logging.getLogger('botocore')
+        else:
+            urllib3_logger = logging.getLogger('requests.packages.urllib3.connectionpool')
+
+        boto3_logger = logging.getLogger('boto3')
+        botocore_logger = logging.getLogger('botocore')
+
+        boto3_logger.setLevel(logging.CRITICAL)
+        botocore_logger.setLevel(logging.CRITICAL)
+        urllib3_logger.setLevel(logging.CRITICAL)
+
         self.mr.registerListener(self)
 
-    def onEvent(self, evt):
-        if isinstance(evt, MachineRegistry.StatusChangedEvent):
-            if self.mr.machines[evt.id].get(self.mr.regSite) == self.siteName:
-                # check correct site etc...
-                if evt.newStatus == self.mr.statusDisintegrated:
-                    # ha, machine to kill
-                    self.eucaTerminateMachines(
-                        [self.mr.machines[evt.id].get(self.reg_site_euca_instance_id)])
-                    # TODO maybe use shutdown in between ?
-                    self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
+    def getRunningMachines(self):
+        """
+        Returns a dictionary containing all running machines
 
-    def getConfigAsDict(self, onlyPublic=False):
-        new = super(Ec2BasedSiteAdapter, self).getConfigAsDict(True)
-        new.pop(self.ConfigMachines)
+        The number of running machines needs to be recalculated when using status integrating and pending
+        disintegration. Machines pending disintegration are still running an can accept new jobs. Machines integrating
+        are counted as running machines by default.
 
-        return new
+        :return: machines_
+        """
 
-    def getMachineByEucaId(self, machineList, euca_id):
-        m = [machineList[mid] for (mid, machine) in machineList.items()
-             if machine.get(self.reg_site_euca_instance_id) == euca_id]
-        if len(m) == 0:
-            # raise LookupError("Machine with euca id " + str(euca_id) + " not found in scale machine repository")
-            return None
+        # get all machines running on site
+        tmp_machines_ = self.getSiteMachines()
+        machines_ = dict()
+
+        # generate empty list for machines running on 1and1
+        machines_[list(self.getConfig(self.configMachines).keys())[0]] = []
+
+        # filter for machines in status booting, up, integrating, working or pending disintegration
+        for (k, v) in list(tmp_machines_.items()):
+            if v.get(self.mr.regStatus) in [self.mr.statusBooting, self.mr.statusUp,
+                                            self.mr.statusIntegrating, self.mr.statusWorking,
+                                            self.mr.statusPendingDisintegration]:
+                # add machine to previously defined list
+                machines_[v[self.mr.regMachineType]].append(k)
+
+        return machines_
+
+    def getEC2Machines(self):
+        """
+        return all machines running on EC2
+        :return: ec2_machines_
+        """
+        ec2 = boto3.resource(self.ec2)
+
+        tmp_ec2_machines_ = ec2.instances.all()
+        ec2_machines_list_ = list()
+        for instance_ in tmp_ec2_machines_:
+            ec2_machines_list_.append(instance_.id)
+
+        tmp_ec2_machines_ = ec2.meta.client.describe_instance_status()[self.ec2_instance_statuses]
+        ec2_machines_status_ = dict()
+
+        for machine_ in tmp_ec2_machines_:
+            instance_id_ = machine_[self.ec2_instance_id]
+            instance_state_ = machine_[self.ec2_instance_state]
+            instance_status_ = machine_[self.ec2_instance_status]
+            availability_zone_ = machine_[self.ec2_availability_zone]
+            system_status_ = machine_[self.ec2_system_status]
+            ec2_machines_status_[instance_id_] = {self.ec2_instance_state: instance_state_,
+                                                  self.ec2_instance_status: instance_status_,
+                                                  self.ec2_availability_zone: availability_zone_,
+                                                  self.ec2_system_status: system_status_}
+
+        return (ec2_machines_status_, ec2_machines_list_)
+
+    def spawnMachines(self, machineType, requested):
+        """
+        spawn VMs for 1and1 cloud service
+        :param machineType:
+        :param requested:
+        :return:
+        """
+
+        # check if machine type is requested machine type
+        if not machineType == list(self.getConfig(self.configMachines).keys())[0]:
+            return 0
+
+        # get EC2 client
+        ec2 = boto3.resource(self.ec2)
+        userdata = open(self.getConfig(self.configUserData), "r").read()
+
+        if requested > self.getConfig(self.configMaxCount):
+            max_count_ = self.getConfig(self.configMaxCount)
         else:
-            return m[0]
+            max_count_ = requested
 
-    def checkForDeadMachine(self, mid):
-        logging.info("Machine " + str(mid) + " is running but no ssh connect yet")
-        firstCheck = self.mr.machines[mid].get(self.reg_site_euca_first_dead_check, None)
-
-        if firstCheck is None:
-            self.mr.machines[mid][self.reg_site_euca_first_dead_check] = datetime.datetime.now()
+        if self.getConfig(self.configMinCount) is None:
+            min_count_ = requested
         else:
-            if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(
-                    self.ConfigMachineBootTimeout):
-                logging.warning("Machine " + str(mid) + " did not boot in time. Shutting down")
-                self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
+            min_count_ = self.getConfig(self.configMinCount)
+
+        new_machines_ = ec2.create_instances(ImageId=self.getConfig(self.configImageID),
+                                             MinCount=min_count_,
+                                             MaxCount=max_count_,
+                                             UserData=userdata,
+                                             SecurityGroupIds=self.getConfig(self.configSecurityGroupIDs).split(),
+                                             InstanceType=self.getConfig(self.configInstanceType))
+
+        for machine_ in new_machines_:
+            # create new machine in machine registry
+            mid = self.mr.newMachine()
+
+            # set some machine specific entries in machine registry
+            self.mr.machines[mid][self.mr.regSite] = self.siteName
+            self.mr.machines[mid][self.mr.regSiteType] = self.siteType
+            self.mr.machines[mid][self.mr.regMachineType] = machineType
+            # self.mr.machines[mid][self.reg_site_server_name] = machine_.id
+            self.mr.machines[mid][self.reg_site_server_id] = machine_.id
+            # self.mr.machines[mid][self.reg_site_server_status] = vm[self.oao_status][self.oao_state]
+            self.mr.machines[mid][self.reg_site_server_condor_name] = machine_.id
+
+            # update machine status
+            self.mr.updateMachineStatus(mid, self.mr.statusBooting)
+
+        return
+
+    def cleanupEC2(self):
+        ec2 = boto3.resource(self.ec2)
+
+        available_volumes_ = ec2.volumes.filter(Filters=[{'Name': 'status', 'Values': ['available']}])
+        for volume_ in available_volumes_:
+            volume_.delete()
+
+        #available_snapshots_ = ec2.snapshots.filter(OwnerIds=["181010420550"])
+        #for snapshot_ in available_snapshots_:
+        #    snapshot_.delete()
+
+        images = ec2.images.all()
+        images = [image.id for image in images]
+        for snapshot in ec2.snapshots.filter(OwnerIds=["181010420550"]):
+            r = re.match(r".*for (ami-.*) from.*", snapshot.description)
+            if r:
+                if r.groups()[0] not in images:
+                    snapshot.delete()
+
+    def terminateEC2Machine(self, state, *mids):
+        """
+        terminate machine on EC2 cloud site
+        :param mid: machine id in machine registry
+        """
+
+        if len(mids[0]) > 0:
+            instance_ids_ = []
+
+            for mid in mids[0]:
+                instance_ids_.append(self.mr.machines[mid][self.reg_site_server_id])
+
+            ec2 = boto3.resource(self.ec2)
+            if state == self.stop:
+                ec2.instances.filter(InstanceIds=instance_ids_).stop()
+            if state == self.terminate:
+                ec2.instances.filter(InstanceIds=instance_ids_).terminate()
+                self.cleanupEC2()
+
+        return
 
     def manage(self):
-        # check for machine status
-        ut = self.getApiUtil()
-        logging.info("Querying Eucalyptus Server for running instances...")
+        """
+        managing machine states that change dependant of the state changes on 1and1 cloud site run once per cycle
 
-        try:
-            euca_conn = ut.openConnection()
-            reservations = euca_conn.get_all_instances()
-        except boto.exception.EC2ResponseError:
-            logging.error("cannot connect to eucalyptus, no manage cycle")
-            return 0
+        :return:
+        """
 
-        myMachines = self.getSiteMachines()
+        # get machines from EC2
+        ec2_machines_status_, ec2_machines_list_ = self.getEC2Machines()
 
-        for r in reservations:
-            for i in r.instances:
-                mach = self.getMachineByEucaId(myMachines, i.id)
-                if mach is not None:
+        machines_to_stop_ = list()
+        machines_to_terminate_ = list()
 
-                    if i.state == "terminated" and not mach[1].get(
-                            self.mr.regStatus) == self.mr.statusDown:
-                        self.mr.updateMachineStatus(mach[0], self.mr.statusDown)
-                    if i.state == "running" and mach[1].get(
-                            self.mr.regStatus) == self.mr.statusBooting:
-                        self.transferInstanceData(i, mach[0])
-                        if self.checkIfMachineIsUp(mach[0]):
-                            self.mr.updateMachineStatus(mach[0], self.mr.statusUp)
-                        else:
-                            self.checkForDeadMachine(mach[0])
-
-                    if i.state == "shutting-down" and mach[1].get(
-                            self.mr.regStatus) == self.mr.statusBooting:
-                        self.mr.updateMachineStatus(mach[0], self.mr.statusShutdown)
-                else:
-                    # is ok, this machine is not managed by us... integrate
-                    self.integrateMachine(euca_conn, i)
-
-    def transferInstanceData(self, euca_inst, machine_id):
-
-        self.mr.machines[machine_id][self.mr.regHostname] = euca_inst.public_dns_name
-        self.mr.machines[machine_id][self.mr.regInternalIp] = euca_inst.private_dns_name
-        self.mr.machines[machine_id][self.mr.regSshKey] = euca_inst.key_name
-
-    def checkIfMachineIsUp(self, mid):
-        ssh = ScaleTools.Ssh.getSshOnMachine(self.mr.machines[mid])
-        return ssh.canConnect()
-
-    def integrateMachine(self, euca_conn, euca_inst, mtype=None):
-        ut = self.getApiUtil()
-
-        try:
-            if mtype is None:
-                imageName = ut.getImageNameByImageId(euca_conn, euca_inst.image_id)
-                machineType = self.getMachineTypeByImageName(imageName)
-            else:
-                machineType = mtype
-        except LookupError:
-            logging.info("Cant add euca machine since its image is not configured")
+        # if something fails while receiving response from EC2 a type 'None' will be returned
+        if ec2_machines_status_ is None:  # or (len(oao_machines) == 0):
             return
 
-        mid = self.mr.newMachine()
+        for mid in self.mr.getMachines(self.siteName):
+            machine_ = self.mr.machines[mid]
 
-        mconf = self.getConfig(self.ConfigMachines)[machineType]
+            # check if machine is already deleted on site and remove it from machine registry
+            #if not machine_[self.reg_site_server_id] in ec2_machines_status_:
+            #    self.mr.removeMachine(mid)
+            #    continue
 
-        self.mr.machines[mid][self.mr.regSite] = self.siteName
-        self.mr.machines[mid][self.mr.regSiteType] = self.siteType
-        self.mr.machines[mid][self.mr.regMachineType] = machineType
-        self.mr.machines[mid][self.reg_site_euca_instance_id] = euca_inst.id
+            # check for status which is handled by integration adapter
+            if machine_[self.mr.regStatus] in [self.mr.statusUp,
+                                               self.mr.statusIntegrating,
+                                               self.mr.statusWorking,
+                                               self.mr.statusPendingDisintegration]:
+                del ec2_machines_status_[machine_[self.reg_site_server_id]]
 
-        if mconf.usesGateway:
-            self.mr.machines[mid][self.mr.regUsesGateway] = True
-            self.mr.machines[mid][self.mr.regGatewayIp] = mconf.gatewayIp
-            self.mr.machines[mid][self.mr.regGatewayKey] = mconf.gatewayKey
-            self.mr.machines[mid][self.mr.regGatewayUser] = mconf.gatewayUser
+            # down
+            # if machine status in machine registry is down and machine is still listed on EC2 cloud, terminate machine
+            if machine_[self.mr.regStatus] == self.mr.statusDown:
+                if not machine_[self.reg_site_server_id] in ec2_machines_list_:
+                    self.mr.removeMachine(mid)
+                # del ec2_machines_status_[machine_[self.reg_site_server_id]]
 
-        if euca_inst.state == "running":
-            # get instance data
-            self.transferInstanceData(euca_inst, mid)
-            if self.checkIfMachineIsUp(mid):
-                self.mr.updateMachineStatus(mid, self.mr.statusWorking)
-            else:
-                self.mr.updateMachineStatus(mid, self.mr.statusBooting)
-        if euca_inst.state == "pending":
+            if machine_[self.mr.regStatus] == self.mr.statusDisintegrated:
+                if not machine_[self.reg_site_server_id] in ec2_machines_status_:
+                    machines_to_terminate_.append(mid)
+                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
+                else:
+                    del ec2_machines_status_[machine_[self.reg_site_server_id]]
+
+            if machine_[self.mr.regStatus] == self.mr.statusDisintegrating:
+                # self.terminateEC2Machine(self.stop, mid)
+                if machine_[self.reg_site_server_id] in ec2_machines_status_:
+                    machines_to_stop_.append(mid)
+                    del ec2_machines_status_[machine_[self.reg_site_server_id]]
+
+            # TODO: use this status transition from up to integrating instead of the one used in integration adapter.onEvent
+            #if machine_[self.mr.regStatus] == self.mr.statusUp:
+            #    if ec2_machines_status_[machine_[self.reg_site_server_id]][self.ec2_instance_status][
+            #        'Status'] == 'initializing':
+            #        self.mr.updateMachineStatus(mid, self.mr.statusIntegrating)
+            #    del ec2_machines_status_[machine_[self.reg_site_server_id]]
+
+            # booting -> up
+            # check if machine status booting
+            if machine_[self.mr.regStatus] == self.mr.statusBooting:
+                if machine_[self.reg_site_server_id] in ec2_machines_status_:
+                    self.mr.updateMachineStatus(mid, self.mr.statusUp)
+                else:
+                    continue
+                if ec2_machines_status_[machine_[self.reg_site_server_id]][self.ec2_instance_status][
+                    'Status'] == 'initializing':
+                    pass
+                elif ec2_machines_status_[machine_[self.reg_site_server_id]][self.ec2_instance_status][
+                    'Status'] == 'ok':
+                    self.mr.updateMachineStatus(mid, self.mr.statusUp)
+                del ec2_machines_status_[machine_[self.reg_site_server_id]]
+
+        self.terminateEC2Machine(self.stop, machines_to_stop_)
+        self.terminateEC2Machine(self.terminate, machines_to_terminate_)
+
+        # add all machines remaining in machine list from 1&1
+        for machine_ in ec2_machines_status_:
+            # create new machine in machine registry
+            mid = self.mr.newMachine()
+            self.mr.machines[mid][self.mr.regSite] = self.siteName
+            self.mr.machines[mid][self.mr.regSiteType] = self.siteType
+            self.mr.machines[mid][self.mr.regMachineType] = self.ec2  # machineType
+            # self.mr.machines[mid][self.reg_site_server_name] = oao_machines[vm][self.oao_name]
+            self.mr.machines[mid][self.reg_site_server_id] = machine_
+            # self.mr.machines[mid][self.reg_site_server_status] = ec2_machines_status_[machine_][self.ec2_instance_status]
+            self.mr.machines[mid][self.reg_site_server_condor_name] = machine_
+
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
-        if euca_inst.state == "terminated":
-            self.mr.updateMachineStatus(mid, self.mr.statusDown)
-        if euca_inst.state == "shutting-down":
-            self.mr.updateMachineStatus(mid, self.mr.statusShutdown)
 
-    def getMachineTypeByImageName(self, imageName):
-        for (mtype, machine) in self.getConfig(self.ConfigMachines).items():
-            if machine.imageName == imageName:
-                return mtype
-
-        raise LookupError("Machine Image " + imageName + " is not configured to be used by scale")
-
-    def eucaTerminateMachines(self, euca_ids):
-
-        try:
-            ut = self.getApiUtil()
-            euca_conn = ut.openConnection()
-            euca_conn.terminate_instances(euca_ids)
-        except boto.exception.EC2ResponseError:
-            logging.error("cannot connect to eucalyptus, no machines terminated")
-            return 0
-
-    def terminateMachines(self, machineType, count):
-        booting = list(self.getSiteMachines(machineType=machineType, status=self.mr.statusBooting))
-        working = list(self.getSiteMachines(machineType=machineType, status=self.mr.statusWorking))
-
-        toRemove = booting + working
-        toRemove = toRemove[0:count]
-
-        [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration) for mid in toRemove]
-
-        return len(toRemove)
-
-    """
-    event on completion
-    """
-
-    def spawnMachines(self, machineType, count):
-        if not self.isMachineTypeSupported(machineType):
-            raise LookupError("Machine Image " + machineType + " not supported by this Adapter")
-
-        # ensure we dont overstep the site quota
-        if not self.getConfig(self.ConfigMaxMachines) is None:
-            # returns a dict of machine types
-            machineCount = self.cloudOccupyingMachinesCount
-            slotsLeft = self.getConfig(self.ConfigMaxMachines) - machineCount
-
-            if slotsLeft < count:
-                logging.warning("Site " + self.siteName + " reached MaxMachines, truncating to " +
-                                str(slotsLeft) + " new machines")
-                count = max(0, slotsLeft)
-
-        if count == 0:
-            return 0
-        try:
-            ut = self.getApiUtil()
-            euca_conn = ut.openConnection()
-            machineConf = self.getConfig(self.ConfigMachines)[machineType]
-            imgId = ut.getImageIdByImageName(euca_conn, machineConf.imageName)
-
-            if machineConf.securityGroup is None:
-                secGroup = []
-            else:
-                secGroup = [machineConf.securityGroup]
-
-            logging.info("EucaSpawnAdapter: running " + str(
-                count) + " instances of image " + machineConf.imageName)
-            reservation = euca_conn.run_instances(image_id=imgId,
-                                                  min_count=count,
-                                                  max_count=count,
-                                                  key_name=machineConf.instanceKey,
-                                                  security_groups=secGroup,
-                                                  user_data=machineConf.userData,
-                                                  addressing_type=machineConf.addressingType,
-                                                  instance_type=machineConf.instanceType,
-                                                  placement=None,
-                                                  kernel_id=machineConf.kernelId,
-                                                  ramdisk_id=machineConf.ramdiskId)
-
-            for instance in reservation.instances:
-                self.integrateMachine(euca_conn, instance, machineType)
-        except boto.exception.EC2ResponseError:
-            logging.error("cannot connect to eucalyptus, no machines spawned")
-            return 0
-
-        # logging.debug( reservation.instances )
-        return count
-
-    def getApiUtil(self):
-        raise NotImplementedError("This method must be implemented by the concrete derived class")
-
-    @property
-    def description(self):
-        return "EucaSpawnAdapter runs machines inside an eucalyptus cloud"
+        # add current amounts of machines to Json log file
+        self.logger.info("Current machines running at %s: %d"
+                         % (self.siteName, self.runningMachinesCount[
+            list(self.getConfig(self.configMachines).keys())[0]]))  # ["vm-default"]))
+        json_log = JsonLog()
+        json_log.addItem(self.siteName, 'machines_requested',
+                         int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
+                             len(self.getSiteMachines(status=self.mr.statusUp)) +
+                             len(self.getSiteMachines(status=self.mr.statusIntegrating))))
+        json_log.addItem(self.siteName, 'condor_nodes',
+                         len(self.getSiteMachines(status=self.mr.statusWorking)))
+        json_log.addItem(self.siteName, 'condor_nodes_draining',
+                         len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 
 
-class Ec2SiteAdapter(Ec2BasedSiteAdapter):
-    pass
-
-
-"""
-    
-    ConfigAwsAccessKeyId = "awsAccessKeyId"
-    ConfigAwsSecretAccessKey = "awsSecretAccessKey"
-    
-    def __init__(self):
-        Ec2BasedSiteAdapter.__init__(self)
-        
-        self.privateConfig += [self.ConfigAwsAccessKeyId, self.ConfigAwsSecretAccessKey ]
-        
-        self._eutil = None 
-
-    def getApiUtil(self):
-        if self._eutil == None:
-            self._eutil = Ec2Util()
-            self._eutil.aws_access_key_id = self.getConfig(self.ConfigAwsAccessKeyId) 
-            self._eutil.aws_secret_access_key  = self.getConfig(self.ConfigAwsSecretAccessKey)
-        
-        return self._eutil
-"""
-
-
-class EucaSiteAdapter(Ec2BasedSiteAdapter):
-    pass
-
-
-"""    def __init__(self):
-        Ec2BasedSiteAdapter.__init__(self)
-        
-        self._eucautil = None
-             
-    def getApiUtil(self):
-        if self._eucautil == None:
-            self._eucautil = EucaUtil()
-            
-        return self._eucautil 
-"""
+    def onEvent(self, mid):
+        """
+        event handler, called when a machine state changes
+        :param mid:
+        :return:
+        """
+        pass
