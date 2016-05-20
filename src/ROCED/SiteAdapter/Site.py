@@ -19,7 +19,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import unicode_literals
+
 
 import abc
 import copy
@@ -40,11 +40,10 @@ class SiteInformation(object):
         self.isAvailable = True
 
 
-class SiteAdapterBase(AdapterBase):
+class SiteAdapterBase(AdapterBase, metaclass=abc.ABCMeta):
     """
     Abstract base class for specific cloud site information.
     """
-    __metaclass__ = abc.ABCMeta
 
     ConfigSiteName = "site_name"
     ConfigSiteType = "site_type"
@@ -124,7 +123,7 @@ class SiteAdapterBase(AdapterBase):
         running_machines_count = self.runningMachinesCount
         max_machines = self.getConfig(self.ConfigMaxMachines)
 
-        for (machine_type, n_machines) in decision.items():
+        for (machine_type, n_machines) in list(decision.items()):
             # calc relative value when there are already machines running
             n_running_machines = 0
             if machine_type in running_machines_count:
@@ -169,7 +168,7 @@ class SiteAdapterBase(AdapterBase):
         for i in self.getConfig(self.ConfigMachines):
             machineList[i] = []
 
-        for mid, machine in myMachines.items():
+        for mid, machine in list(myMachines.items()):
             if statusFilter:  # empty list returns false in this statement
                 if machine.get(MachineRegistry.MachineRegistry.regStatus) in statusFilter:
                     machineList[machine[MachineRegistry.MachineRegistry.regMachineType]].append(mid)
@@ -199,7 +198,7 @@ class SiteAdapterBase(AdapterBase):
         """
         running_machines = self.runningMachines
         running_machines_count = dict()
-        for (machine_type, midList) in running_machines.items():
+        for (machine_type, midList) in list(running_machines.items()):
             running_machines_count[machine_type] = len(midList)
         return running_machines_count
 
@@ -224,7 +223,7 @@ class SiteAdapterBase(AdapterBase):
     def cloudOccupyingMachinesCount(self):
         """Return total number of machines occupying computing resources on a site."""
         sum_ = 0
-        for (machineType, midList) in self.cloudOccupyingMachines.items():
+        for (machineType, midList) in list(self.cloudOccupyingMachines.items()):
             sum_ += len(midList)
         return sum_
 

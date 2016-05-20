@@ -18,15 +18,13 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import unicode_literals
+
 
 import abc
 import logging
 
 
-class EventBase(object):
-    __metaclass__ = abc.ABCMeta
-
+class EventBase(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __init__(self):
         """
@@ -35,15 +33,7 @@ class EventBase(object):
         pass
 
 
-class EventPublisher(object):
-    __metaclass__ = abc.ABCMeta
-
-    # old singleton implementation:
-    # def __new__(self, *args):
-    #   if not '_the_instance' in self.__dict__:
-    #       self._the_instance = object.__new__(self)
-    #   return self._the_instance
-
+class EventPublisher(object, metaclass=abc.ABCMeta):
     def __init__(self):
         """
         Abstract base event manager

@@ -358,7 +358,7 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         self.assertEqual(espawn.spawnMachines("euca-default", 10), 10)
         self.assertEqual(len(mr.machines), 10)
 
-        for (mid, machine) in mr.machines.items():
+        for (mid, machine) in list(mr.machines.items()):
             self.assertTrue(espawn.reg_site_euca_instance_id in machine)
             self.assertTrue(mr.regSite in machine)
             self.assertTrue(mr.regStatus in machine)

@@ -19,7 +19,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import print_function, unicode_literals
+
 
 import csv
 import json
@@ -171,9 +171,9 @@ class JsonStats(object):
                 logging.error("JSON file could not be opened for logging!")
         else:
             oldStats = {
-                cls.__jsonStats.keys()[-1]: {
-                    cls.__jsonStats[cls.__jsonStats.keys()[-1]].keys()[-1]:
-                        [cls.__jsonStats[cls.__jsonStats.keys()[-1]].values()[-1]]
+                list(cls.__jsonStats.keys())[-1]: {
+                    list(cls.__jsonStats[list(cls.__jsonStats.keys())[-1]].keys())[-1]:
+                        [list(cls.__jsonStats[list(cls.__jsonStats.keys())[-1]].values())[-1]]
                 }
             }
         try:
@@ -209,16 +209,16 @@ class UnicodeWriter(object):
         self.f.close()
 
     def writeheader(self):
-        header = dict(zip(self.fieldnames, self.fieldnames))
+        header = dict(list(zip(self.fieldnames, self.fieldnames)))
         if not PY3:
             header = {str(key).encode(self.encoding): str(value).encode(self.encoding)
-                      for key, value in header.items()}
+                      for key, value in list(header.items())}
         self.writerow(header)
 
     def writerow(self, dictrow):
         if not PY3:
             dictrow = {str(key).encode(self.encoding): str(value).encode(self.encoding)
-                       for key, value in dictrow.items()}
+                       for key, value in list(dictrow.items())}
         self.writer.writerow(dictrow)
 
 

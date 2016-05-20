@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==============================================================================
-from __future__ import unicode_literals
+
 
 import logging
 import re
@@ -92,7 +92,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         runningJobs = self.__runningJobs
         completedJobs = self.__completedJobs
 
-        for mid, machine_ in self.getSiteMachines(status=self.mr.statusBooting).items():
+        for mid, machine_ in list(self.getSiteMachines(status=self.mr.statusBooting).items()):
             try:
                 idleJobs.remove(machine_[self.regMachineJobId])
             except ValueError:
@@ -170,7 +170,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         # booting machines, sorted by request time (newest first).
         bootingMachines = self.getSiteMachines(self.mr.statusBooting, machineType)
         try:
-            bootingMachines = sorted(bootingMachines.values(),
+            bootingMachines = sorted(list(bootingMachines.values()),
                                      key=lambda machine_: machine_[self.mr.regStatusLastUpdate],
                                      reverse=True)
         except KeyError:
@@ -183,7 +183,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.getSiteMachines(self.mr.statusWorking, machineType),
                 self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
             try:
-                workingMachines = sorted(workingMachines.values(),
+                workingMachines = sorted(list(workingMachines.values()),
                                          key=lambda machine_: HTCondor.calcMachineLoad(machine_[1]),
                                          reverse=True)
             except KeyError:
@@ -221,13 +221,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                           % (len(idsToDrain), ", ".join(idsToDrain)))
         if idsToDrain:
             for batchJobID in idsToDrain:
-                [HTCondor.drainMachine(machine) for machine in self.getSiteMachines().values()
+                [HTCondor.drainMachine(machine) for machine in list(self.getSiteMachines().values())
                  if machine[self.regMachineJobId] == batchJobID]
 
         if len(idsRemoved + idsInvalidated) > 0:
             # update status
             [self.mr.updateMachineStatus(mid, self.mr.statusDown) for mid, machine
-             in self.getSiteMachines().items()
+             in list(self.getSiteMachines().items())
              if machine[self.regMachineJobId] in idsRemoved + idsInvalidated]
 
     @property

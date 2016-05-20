@@ -25,13 +25,12 @@ from datetime import datetime
 from operator import attrgetter
 
 
-class SiteBrokerBase(object):
+class SiteBrokerBase(object, metaclass=abc.ABCMeta):
     """
     Abstract class for SiteBrokers. SiteBrokers (de-)allocate cloud resources.
 
     Implementations must inherit from this class.
     """
-    __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
     def decide(self, machineTypes, siteInfo):
@@ -92,7 +91,7 @@ class StupidBroker(SiteBrokerBase):
         # TODO: Input not yet complete. Broker has to know where each machine is running. FIX!!!
         machinesToSpawn = dict()
 
-        for (mname, mreq) in machineTypes.items():
+        for (mname, mreq) in list(machineTypes.items()):
             # don't request new machines in case of failure
             if mreq.required is not None:
                 delta = mreq.required - mreq.actual
@@ -118,7 +117,7 @@ class StupidBroker(SiteBrokerBase):
         siteOrders = dict()
 
         # spawn
-        for mname, tospawn in machinesToSpawn.items():
+        for mname, tospawn in list(machinesToSpawn.items()):
             for site in cheapFirst:
                 if tospawn > 0:
                     if mname in site.supportedMachineTypes:
@@ -128,7 +127,7 @@ class StupidBroker(SiteBrokerBase):
                         tospawn = 0
 
         # shutdown
-        for mname, tospawn in machinesToSpawn.items():
+        for mname, tospawn in list(machinesToSpawn.items()):
             for site in expensiveFirst:
                 if tospawn < 0:
                     if mname in site.supportedMachineTypes:

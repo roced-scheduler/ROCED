@@ -19,7 +19,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import unicode_literals
+
 
 """
 ROCED main runtime file
@@ -116,7 +116,7 @@ class ScaleMain(object):
 
         self.logger.info("Loading config " + str(config_file_name))
         config = configparser.RawConfigParser()
-        config.readfp(open(config_file_name))
+        config.read_file(open(config_file_name))
 
         self.setupLogger(config=config, debug=debug)
 

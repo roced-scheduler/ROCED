@@ -30,9 +30,7 @@ import abc
 from Core.Adapter import AdapterBase, AdapterBoxBase
 
 
-class RequirementAdapterBase(AdapterBase):
-    __metaclass__ = abc.ABCMeta
-
+class RequirementAdapterBase(AdapterBase, metaclass=abc.ABCMeta):
     ConfigReqName = "reqName"
 
     def __init__(self, machineType="default"):

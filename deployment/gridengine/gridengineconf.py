@@ -54,11 +54,11 @@ def filterColValueMkFunc(colNum, val):
 
 
 def removeNode(lines_, node):
-    return filter(filterColValueMkFunc(1, node), lines_)
+    return list(filter(filterColValueMkFunc(1, node), lines_))
 
 
 def removeIp(lines_, ip_):
-    return filter(filterColValueMkFunc(0, ip_), lines_)
+    return list(filter(filterColValueMkFunc(0, ip_), lines_))
 
 
 def addEntry(lines_, nodename_, ip_):
