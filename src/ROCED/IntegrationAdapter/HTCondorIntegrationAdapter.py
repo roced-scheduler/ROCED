@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import unicode_literals
+
 
 import logging
 import re
@@ -260,7 +260,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
         self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
-        self.logger.debug("Content of condor machines:\n%s" % condor_machines.items())
+        self.logger.debug("Content of condor machines:\n%s" % list(condor_machines.items()))
 
     def onEvent(self, evt):
         """Event handler

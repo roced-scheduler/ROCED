@@ -48,11 +48,11 @@ class FakeRequirementAdapter(RequirementAdapterBase):
             return self._curRequirement
 
         # free done jobs
-        [self.machinesRunningJobs.pop(key) for (key, value) in self.machinesRunningJobs.items()
+        [self.machinesRunningJobs.pop(key) for (key, value) in list(self.machinesRunningJobs.items())
          if (datetime.now() - value).seconds > self.jobDuration]
 
         # find 'free' machines
-        for (mid, machine) in self.mr.getMachines().items():
+        for (mid, machine) in list(self.mr.getMachines().items()):
             if self._curRequirement > 0:
                 if mid not in self.machinesRunningJobs:
                     if machine.get(self.mr.regStatus) == self.mr.statusWorking:

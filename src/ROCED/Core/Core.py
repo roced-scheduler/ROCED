@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import unicode_literals, absolute_import, print_function
+
 
 """
 This file contains the ScaleCore class which contains
@@ -192,7 +192,7 @@ class ScaleCore(object):
         runningBySite = self.siteBox.getRunningMachinesCount()
 
         def mergeDicts(dict1, dict2):
-            for (key_, value_) in dict2.items():
+            for (key_, value_) in list(dict2.items()):
                 if key_ in dict1:
                     dict1[key_] += value_
                 else:
@@ -200,10 +200,10 @@ class ScaleCore(object):
             return dict1
 
         # contains a list of all machine types merged
-        runningOverall = reduce(mergeDicts, runningBySite.values(), dict())
+        runningOverall = reduce(mergeDicts, list(runningBySite.values()), dict())
 
         machStat = dict()
-        for (k, v) in runningOverall.items():
+        for (k, v) in list(runningOverall.items()):
             machStat[k] = MachineStatus(req.get(k, 0), v)
 
         for k in req:
@@ -212,11 +212,11 @@ class ScaleCore(object):
 
         # logger.info("MachineStatus: " + str(machStat))
 
-        decision = self.broker.decide(machStat, siteInfo.values())
+        decision = self.broker.decide(machStat, list(siteInfo.values()))
         logger.info("Decision: " + str(decision))
 
         # make the machine counts absolute, as they come in relative from the broker
-        for (ksite, vmach) in decision.items():
+        for (ksite, vmach) in list(decision.items()):
             for kmach in vmach:
                 decision[ksite][kmach] += runningBySite[ksite].get(kmach, [])
 

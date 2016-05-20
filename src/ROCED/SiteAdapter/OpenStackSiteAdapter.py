@@ -623,5 +623,5 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             return nova_machines
 
         except Exception as e:
-            print e
+            print(e)
             return {}

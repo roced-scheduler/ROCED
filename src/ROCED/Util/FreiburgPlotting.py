@@ -23,7 +23,7 @@
 """
 Plots useful information from HTCondorRequirementAdapter and FreiburgSiteAdapter JSON outputs.
 """
-from __future__ import print_function
+
 
 import argparse
 import json
@@ -93,7 +93,7 @@ def main():
     log = sorted(logs.items())
 
     # convert timestamps to relative times and store quantities in separate lists
-    timestamps, content = zip(*log)
+    timestamps, content = list(zip(*log))
     rel_times = np.array([(int(timestamp) - int(timestamps[0])) for timestamp in timestamps])
     content = list(content)
 

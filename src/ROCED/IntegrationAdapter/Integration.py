@@ -29,19 +29,7 @@ import abc
 from Core import Adapter
 
 
-class IntegrationAdapterBase(Adapter.AdapterBase):
-    __metaclass__ = abc.ABCMeta
-
-    # def nodeBootstrapFile():  # @NoSelf
-    #     """ Contains the name of the file which should be copied to new nodes """
-    #     doc = """Docstring"""  # @UnusedVariable
-    #
-    # def nodeBootstrapCall():  # @NoSelf
-    #     """
-    #     Contains shell command which is executed on new nodes AFTER bootstrap file has
-    #     been uploaded. Shell parameters contain specific information about the node
-    #     """
-
+class IntegrationAdapterBase(Adapter.AdapterBase, metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def description(self):

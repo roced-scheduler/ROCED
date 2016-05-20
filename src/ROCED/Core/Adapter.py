@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import print_function, unicode_literals
+
 
 import abc
 import json
@@ -34,12 +34,11 @@ class NoDefaultSet(object):
         pass
 
 
-class AdapterBase(object):
+class AdapterBase(object, metaclass=abc.ABCMeta):
     """
     Contains a list of ConfigKeys which must not be published outside
     the application borders, for example the REST API
     """
-    __metaclass__ = abc.ABCMeta
 
     def getOptionalConfigKeys(self):
         return self.configKeysToLoadOptional
@@ -69,7 +68,7 @@ class AdapterBase(object):
     def getConfigAsDict(self, onlyPublic=False):
         strippedConf = {}
 
-        for (k, v) in self._configDict.items():
+        for (k, v) in list(self._configDict.items()):
             if k not in self.privateConfig:
                 strippedConf[k] = v
 

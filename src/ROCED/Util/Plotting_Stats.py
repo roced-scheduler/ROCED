@@ -171,7 +171,7 @@ class Stats(object):
         y_pos = int(np.floor(np.sqrt(n_plots)))
         x_pos = int(np.ceil(n_plots / float(y_pos)))
         plots = {}
-        for i, item in enumerate(range(1, n_plots + 1), 1):
+        for i, item in enumerate(list(range(1, n_plots + 1)), 1):
             plots[i] = fig.add_subplot(x_pos, y_pos, i)
 
         i = 1

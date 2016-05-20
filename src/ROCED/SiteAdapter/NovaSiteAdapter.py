@@ -81,7 +81,7 @@ class NovaSiteAdapter(SiteAdapterBase):
         return new
 
     def getMachineByEucaId(self, machineList, euca_id):
-        m = [machineList[mid] for (mid, machine) in machineList.items()
+        m = [machineList[mid] for (mid, machine) in list(machineList.items())
              if machine.get(self.reg_site_euca_instance_id) == euca_id]
         if len(m) == 0:
             # raise LookupError("Machine with euca id " + str(euca_id) + " not found in scale machine repository")
@@ -191,7 +191,7 @@ class NovaSiteAdapter(SiteAdapterBase):
             self.mr.updateMachineStatus(mid, self.mr.statusShutdown)
 
     def getMachineTypeByImageName(self, imageName):
-        for (mtype, machine) in self.getConfig(self.ConfigMachines).items():
+        for (mtype, machine) in list(self.getConfig(self.ConfigMachines).items()):
             if machine.imageName == imageName:
                 return mtype
 

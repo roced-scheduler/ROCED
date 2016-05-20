@@ -19,7 +19,7 @@
 #
 # ==============================================================================
 
-from __future__ import unicode_literals
+
 import logging
 import re
 import time
@@ -245,8 +245,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # return the unused indices
         return new_indices
 
-    @staticmethod
-    def generateCondorName(ip):
+    def generateCondorName(self, ip):
         """
         This function generates the machine name that is used to sign in to HTCondor
 
@@ -258,6 +257,34 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             ip_string += "{0:0>3}".format(ip_part)
 
         return ip_string
+
+    def getRunningMachines(self):
+        """
+        Returns a dictionary containing all running machines
+
+        The number of running machines needs to be recalculated when using status integrating and pending
+        disintegration. Machines pending disintegration are still running an can accept new jobs. Machines integrating
+        are counted as running machines by default.
+
+        :return: machineList
+        """
+
+        # get all machines running on site
+        myMachines = self.getSiteMachines()
+        machineList = dict()
+
+        # generate empty list for machines running on 1and1
+        machineList[list(self.getConfig(self.configMachines).keys())[0]] = []
+
+        # filter for machines in status booting, up, integrating, working or pending disintegration
+        for (k, v) in list(myMachines.items()):
+            if v.get(self.mr.regStatus) in [self.mr.statusBooting, self.mr.statusUp,
+                                            self.mr.statusIntegrating, self.mr.statusWorking,
+                                            self.mr.statusPendingDisintegration]:
+                # add machine to previously defined list
+                machineList[v[self.mr.regMachineType]].append(k)
+
+        return machineList
 
     def spawnMachines(self, machineType, requested):
         """
@@ -539,7 +566,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at %s: %d"
                          % (self.siteName, self.runningMachinesCount[
-            self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
+            list(self.getConfig(self.configMachines).keys())[0]]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +

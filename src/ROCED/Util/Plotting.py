@@ -19,7 +19,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import print_function, unicode_literals
+
 
 """
 Plots useful information from HTCondorRequirementAdapter and OpenStackSiteAdapter JSON outputs.
@@ -194,7 +194,7 @@ def plot_to_screen(logs_, plot_dict, style, time_scale):
     y_pos = int(np.floor(np.sqrt(n_plots)))
     x_pos = int(np.ceil(n_plots / float(y_pos)))
     plots = {}
-    for i, item in enumerate(range(1, n_plots + 1), 1):
+    for i, item in enumerate(list(range(1, n_plots + 1)), 1):
         plots[i] = fig.add_subplot(x_pos, y_pos, i)
 
     time_scales = {"s": ("second", 1), "m": ("minute", 60), "h": ("hour", 60 * 60),

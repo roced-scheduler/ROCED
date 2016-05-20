@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import unicode_literals
+
 
 import abc
 import logging
@@ -29,9 +29,7 @@ from Util.Logging import CsvStats
 from . import Event
 
 
-class MachineEvent(Event.EventBase):
-    __metaclass__ = abc.ABCMeta
-
+class MachineEvent(Event.EventBase, metaclass=abc.ABCMeta):
     def __init__(self, mid):
         super(MachineEvent, self).__init__()
         self.id = mid
@@ -106,7 +104,7 @@ class MachineRegistry(Event.EventPublisher):
         """
         newd = dict()
 
-        for (k, v) in self.machines.items():
+        for (k, v) in list(self.machines.items()):
             if ((site is None or v.get(self.regSite) == site) and
                     (status is None or v.get(self.regStatus) == status) and
                     (machineType is None or v.get(self.regMachineType) == machineType)):
