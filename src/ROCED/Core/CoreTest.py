@@ -24,7 +24,7 @@ import logging
 
 import configparser
 
-from RequirementAdapter.Requirement import RequirementAdapterBase
+from RequirementAdapter.RequirementTest import RequirementAdapterTest
 from SiteAdapter.Site import SiteAdapterBase, SiteInformation
 from . import Config
 from . import ScaleTest
@@ -54,23 +54,6 @@ class SiteAdapterTest(SiteAdapterBase):
     @siteName.setter
     def siteName(self, value_):
         self.setConfig(self.ConfigSiteName, value_)
-
-
-class RequirementAdapterTest(RequirementAdapterBase):
-    @property
-    def description(self):
-        return "Test requirement adapter for unit-test"
-
-    @property
-    def requirement(self):
-        """Return numbers of machine(s) required (integer) or None (Bool) if error."""
-        return super(RequirementAdapterBase, self)._curRequirement
-
-    @requirement.setter
-    def requirement(self, requirement_):
-        if requirement_ < 0:
-            requirement_ = None
-        self._curRequirement = requirement_
 
 
 class ScaleCoreTestBase(ScaleTest.ScaleTestBase):

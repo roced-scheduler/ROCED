@@ -29,6 +29,19 @@ from RequirementAdapter import Requirement
 class RequirementAdapterTest(Requirement.RequirementAdapterBase):
     def __init__(self, machineType="default"):
         super(RequirementAdapterTest, self).__init__(machineType)
+        logging.debug("New requirement adapter for machine '%s'" % machineType)
+
+    @property
+    def description(self):
+        return "Test requirement adapter for unit-test."
+
+    @property
+    def requirement(self):
+        return super(RequirementAdapterTest, self).requirement
+
+    @requirement.setter
+    def requirement(self, requirement_):
+        Requirement.RequirementAdapterBase.requirement.__set__(self, requirement_)
 
 
 class RequirementBoxTest(ScaleTest.ScaleTestBase):
@@ -43,11 +56,13 @@ class RequirementBoxTest(ScaleTest.ScaleTestBase):
 
         self.assertEqual(len(box.getMachineTypeRequirement()), 3)
         self.assertEqual(box.getMachineTypeRequirement()["type2"], 0)
-        logging.debug(str(box.getMachineTypeRequirement()))
+        logging.info(str(box.getMachineTypeRequirement()))
 
-        box._adapterList[1]._curRequirement = 3
-        box._adapterList[3]._curRequirement = 2
+        box.adapterList[1].requirement = 3
+        logging.debug("Second adapter requirement increased by 3.")
+        box.adapterList[3].requirement = 2
+        logging.debug("Fourth adapter requirement increased by 2.")
 
         self.assertEqual(len(box.getMachineTypeRequirement()), 3)
         self.assertEqual(box.getMachineTypeRequirement()["type2"], 5)
-        logging.debug(str(box.getMachineTypeRequirement()))
+        logging.info(str(box.getMachineTypeRequirement()))
