@@ -25,11 +25,8 @@ import csv
 import json
 import logging
 import os
-import sys
 import time
 from datetime import datetime
-
-PY3 = sys.version_info > (3,)
 
 """
     JSON Log handling
@@ -197,10 +194,7 @@ class UnicodeWriter(object):
         self.kw = kw
 
     def __enter__(self):
-        if PY3:
-            self.f = open(self.filename, 'at', encoding=self.encoding, newline='')
-        else:
-            self.f = open(self.filename, 'wb')
+        self.f = open(self.filename, 'at', encoding=self.encoding, newline='')
         self.writer = csv.DictWriter(self.f, fieldnames=self.fieldnames, dialect=self.dialect,
                                      **self.kw)
         return self
@@ -210,15 +204,9 @@ class UnicodeWriter(object):
 
     def writeheader(self):
         header = dict(list(zip(self.fieldnames, self.fieldnames)))
-        if not PY3:
-            header = {str(key).encode(self.encoding): str(value).encode(self.encoding)
-                      for key, value in list(header.items())}
         self.writerow(header)
 
     def writerow(self, dictrow):
-        if not PY3:
-            dictrow = {str(key).encode(self.encoding): str(value).encode(self.encoding)
-                       for key, value in list(dictrow.items())}
         self.writer.writerow(dictrow)
 
 
