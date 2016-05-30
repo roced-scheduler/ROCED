@@ -154,7 +154,8 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
 
     def runCommandOnPbs(self, cmd):
         if self.torqKey is None:
-            return ScaleTools.Shell.executeCommand(cmd)
+            rc, stdout, stderr = ScaleTools.Shell.executeCommand(cmd)
+            return rc, stdout
         else:
             ssh = ScaleTools.Ssh(self.torqIp, "root", self.torqKey, None, 1)
             return ssh.handleSshCall(cmd)

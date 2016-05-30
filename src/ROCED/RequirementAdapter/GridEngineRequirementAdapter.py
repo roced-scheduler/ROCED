@@ -60,7 +60,7 @@ class GridEngineRequirementAdapter(RequirementAdapterBase):
     def countQ(self, cmd):
         """subprocess routine"""
 
-        (res, count) = ScaleTools.Shell.executeCommand(cmd, self.shell_env)
+        (res, count, stderr) = ScaleTools.Shell.executeCommand(cmd, self.shell_env)
 
         return res, int(count)
 

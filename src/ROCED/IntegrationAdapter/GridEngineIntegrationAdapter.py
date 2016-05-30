@@ -62,10 +62,10 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
                            % machine_name)
                 environment = {"SGE_ROOT": "/opt/sge6.2u5"}
 
-                (res_xml, xml) = ScaleTools.Shell.executeCommand(command, environment)
+                (res_xml, stdout, stderr) = ScaleTools.Shell.executeCommand(command, environment)
 
                 if res_xml == 0:  # Shell command successful
-                    xmldoc = minidom.parseString(xml)
+                    xmldoc = minidom.parseString(stdout)
                     slots_used = int(xmldoc.getElementsByTagName("slots_used")[0].firstChild.data)
                     slots_reserved = int(
                         xmldoc.getElementsByTagName("slots_resv")[0].firstChild.data)
