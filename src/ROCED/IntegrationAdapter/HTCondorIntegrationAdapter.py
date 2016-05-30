@@ -206,9 +206,9 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         machine_[self.reg_site_server_condor_name]]
                     self.mr.machines[mid][self.mr.regMachineCores] = len(
                         self.mr.machines[mid][self.reg_site_condor_status])
-                # Machine stuck integrating? -> PendingDisintegration
+                # Machine stuck integrating? -> Disintegrated
                 elif self.mr.calcLastStateChange(mid) > condor_timeout:
-                    self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
+                    self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
             # "Working" machines need machine load > 0.1, otherwise they are "unclaimed".
             # -> "pending disintegration"
@@ -241,6 +241,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         self.calcMachineLoad(self.mr.machines[mid])
 
                         # machine load > 0.1 -> at least one slot is claimed -> re-enable
+                        # TODO: Switch to an integer "cores_claimed" and compare > 0
                         if self.mr.machines[mid][self.mr.regMachineLoad] > 0.1:
                             # Only re-enable non-draining nodes
                             if self.calcDrainStatus(self.mr.machines[mid])[1] is False:
