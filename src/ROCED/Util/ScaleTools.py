@@ -138,6 +138,11 @@ class Ssh(object):
         self.__gatewayKey = gatewaykey
         self.__gatewayUser = gatewayuser
 
+    @property
+    def host(self):
+        """Hostname - read access necessary for unit test(s)."""
+        return self.__host
+
     def canConnect(self, quiet=True):
         return self.handleSshCall("uname -a", quiet)[0] == 0
 
