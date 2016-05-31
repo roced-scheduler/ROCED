@@ -20,6 +20,7 @@
 # ===============================================================================
 from __future__ import unicode_literals
 
+import getpass
 import logging
 import re
 from collections import defaultdict
@@ -72,28 +73,31 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                                    default="HTC_Int")
         self.addCompulsoryConfigKeys(self.configCondorRequirement, Config.ConfigTypeString,
                                      description="Requirement string for condor")
-        self.addCompulsoryConfigKeys(self.configCondorUser, Config.ConfigTypeString,
-                                     description="Condor username")
-        self.addCompulsoryConfigKeys(self.configCondorKey, Config.ConfigTypeString,
-                                     description="SSH key")
-        self.addCompulsoryConfigKeys(self.configCondorServer, Config.ConfigTypeString,
-                                     description="Condor main server")
+        self.addOptionalConfigKeys(key=self.configCondorUser, datatype=Config.ConfigTypeString,
+                                   description="Login name for condor collector server.",
+                                   default=getpass.getuser())
+        self.addOptionalConfigKeys(key=self.configCondorServer, datatype=Config.ConfigTypeString,
+                                   description="Hostname of collector server. If machines are connected to connector "
+                                               "and have commandline interface installed, localhost can easily be used "
+                                               "because we query with \"global\".",
+                                   default="localhost")
+        self.addOptionalConfigKeys(key=self.configCondorKey, datatype=Config.ConfigTypeString,
+                                   description="Path to SSH key for remote login. Not necessary with server localhost.",
+                                   default="~/")
         self.addCompulsoryConfigKeys(self.configCondorName, Config.ConfigTypeString,
                                      description="Site name")
         self.addOptionalConfigKeys(self.configCondorWaitPD, Config.ConfigTypeInt,
-                                   description="Wait for x minutes before changing to "
-                                               "disintegrating.",
+                                   description="Wait for x minutes before changing to disintegrating.",
                                    default=0)
-        # self.addCompulsoryConfigKeys(self.configCondorIgnoreWaitPD, Config.ConfigTypeBoolean)
         self.addOptionalConfigKeys(self.configCondorWaitWorking, Config.ConfigTypeInt,
-                                   description="Wait for x minutes before changing to "
-                                               "pending disintegration.",
+                                   description="Wait for x minutes before changing to pending disintegration.",
                                    default=0)
-        # self.addCompulsoryConfigKeys(self.configCondorIgnoreWaitWorking, Config.ConfigTypeBoolean)
         self.addCompulsoryConfigKeys(self.configCondorDeadline, Config.ConfigTypeInt,
                                      description="Timeout (in minutes) before a machine stuck in "
                                                  "status integrating/disintegrating is considered "
                                                  "lost.")
+
+        self.logger = logging.getLogger(self.getConfig(self.configIntLogger))
 
     def init(self):
         """Register logger and listener
@@ -101,7 +105,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         :return:
         """
         super(HTCondorIntegrationAdapter, self).init()
-        self.logger = logging.getLogger(self.getConfig(self.configIntLogger))
         self.mr.registerListener(self)
 
     @classmethod
@@ -299,8 +302,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         condor_requirement = self.getConfig(self.configCondorRequirement)
         condor_ssh = ScaleTools.Ssh(condor_server, condor_user, condor_key)
 
-        cmd = ("condor_status -constraint '%s' -autoformat: Machine State Activity"
-               % condor_requirement)
+        cmd = ("condor_status -constraint '%s' -autoformat: Machine State Activity" % condor_requirement)
 
         # get a list of the condor machines (SSH)
         condor_result = condor_ssh.handleSshCall(call=cmd, quiet=True)
@@ -313,8 +315,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             valid_condor_info = False
 
         # prepare list of condor machines
-        tmp_condor_machines = re.findall("([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)",
-                                         condor_result[1], re.MULTILINE)
+        tmp_condor_machines = re.findall("([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)", condor_result[1], re.MULTILINE)
 
         # transform list into dictionary with one list per slot
         # {mid/OpenStackName : [[state, activity], [state, activity], ..]}

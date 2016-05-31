@@ -20,6 +20,7 @@
 # ===============================================================================
 from __future__ import unicode_literals
 
+import getpass
 import logging
 import re
 
@@ -41,9 +42,17 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
         self.setConfig(self.configMachines, dict())
         self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeDictionary)
-        self.addCompulsoryConfigKeys(self.configCondorUser, Config.ConfigTypeString)
-        self.addCompulsoryConfigKeys(self.configCondorKey, Config.ConfigTypeString)
-        self.addCompulsoryConfigKeys(self.configCondorServer, Config.ConfigTypeString)
+        self.addOptionalConfigKeys(key=self.configCondorUser, datatype=Config.ConfigTypeString,
+                                   description="Login name for condor collector server.",
+                                   default=getpass.getuser())
+        self.addOptionalConfigKeys(key=self.configCondorServer, datatype=Config.ConfigTypeString,
+                                   description="Hostname of collector server. If machines are connected to connector "
+                                               "and have commandline interface installed, localhost can easily be used "
+                                               "because we query with \"global\".",
+                                   default="localhost")
+        self.addOptionalConfigKeys(key=self.configCondorKey, datatype=Config.ConfigTypeString,
+                                   description="Path to SSH key for remote login. Not necessary with server localhost.",
+                                   default="~/")
         self.addCompulsoryConfigKeys(self.configCondorRequirement, Config.ConfigTypeString)
 
         self.logger = logging.getLogger('HTCondorReq')
@@ -68,11 +77,12 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         # selecting specific jobs.
         # grep is the solution here
 
-        # TODO: Install condor_q on the system and perform the command remote.
-        # TODO: Long term we want to run ROCED on the server running the condor scheduler
+        # TODO: htcondor python bindings? || condor_q -global -constraint "REMOTE_JOB==True"
+
         cmd = ("condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' "
                "-format '%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements | "
-               "grep '" + requirement_string + "' |  awk -F',' '{print $1\",\"$2}'")
+               "grep '" + requirement_string + "' | "
+               "awk -F',' '{print $1\",\"$2}'")
 
         result = ssh.handleSshCall(call=cmd, quiet=True)
 
@@ -101,8 +111,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                               % (n_jobs_idle, n_jobs_running, condor_jobs))
 
             # this requires the machines variable to be listed twice in the config file
-            n_cores = - int(self.getConfig(self.configMachines)
-                            [self.getNeededMachineType()]["cores"])
+            n_cores = - int(self.getConfig(self.configMachines)[self.getNeededMachineType()]["cores"])
 
             # calculate the number of machines needed
             self._curRequirement = - (n_slots // n_cores)
@@ -113,8 +122,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
             return self._curRequirement
         else:
-            self.logger.warning("Could not get HTCondor queue status! %d: %s"
-                                % (result[0], result[2]))
+            self.logger.warning("Could not get HTCondor queue status! %d: %s" % (result[0], result[2]))
             return None
 
     def getNeededMachineType(self):
