@@ -40,6 +40,9 @@ class IntegrationAdapterTest(Integration.IntegrationAdapterBase):
     def init(self):
         super(IntegrationAdapterTest, self).init()
 
+    def manage(self):
+        pass
+
     @property
     def description(self):
         return super(IntegrationAdapterTest, self).description

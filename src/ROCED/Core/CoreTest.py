@@ -47,6 +47,9 @@ class SiteAdapterTest(SiteAdapterBase):
     def spawnMachines(self, machineType, count):
         return
 
+    def manage(self):
+        pass
+
     @property
     def siteName(self):
         return super(SiteAdapterTest, self).siteName
@@ -54,7 +57,6 @@ class SiteAdapterTest(SiteAdapterBase):
     @siteName.setter
     def siteName(self, value_):
         self.setConfig(self.ConfigSiteName, value_)
-
 
 class ScaleCoreTestBase(ScaleTest.ScaleTestBase):
     def getDefaultSiteInfo(self):
