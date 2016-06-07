@@ -88,9 +88,17 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         ###
         # Try to add "booting" machines (submitted batch jobs) to machine registry.
         ###
-        idleJobs = self.__idleJobs
-        runningJobs = self.__runningJobs
-        completedJobs = self.__completedJobs
+        try:
+            idleJobs = self.__idleJobs
+            runningJobs = self.__runningJobs
+            completedJobs = self.__completedJobs
+        except ValueError:
+            if idleJobs is None:
+                idleJobs = []
+            if runningJobs is None:
+                runningJobs = {}
+            if completedJobs is None:
+                completedJobs = {}
 
         for mid, machine_ in self.getSiteMachines(status=self.mr.statusBooting).items():
             try:
@@ -444,6 +452,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return cmd
 
     @property
+    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=300)
     def __runningJobs(self):
         # type: () -> dict
         """Get list of running batch jobs, filtered by user ID."""
@@ -469,15 +478,17 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         elif frResult[0] == 255:
             frJobsRunning = {}
             self.logger.warning("SSH connection (showq -r) could not be established.")
+            raise ValueError("SSH connection (showq -r) could not be established.")
         else:
             frJobsRunning = {}
-            self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s"
-                                % (frResult[0], frResult[2]))
+            self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s" % (frResult[0], frResult[2]))
+            raise ValueError("Problem running remote command (showq -r) (RC %d):\n%s" % (frResult[0], frResult[2]))
 
         self.logger.debug("Running:\n%s" % frJobsRunning)
         return frJobsRunning
 
     @property
+    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=300)
     def __idleJobs(self):
         # type: () -> list
         """Get list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
@@ -492,15 +503,17 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         elif frResult[0] == 255:
             frJobsIdle = []
             self.logger.warning("SSH connection (showq -i) could not be established.")
+            raise ValueError("SSH connection (showq -i) could not be established.")
         else:
             frJobsIdle = []
-            self.logger.warning("Problem running remote command (showq -i) (RC %d):\n%s"
-                                % (frResult[0], frResult[2]))
+            self.logger.warning("Problem running remote command (showq -i) (RC %d):\n%s" % (frResult[0], frResult[2]))
+            raise ValueError("Problem running remote command (showq -i) (RC %d):\n%s" % (frResult[0], frResult[2]))
 
         self.logger.debug("Idle:\n%s" % frJobsIdle)
         return frJobsIdle
 
     @property
+    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=300)
     def __completedJobs(self):
         # type: () -> dict
         """Get list of completed batch jobs, filtered by user ID."""
@@ -515,18 +528,19 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                ^             # Match at the beginning of lines
                                (\d+)         # batch job id (digits) = result 1
                                \s+           # whitespace/tab
-                               [CV]          # job state: completed or vacated
+                               [RCV]         # job state: completed, vacated, removed
                                \s+           # whitespace/tab
                                ([-A-Z0-9]+)  # Return-code = result 2: +/- int or CNCLD
-                               \s+.+       # useless rest
+                               \s+.+         # useless rest
                                """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsCompleted = {}
             self.logger.warning("SSH connection (showq -c) could not be established.")
+            raise ValueError("SSH connection (showq -c) could not be established.")
         else:
             frJobsCompleted = {}
-            self.logger.warning("Problem running remote command (showq -c) (RC %d):\n%s"
-                                % (frResult[0], frResult[2]))
+            self.logger.warning("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
+            raise ValueError("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
 
         self.logger.debug("Completed:\n%s" % frJobsCompleted)
         return frJobsCompleted

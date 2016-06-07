@@ -65,6 +65,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         return "HTCondorRequirementAdapter"
 
     @property
+    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=900)
     def requirement(self):
         requirement_string = self.getConfig(self.configCondorRequirement)
         ssh = ScaleTools.Ssh(host=self.getConfig(self.configCondorServer),

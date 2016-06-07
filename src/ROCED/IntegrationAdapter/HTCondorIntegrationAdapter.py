@@ -170,6 +170,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         """
         return self.mr.getMachines(self.siteName, status, machineType)
 
+    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=900)
     def manage(self):
         """Manage machine status
 
