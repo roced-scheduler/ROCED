@@ -109,8 +109,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 elif machine_[self.regMachineJobId] in completedJobs:
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
                 else:
-                    self.logger.debug("Couldn't assign machine %s."
-                                      % machine_[self.regMachineJobId])
+                    self.logger.debug("Couldn't assign machine %s." % machine_[self.regMachineJobId])
         for jobId in idleJobs:
             mid = self.mr.newMachine()
             self.mr.machines[mid][self.mr.regSite] = self.siteName
@@ -138,8 +137,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         machineSettings = self.getConfig(self.ConfigMachines)[machineType]
 
         if count > maxMachinesPerCycle:
-            self.logger.info("%d machines requested, limited to %d for this cycle."
-                             % (count, maxMachinesPerCycle))
+            self.logger.info("%d machines requested, limited to %d for this cycle." % (count, maxMachinesPerCycle))
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
@@ -161,8 +159,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             else:
                 self.logger.warning("A (connection) problem occurred while requesting VMs. "
                                     "Stopping requesting new machines for now. "
-                                    "RC %d: stdout: %s, stderr: %s"
-                                    % (result[0], result[1], result[2]))
+                                    "RC %d: stdout: %s, stderr: %s" % (result[0], result[1], result[2]))
                 break
 
     def terminateMachines(self, machineType, count):
@@ -220,13 +217,11 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 # working machines should be set to drain mode
                 idsToDrain.append(machine[self.regMachineJobId])
 
-        self.logger.debug("Machines to terminate (%d): %s"
-                          % (len(idsToTerminate), ", ".join(idsToTerminate)))
+        self.logger.debug("Machines to terminate (%d): %s" % (len(idsToTerminate), ", ".join(idsToTerminate)))
         if idsToTerminate:
             idsRemoved, idsInvalidated = self.__cancelFreiburgMachines(idsToTerminate)
 
-        self.logger.debug("Machines to drain (%d): %s"
-                          % (len(idsToDrain), ", ".join(idsToDrain)))
+        self.logger.debug("Machines to drain (%d): %s" % (len(idsToDrain), ", ".join(idsToDrain)))
         if idsToDrain:
             for batchJobID in idsToDrain:
                 [HTCondor.drainMachine(machine) for machine in self.getSiteMachines().values()
@@ -293,17 +288,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.debug("Status Change Event: %s (%s->%s)"
                               % (evt.id, evt.oldStatus, evt.newStatus))
             if evt.newStatus == self.mr.statusDisintegrated:
-                # If Integration Adapter tells us, that the machine disappeared or "deserves" to
-                # be shutdown (timeouts), cancel VM batch job in Freiburg
-                # Caution: Periodic check in Freiburg happens every 30 seconds. Don't
-                # cancel jobs which are about to finish successfully.
+                # Disintegrated information comes from integration adapter. Skipping a status only happens when a
+                # machine timed out -> cancel VM batch job.
                 if (self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs and
                         evt.oldStatus != self.mr.statusDisintegrating):
                     self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
                         self.regMachineJobId)])
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
-            elif evt.newStatus == self.mr.statusDown:
-                self.mr.removeMachine(evt.id)
 
     def manage(self):
         # type: () -> None
@@ -312,6 +303,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         Booting = Freiburg batch job for machine was submitted
         Up      = Freiburg batch job is running, VM is Booting,
                   HTCondorIntegrationAdapter switches this to "integrating" and "working".
+        Disintegrated & Down
 
         HTCondorIntegrationAdapter is responsible for handling Integrating, Working,
         PendingDisintegration, Disintegrating
@@ -344,9 +336,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                             self.logger.debug("VM (%s) died with status 0!" % batchJobId)
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
             elif batchJobId in frJobsCompleted:
-                # Machine remained in machine registry after cycle (with status "Down").
-                # This SHOULD never happen, since "OnEvent" should instantly handle the deletion.
                 self.mr.removeMachine(mid)
+                continue
+            elif self.mr.calcLastStateChange(mid) > 60 and batchJobId in frJobsRunning:
+                # machine in status down, but job still has not completed after 60 seconds.
+                self.__cancelFreiburgMachines(batchJobId)
+                frJobsRunning.pop(batchJobId)
+                continue
 
             # batch job running: machine -> up
             if mr[mid][self.mr.regStatus] is self.mr.statusBooting:
@@ -362,12 +358,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
             self.mr.machines[mid][self.regMachineJobId] = batchJobId
-            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
-                batchJobId)
+            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(batchJobId)
             self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
-        self.logger.info("Machines using resources (Freiburg): %d"
-                         % self.cloudOccupyingMachinesCount)
+        self.logger.info("Machines using resources (Freiburg): %d" % self.cloudOccupyingMachinesCount)
 
         with JsonLog() as jsonLog:
             jsonLog.addItem(self.siteName, "condor_nodes",
@@ -416,17 +410,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             idsRemoved += re.findall("\'(\d+)\'", result[1])
             idsInvalidated += re.findall("invalid job specified \((\d+)", result[2])
             if len(idsRemoved) > 0:
-                self.logger.info("Terminated machines (%d): %s"
-                                 % (len(idsRemoved), ", ".join(idsRemoved)))
+                self.logger.info("Terminated machines (%d): %s" % (len(idsRemoved), ", ".join(idsRemoved)))
             if len(idsInvalidated) > 0:
                 self.logger.warning("Removed invalid machines (%d): %s"
                                     % (len(idsInvalidated), ", ".join(idsInvalidated)))
             if (len(idsRemoved) + len(idsInvalidated)) == 0:
-                self.logger.warning("A problem occurred while canceling VMs (RC %d):\n%s"
-                                    % (result[0], result[2]))
+                self.logger.warning("A problem occurred while canceling VMs (RC %d):\n%s" % (result[0], result[2]))
         else:
-            self.logger.warning("A problem occurred while canceling VMs (RC %d):\n%s"
-                                % (result[0], result[2]))
+            self.logger.warning("A problem occurred while canceling VMs (RC %d):\n%s" % (result[0], result[2]))
         return idsRemoved, idsInvalidated
 
     @classmethod
@@ -445,18 +436,18 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         frGroup = self.getConfig(self.configFreiburgUserGroup)
 
         if frGroup is None:
-            cmd = " -w user=" + frUser
+            res = "-w user=%s" % frUser
         else:
-            cmd = " -w group=" + frGroup
+            res = "-w group=%s" % frGroup
 
-        return cmd
+        return res
 
     @property
     @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=300)
     def __runningJobs(self):
         # type: () -> dict
         """Get list of running batch jobs, filtered by user ID."""
-        cmd = "showq -r" + self.__userString
+        cmd = "showq -r %s" % self.__userString
 
         frResult = self.__execCmdInFreiburg(cmd)
 
@@ -492,7 +483,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     def __idleJobs(self):
         # type: () -> list
         """Get list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
-        cmd = "showq -i" + self.__userString
+        cmd = "showq -i %s" % self.__userString
 
         frResult = self.__execCmdInFreiburg(cmd)
 
@@ -517,7 +508,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     def __completedJobs(self):
         # type: () -> dict
         """Get list of completed batch jobs, filtered by user ID."""
-        cmd = "showq -c" + self.__userString
+        cmd = "showq -c %s" % self.__userString
 
         frResult = self.__execCmdInFreiburg(cmd)
 

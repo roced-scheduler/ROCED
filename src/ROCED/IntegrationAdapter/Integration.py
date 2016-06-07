@@ -51,6 +51,25 @@ class IntegrationAdapterBase(Adapter.AdapterBase):
     def init(self):
         pass
 
+    @abc.abstractmethod
+    def manage(self):
+        """Periodically called manage function responsible for initiating status changes.
+
+        This method has to handle the following (machine registry) machine status transitions:
+            Up                      -> Integrating
+            Integrating             -> Working
+            Working                 <-> Pending Disintegration
+            Pending Disintegration  -> Disintegrating
+            Disintegrating          -> Disintegrated
+        The method "OnEvent" can also handle some of these. If the class is registered with the machine registry.
+
+        1. Connect with the batch system site to retrieve a list of all machines including their status.
+        2. Iterate the Machine Registry (Method getSiteMachines) and change machine status accordingly.
+
+        :return:
+        """
+        pass
+
 
 class IntegrationBox(Adapter.AdapterBoxBase):
     pass

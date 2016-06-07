@@ -82,6 +82,9 @@ class RequirementBox(AdapterBoxBase):
         self.reqCache = {}
 
     def getMachineTypeRequirement(self, fromCache=False):
+        """Calculate list of required machines per machine type
+
+        Format: {machine type: integer; machine_type: integer}"""
         if fromCache is True:
             return self.reqCache
 
@@ -100,3 +103,6 @@ class RequirementBox(AdapterBoxBase):
         self.reqCache = needDict
 
         return needDict
+
+    def manage(self):
+        pass

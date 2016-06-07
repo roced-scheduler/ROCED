@@ -104,23 +104,20 @@ class AdapterBase(object):
     def description(self):
         return "AdapterBase"
 
-    def manage(self):
-        pass
-
     _rpcServer = None
 
     def exportMethod(self, meth, name):
         if self._rpcServer is not None:
             self._rpcServer.register_function(meth, name)
         else:
-            logging.warning("Can't register method " + name + ". RPCServer not set.")
+            logging.warning("Can't register method %s. RPCServer not set." % name)
 
     def loadConfigValue(self, key_list, configuration, optional, section, new_obj):
         for (config_key, config_type, opt_val) in key_list:
             if not configuration.has_option(section, config_key) and optional:
                 if isinstance(opt_val, NoDefaultSet):
                     logging.error(
-                        "Config key " + config_key + " not defined and no default value set")
+                        "Config key %s not defined and no default value set." % config_key)
                     exit(0)
                 else:
                     val = opt_val
@@ -136,7 +133,7 @@ class AdapterBase(object):
                 elif config_type == Config.ConfigTypeDictionary:
                     val = json.loads(configuration.get(section, config_key))
                 else:
-                    print("Config data type " + config_type + " not supported")
+                    print("Config data type %s not supported." % config_type)
                     exit(0)
 
             new_obj.setConfig(config_key, val)

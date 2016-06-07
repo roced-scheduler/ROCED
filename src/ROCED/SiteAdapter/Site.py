@@ -80,6 +80,24 @@ class SiteAdapterBase(AdapterBase):
         self.logger = logging.getLogger('Site')
 
     @abc.abstractmethod
+    def manage(self):
+        """Periodically called manage function responsible for initiating site specific status changes.
+
+        This method has to handle the following (machine registry) machine status transitions:
+            Machine spawned -> Machine added to registry (Booting)
+            Booting         -> Up
+            Disintegrated   -> Down
+            Down            -> Machine removed from registry
+        The method "OnEvent" can also handle some of these. If the class is registered with the machine registry.
+
+        1. Connect with the site to retrieve a list of all machines including their status.
+        2. Iterate the Machine Registry (Method getSiteMachines) and change machine status accordingly.
+
+        :return:
+        """
+        pass
+
+    @abc.abstractmethod
     def spawnMachines(self, machineType, count):
         # type: (str, int) -> None
         """

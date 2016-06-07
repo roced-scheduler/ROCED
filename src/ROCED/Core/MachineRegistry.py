@@ -122,27 +122,21 @@ class MachineRegistry(Event.EventPublisher):
             oldTime = newTime
         diffTime = newTime - oldTime
 
-        oldStatus = self.machines[mid].get("status", None)
+        oldStatus = self.machines[mid].get(self.regStatus, None)
         self.machines[mid][self.regStatus] = newStatus
         self.machines[mid][self.regStatusLastUpdate] = newTime
-        self.machines[mid][self.statusChangeHistory].append({"old_status": oldStatus,
-                                                             "new_status": newStatus,
-                                                             "timestamp": str(newTime),
-                                                             "time_diff": str(diffTime)})
+        self.machines[mid][self.statusChangeHistory].append({"old_status": oldStatus, "new_status": newStatus,
+                                                             "timestamp": str(newTime), "time_diff": str(diffTime)})
 
         if mid in self.machines and len(self.machines[mid][self.statusChangeHistory]) > 0:
             with CsvStats() as csv_stats:
-                if str("site") not in self.machines[mid]:
-                    self.machines[mid]["site"] = "site"
-                csv_stats.add_item(site=self.machines[mid]["site"], mid=mid,
-                                   old_status=self.machines[mid][self.statusChangeHistory][-1][
-                                       "old_status"],
-                                   new_status=self.machines[mid][self.statusChangeHistory][-1][
-                                       "new_status"],
-                                   timestamp=self.machines[mid][self.statusChangeHistory][-1][
-                                       "timestamp"],
-                                   time_diff=self.machines[mid][self.statusChangeHistory][-1][
-                                       "time_diff"])
+                if self.regSite not in self.machines[mid]:
+                    self.machines[mid][self.regSite] = self.regSite
+                csv_stats.add_item(site=self.machines[mid][self.regSite], mid=mid,
+                                   old_status=self.machines[mid][self.statusChangeHistory][-1]["old_status"],
+                                   new_status=self.machines[mid][self.statusChangeHistory][-1]["new_status"],
+                                   timestamp=self.machines[mid][self.statusChangeHistory][-1]["timestamp"],
+                                   time_diff=self.machines[mid][self.statusChangeHistory][-1]["time_diff"])
                 csv_stats.write_stats()
 
         self.logger.info("Updating status of %s: %s -> %s" % (mid, oldStatus, newStatus))
@@ -183,14 +177,14 @@ class MachineRegistry(Event.EventPublisher):
     def newMachine(self, mid=None):
         if mid is None:
             mid = str(uuid.uuid4())
-        self.logger.debug("adding machine with id %s" % mid)
+        self.logger.debug("Adding machine with id %s." % mid)
         self.machines[mid] = dict()
         self.machines[mid][self.statusChangeHistory] = []
         self.publishEvent(NewMachineEvent(mid))
         return mid
 
     def removeMachine(self, mid):
-        self.logger.debug("removing machine with id %s" % mid)
+        self.logger.debug("Removing machine with id %s." % mid)
         self.machines.pop(mid)
         self.publishEvent(MachineRemovedEvent(mid))
 

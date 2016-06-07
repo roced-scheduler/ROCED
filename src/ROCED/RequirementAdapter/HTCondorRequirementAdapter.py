@@ -56,6 +56,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         self.addCompulsoryConfigKeys(self.configCondorRequirement, Config.ConfigTypeString)
 
         self.logger = logging.getLogger('HTCondorReq')
+        self.__str__ = self.description
 
     def init(self):
         super(HTCondorRequirementAdapter, self).init()

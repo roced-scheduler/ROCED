@@ -58,7 +58,7 @@ class ScaleCore(object):
         if self._rpcServer is not None:
             self._rpcServer.register_function(meth, name)
         else:
-            logger.warning("Can't register method " + name + " with rpc, self._rpcServer not set")
+            logger.warning("Can't register method %s with rpc, RPCServer not set." % name)
 
     def __init__(self,
                  broker,
@@ -122,7 +122,7 @@ class ScaleCore(object):
                     "__value__": python_object.strftime("%Y-%m-%d %H:%M:%S:%f")}
         elif isinstance(python_object, bytes) is True:
             return python_object.decode()
-        raise TypeError(repr(python_object) + ' is not JSON serializable')
+        raise TypeError("%s is not JSON serializable" % repr(python_object))
 
     def fromJson(self, json_object):
         """function to read not serializable objects from a json file.
@@ -177,7 +177,7 @@ class ScaleCore(object):
     def startManage(self):
         logger.info("----------------------------------")
         logger.info("Management cycle triggered")
-        logger.info("Time: " + str(datetime.today().strftime('%Y-%m-%d %H:%M:%S')))
+        logger.info("Time: %s" % datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
 
         # regular management
         self.reqBox.manage()
@@ -186,7 +186,7 @@ class ScaleCore(object):
 
         # scaling
         req = self.reqBox.getMachineTypeRequirement()
-        logger.info("Current requirement: " + str(req))
+        logger.info("Current requirement: %s" % req)
 
         siteInfo = self.siteBox.getSiteInformation()
         runningBySite = self.siteBox.getRunningMachinesCount()
@@ -210,17 +210,17 @@ class ScaleCore(object):
             if not k in machStat:
                 machStat[k] = MachineStatus(req.get(k, 0), 0)
 
-        # logger.info("MachineStatus: " + str(machStat))
-
         decision = self.broker.decide(machStat, siteInfo.values())
-        logger.info("Decision: " + str(decision))
 
-        # make the machine counts absolute, as they come in relative from the broker
+
+        logger.info("Decision: %s" % decision)
+
+        # make machine counts absolute, as they come in relative from the broker
         for (ksite, vmach) in decision.items():
             for kmach in vmach:
                 decision[ksite][kmach] += runningBySite[ksite].get(kmach, [])
+        logger.info("Absolute Decision: %s" % decision)
 
-        logger.info("Absolute Decision: " + str(decision))
         self.siteBox.applyMachineDecision(decision)
 
         mr = MachineRegistry.MachineRegistry()
@@ -253,7 +253,7 @@ class ObjectFactory(object):
     @classmethod
     def getObject(cls, className, adapterType=None):
         """
-        Dynamically load module(s) and instantiate an object(s).
+        Dynamically load module(s) and instantiate object(s).
 
         The config file contains all necessary information which adapters
         are _really_ required for the current execution.
@@ -306,7 +306,7 @@ class ScaleCoreFactory(object):
         if broker_type == "Broker.StupidBroker":
             return Broker.StupidBroker()
         else:
-            raise Exception("Broker type " + broker_type + " not supported")
+            raise Exception("Broker type %s not supported" % broker_type)
 
     def getReqAdapterList(self, configuration):
         return self.getAdapterList(Config.GeneralReqAdapters, configuration)
