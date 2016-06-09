@@ -65,21 +65,18 @@ class AdapterBase(object):
     def applyConfigDict(self, newConfig):
         self._configDict.update(newConfig)
 
-    # returns the Configuration containing only dicts
     def getConfigAsDict(self, onlyPublic=False):
-        strippedConf = {}
-
-        for (k, v) in self._configDict.items():
-            if k not in self.privateConfig:
-                strippedConf[k] = v
-
-        return strippedConf
+        # type: (bool) -> dict
+        """Returns the (complete) configuration as a dictionary."""
+        return {key: self._configDict[key] for key in self._configDict if key not in self.privateConfig}
 
     # Methods    
     def getConfig(self, key):
+        """Return a single configuration value."""
         return self._configDict.get(key, None)
 
     def setConfig(self, key, value):
+        """Set a single configuration value."""
         self._configDict[key] = value
 
     def __init__(self):
@@ -116,8 +113,7 @@ class AdapterBase(object):
         for (config_key, config_type, opt_val) in key_list:
             if not configuration.has_option(section, config_key) and optional:
                 if isinstance(opt_val, NoDefaultSet):
-                    logging.error(
-                        "Config key %s not defined and no default value set." % config_key)
+                    logging.error("Config key %s not defined and no default value set." % config_key)
                     exit(0)
                 else:
                     val = opt_val

@@ -121,6 +121,22 @@ class SiteAdapterBase(AdapterBase):
         """
         pass
 
+    def modServiceMachineDecision(self, decision):
+        # type: (dict) -> dict
+        """
+        Modify machine request decision to accommodate service machine requirements.
+
+        Some sites have specific requirements for service machines, for example squid server, DNS server, local
+        Condor schedds, ...
+        This method is called by the core, after requirement adapter and broker decided on the number of machines
+        to boot on each site. Depending on the site's setup, this method should add the required service machine(s),
+        replace single machines with service machine(s) or even replace the whole site order.
+
+        :param decision:    Dictionary with (relative) machine requirements {machine_type: count, machine_type: count}
+        :return:
+        """
+        return decision
+
     ###
     # The following functions shouldn't be required to be overwritten
     ###
@@ -223,6 +239,7 @@ class SiteAdapterBase(AdapterBase):
 
     @property
     def cloudOccupyingMachines(self):
+        # type: () -> dict
         """Return all machines which occupy computing resources on the cloud.
 
         Same behaviour as getRunningMachines, just with other status filtering.
@@ -253,7 +270,9 @@ class SiteAdapterBase(AdapterBase):
     static information about a site
     """
 
-    def getSiteInformation(self):
+    @property
+    def siteInformation(self):
+        # type: () -> dict
 
         sinfo = SiteInformation()
         sinfo.siteName = self.siteName
@@ -281,31 +300,35 @@ class SiteAdapterBase(AdapterBase):
 class SiteBox(AdapterBoxBase):
     @property
     def runningMachines(self):
-        all_ = dict()
+        # type: () -> dict
+        """ Get dictionary with running machines per site.
 
-        for adapter in self._adapterList:
-            all_[adapter.siteName] = adapter.runningMachines
+        :return {siteName: {machine_type: [machine ID, machine ID, ...], ...}}:
+        """
+        return {site.siteName: site.runningMachines for site in self._adapterList}
 
-        return all_
+    @property
+    def runningMachinesCount(self):
+        # type: () -> dict
+        """ Get dictionary with number of running machines per site.
 
-    def getRunningMachinesCount(self):
-        all_ = dict()
+        :return {siteName: {machine_type: integer, ...}}:
+        """
+        return {site.siteName: site.runningMachinesCount for site in self._adapterList}
 
-        for adapter in self._adapterList:
-            all_[adapter.siteName] = adapter.runningMachinesCount
+    @property
+    def siteConfigAsDict(self):
+        # type: () -> dict
+        """ Get dictionary with configuration per site.
 
-        return all_
+        :return {siteName: {machine_type: integer, ...}}:
+        """
+        return {site.siteName: site.getConfigAsDict() for site in self._adapterList}
 
-    def applyMachineDecision(self, decision):
-        [x.applyMachineDecision(decision.get(x.siteName, dict())) for x in self._adapterList]
-
-    def getSiteConfigAsDict(self):
-        all_ = dict()
-
-        for s in self._adapterList:
-            all_[s.siteName] = s.getConfigAsDict()
-
-        return all_
+    @property
+    def siteInformation(self):
+        # type: () -> dict
+        return {site.siteName: site.siteInformation for site in self._adapterList}
 
     def getSite(self, siteName):
         res = [site for site in self._adapterList if site.siteName == siteName]
@@ -314,10 +337,19 @@ class SiteBox(AdapterBoxBase):
         else:
             return None
 
-    def getSiteInformation(self):
-        all_ = dict()
+    def applyMachineDecision(self, decision):
+        [x.applyMachineDecision(decision.get(x.siteName, dict())) for x in self._adapterList]
 
-        for s in self._adapterList:
-            all_[s.siteName] = s.getSiteInformation()
+    def modServiceMachineDecision(self, decision):
+        # type: (dict) -> dict
+        """Modify "decision to order" (add or replace) to boot service machines (e.g. SQUIDs)."""
+        for site in self._adapterList:
+            if site.siteName in decision:
+                try:
+                    temp_decision = site.modServiceMachineDecision(decision[site.siteName])
+                    decision[site.siteName] = temp_decision
+                except AttributeError:
+                    # method not being defined in the site adapter is no problem. Just ignore it...
+                    pass
 
-        return all_
+        return decision

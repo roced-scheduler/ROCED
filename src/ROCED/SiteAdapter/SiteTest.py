@@ -81,7 +81,7 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         espawn = EucaSiteAdapter()
         espawn.setConfig(EucaSiteAdapter.ConfigMachines, self.getDefaultMachines())
 
-        siteInfo = espawn.getSiteInformation()
+        siteInfo = espawn.siteInformation
         self.assertEqual(len(siteInfo.supportedMachineTypes), 2)
         self.assertTrue('euca-default' in siteInfo.supportedMachineTypes)
         self.assertTrue('euca-alt-default' in siteInfo.supportedMachineTypes)

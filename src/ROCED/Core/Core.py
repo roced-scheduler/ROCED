@@ -188,8 +188,8 @@ class ScaleCore(object):
         req = self.reqBox.getMachineTypeRequirement()
         logger.info("Current requirement: %s" % req)
 
-        siteInfo = self.siteBox.getSiteInformation()
-        runningBySite = self.siteBox.getRunningMachinesCount()
+        siteInfo = self.siteBox.siteInformation
+        runningBySite = self.siteBox.runningMachinesCount
 
         def mergeDicts(dict1, dict2):
             for (key_, value_) in dict2.items():
@@ -212,6 +212,8 @@ class ScaleCore(object):
 
         decision = self.broker.decide(machStat, siteInfo.values())
 
+        # Service machines may modify site decision(s).
+        decision = self.siteBox.modServiceMachineDecision(decision)
 
         logger.info("Decision: %s" % decision)
 
