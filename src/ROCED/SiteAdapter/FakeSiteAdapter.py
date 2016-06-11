@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
+from __future__ import unicode_literals
 import random
 
 from Core import MachineRegistry
@@ -27,37 +27,42 @@ from .Site import SiteAdapterBase
 
 class FakeSiteAdapter(SiteAdapterBase):
     def __init__(self):
+        """A "hypothetical" site adapter, simulating regular behaviour.
+
+         Simulated behaviour from a site:
+         - Boot machines via "spawnMachines" - this usually calls a site's API
+         - Handle status changes via manage (e.g. an ordered machine started to boot)
+         - Terminate running machines
+         - Remove shutdown machines"""
         super(FakeSiteAdapter, self).__init__()
 
-        self.setConfig(self.ConfigSiteDescription,
-                       "A Fake Site with no backend to test the scale core.")
-        self.setConfig(self.ConfigMachines, {"euca-default": {}})
-
+        self.setConfig(self.ConfigSiteDescription, "A Fake Site with no backend to test the scale core.")
         self.privateConfig += [self.ConfigSiteDescription]
 
         self.mr = MachineRegistry.MachineRegistry()
 
-        self.bootTimeMu = 60
-        self.bootTimeSigma = 5
+        self.bootTimeMu = 4
+        self.bootTimeSigma = 2
 
     def init(self):
         self.mr.registerListener(self)
 
     def onEvent(self, evt):
-        if isinstance(evt, MachineRegistry.StatusChangedEvent):
+        if (isinstance(evt, MachineRegistry.StatusChangedEvent) and
+                    self.mr.machines[evt.id].get(self.mr.regSite) == self.siteName):
             # check correct site etc...
             if evt.newStatus == self.mr.statusDisintegrated:
                 # ha, machine to kill
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
-                # self.mr.removeMachine(evt.id)
 
     def manage(self):
         for machineType in self.runningMachines:
-            [self.mr.updateMachineStatus(mid, self.mr.statusUp)
-             for mid in self.runningMachines[machineType]
+            [self.mr.updateMachineStatus(mid, self.mr.statusUp) for mid in self.runningMachines[machineType]
              if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting and
              self.mr.calcLastStateChange(mid) > random.gauss(self.bootTimeMu,
                                                              self.bootTimeSigma)]
+        for mid in self.getSiteMachines(status=self.mr.statusDown):
+            self.mr.removeMachine(mid)
 
     def spawnMachines(self, machineType, count):
         for i in range(0, count):
@@ -73,10 +78,23 @@ class FakeSiteAdapter(SiteAdapterBase):
         return count
 
     def terminateMachines(self, machineType, count):
-        toRemove = list(self.mr.getMachines(status=self.mr.statusWorking, machineType=machineType))
+        workingMachines = self.mr.getMachines(status=self.mr.statusWorking, machineType=machineType)
+
+        toRemove = []
+
+        # Pick machines with machine load 0!
+        for mid in workingMachines:
+            if workingMachines[mid].get(self.mr.regMachineLoad, 0) == 0:
+                toRemove.append(mid)
+
+        number = len(toRemove)
+        if number >= count:
+            number = count
+        else:
+            self.logger.warning("Can only shutdown %d machines, rest is still working." % number)
 
         # only pick the needed amount
-        toRemove = toRemove[0:count]
+        toRemove = toRemove[0:number]
 
         [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration) for mid in toRemove]
 

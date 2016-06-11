@@ -18,21 +18,32 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
+from __future__ import unicode_literals
 
-
-from datetime import datetime
-
+from time import time
+import logging
 from Core import MachineRegistry
 from RequirementAdapter.Requirement import RequirementAdapterBase
 
 
 class FakeRequirementAdapter(RequirementAdapterBase):
     def __init__(self):
-        super(FakeRequirementAdapter, self).__init__()
+        """A "hypothetical" requirement adapter, simulating regular behaviour.
+
+         Simulated behaviour from a batch system:
+         - Processing starts with 5 idle jobs, which results in 5 machines.
+         - Once a "working" machine is found, a job is assigned and processed for 4 seconds.
+         - When a job is running, the machine load is 1
+         - When a job finishes, the machine load is 0
+
+         The requirement adapter usually just has to track the number of running and idle jobs.
+         Integration adapter should handle machine load, etc."""
+        super(FakeRequirementAdapter, self).__init__(machineType="vm-default")
         self._curRequirement = 5
-        self.completeJobs = False
+        self.completeJobs = True
         self.machinesRunningJobs = {}
-        self.jobDuration = 10  # seconds
+        self._jobcount = self._curRequirement
+        self._jobDuration = 4  # in seconds
         self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):
@@ -47,29 +58,25 @@ class FakeRequirementAdapter(RequirementAdapterBase):
         if self.completeJobs is False:
             return self._curRequirement
 
-        # free done jobs
-        [self.machinesRunningJobs.pop(key) for (key, value) in self.machinesRunningJobs.items()
-         if (datetime.now() - value).seconds > self.jobDuration]
+        ###
+        # Simulated batch system:
+        ###
 
-        # find 'free' machines
-        for (mid, machine) in self.mr.getMachines().items():
-            if self._curRequirement > 0:
-                if mid not in self.machinesRunningJobs:
-                    if machine.get(self.mr.regStatus) == self.mr.statusWorking:
-                        self.machinesRunningJobs[mid] = datetime.now()
-                        self._curRequirement -= 1
-                    if machine.get(self.mr.regStatus) == self.mr.statusBooting:
-                        self.machinesRunningJobs[mid] = datetime.now()
-                        self._curRequirement -= 1
-                    if machine.get(self.mr.regStatus) == self.mr.statusUp:
-                        self.machinesRunningJobs[mid] = datetime.now()
-                        self._curRequirement -= 1
-                    if machine.get(self.mr.regStatus) == self.mr.statusIntegrating:
-                        self.machinesRunningJobs[mid] = datetime.now()
-                        self._curRequirement -= 1
+        # free done jobs
+        for mid in list(self.machinesRunningJobs):
+            if time() - self.machinesRunningJobs[mid] > self._jobDuration:
+                logging.debug("Job on machine %s finished." % mid)
+                self.mr.machines[mid][self.mr.regMachineLoad] = 0
+                self.machinesRunningJobs.pop(mid)
+                if self._curRequirement > 0:
+                    self._curRequirement -= 1
+
+        # find "free" machines & assign jobs
+        for mid in self.mr.getMachines(status=self.mr.statusWorking):
+            if self._curRequirement > 0 and self._jobcount > 0 and mid not in self.machinesRunningJobs:
+                self.machinesRunningJobs[mid] = time()
+                self.mr.machines[mid][self.mr.regMachineLoad] = 1
+                self._jobcount -= 1
+                logging.debug("Job on machine %s started." % mid)
 
         return self._curRequirement
-
-    def getNeededMachineType(self):
-        # return "euca-default"
-        return "vm-default"
