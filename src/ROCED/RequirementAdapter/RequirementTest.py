@@ -29,7 +29,7 @@ from RequirementAdapter import Requirement
 class RequirementAdapterTest(Requirement.RequirementAdapterBase):
     def __init__(self, machineType="default"):
         super(RequirementAdapterTest, self).__init__(machineType)
-        logging.debug("New requirement adapter for machine '%s'" % machineType)
+        logging.debug("New requirement adapter for machine \"%s\"" % machineType)
 
     @property
     def description(self):

@@ -21,6 +21,7 @@
 
 from . import Event
 from . import ScaleTest
+import logging
 
 
 class EventPublisherTest(Event.EventPublisher):
@@ -29,6 +30,7 @@ class EventPublisherTest(Event.EventPublisher):
 
 class EventManagerTest(ScaleTest.ScaleTestBase):
     def test_publish(self):
+        logging.debug("=======Testing Events=======")
         emgr = EventPublisherTest()
 
         self.wasCalled = False

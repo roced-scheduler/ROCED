@@ -58,6 +58,7 @@ class SiteAdapterTest(SiteAdapterBase):
     def siteName(self, value_):
         self.setConfig(self.ConfigSiteName, value_)
 
+
 class ScaleCoreTestBase(ScaleTest.ScaleTestBase):
     def getDefaultSiteInfo(self):
         sinfo = [SiteInformation(), SiteInformation()]
@@ -83,38 +84,40 @@ class ScaleCoreTest(ScaleCoreTestBase):
 
         # general
         config.add_section(Config.GeneralSection)
-        config.set(Config.GeneralSection, Config.GeneralBroker, 'default_broker')
+        config.set(Config.GeneralSection, Config.GeneralBroker, "default_broker")
 
-        config.set(Config.GeneralSection, Config.GeneralSiteAdapters, 'fake_site1 fake_site2')
-        config.set(Config.GeneralSection, Config.GeneralIntAdapters, 'fake_int1 fake_int2')
-        config.set(Config.GeneralSection, Config.GeneralReqAdapters, 'fake_req1 fake_req2')
+        config.set(Config.GeneralSection, Config.GeneralSiteAdapters, "fake_site1 fake_site2")
+        config.set(Config.GeneralSection, Config.GeneralIntAdapters, "fake_int1 fake_int2")
+        config.set(Config.GeneralSection, Config.GeneralReqAdapters, "fake_req1 fake_req2")
 
         # Broker
         config.add_section("default_broker")
-        config.set("default_broker", Config.ConfigObjectType, 'Broker.StupidBroker')
+        config.set("default_broker", Config.ConfigObjectType, "Broker.StupidBroker")
 
         # Site
         config.add_section("fake_site1")
-        config.set("fake_site1", Config.ConfigObjectType, 'FakeSiteAdapter')
-        config.set("fake_site1", SiteAdapterBase.ConfigSiteName, 'fake_site1')
-        config.set("fake_site1", SiteAdapterBase.ConfigSiteDescription, 'my test description')
+        config.set("fake_site1", Config.ConfigObjectType, "FakeSiteAdapter")
+        config.set("fake_site1", SiteAdapterBase.ConfigSiteName, "fake_site1")
+        config.set("fake_site1", SiteAdapterBase.ConfigSiteDescription, "my test description")
 
         config.add_section("fake_site2")
-        config.set("fake_site2", Config.ConfigObjectType, 'FakeSiteAdapter')
-        config.set("fake_site2", SiteAdapterBase.ConfigSiteName, 'fake_site2')
-        config.set("fake_site2", SiteAdapterBase.ConfigSiteDescription, 'my test description 2')
+        config.set("fake_site2", Config.ConfigObjectType, "FakeSiteAdapter")
+        config.set("fake_site2", SiteAdapterBase.ConfigSiteName, "fake_site2")
+        config.set("fake_site2", SiteAdapterBase.ConfigSiteDescription, "my test description 2")
 
         # Integration
         config.add_section("fake_int1")
-        config.set("fake_int1", Config.ConfigObjectType, 'FakeIntegrationAdapter')
+        config.set("fake_int1", Config.ConfigObjectType, "FakeIntegrationAdapter")
+        config.set("fake_int1", SiteAdapterBase.ConfigSiteName, "fake_site1")
         config.add_section("fake_int2")
-        config.set("fake_int2", Config.ConfigObjectType, 'FakeIntegrationAdapter')
+        config.set("fake_int2", Config.ConfigObjectType, "FakeIntegrationAdapter")
+        config.set("fake_int2", SiteAdapterBase.ConfigSiteName, "fake_site2")
 
         # Requirement
         config.add_section("fake_req1")
-        config.set("fake_req1", Config.ConfigObjectType, 'FakeRequirementAdapter')
+        config.set("fake_req1", Config.ConfigObjectType, "FakeRequirementAdapter")
         config.add_section("fake_req2")
-        config.set("fake_req2", Config.ConfigObjectType, 'FakeRequirementAdapter')
+        config.set("fake_req2", Config.ConfigObjectType, "FakeRequirementAdapter")
 
         logging.debug("=======Testing Core=======")
 

@@ -50,6 +50,7 @@ class IntegrationAdapterTest(Integration.IntegrationAdapterBase):
 
 class AdapterBoxTest(ScaleTest.ScaleTestBase):
     def test_getBoxContent(self):
+        logging.debug("=======Testing AdapterBox=======")
         logging.basicConfig(level=logging.DEBUG)
 
         box = AdapterBoxBase()
@@ -62,6 +63,7 @@ class AdapterBoxTest(ScaleTest.ScaleTestBase):
 
 class AdapterBaseTest(ScaleTest.ScaleTestBase):
     def test_addOptionalConfigKeys(self):
+        logging.debug("=======Testing AdapterBase=======")
         config = configparser.RawConfigParser()
 
         # general

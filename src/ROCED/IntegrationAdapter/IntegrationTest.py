@@ -63,6 +63,7 @@ class TorqueIntegrationAdapterTest(ScaleTest.ScaleTestBase):
         FakeSsh.clear()
 
     def test_disintegrate(self):
+        logging.debug("=======Testing Integration=======")
         integration = TorqueIntegrationAdapter.TorqueIntegrationAdapter()
 
         mid = self.mr.newMachine()

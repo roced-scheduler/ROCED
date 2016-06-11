@@ -65,10 +65,11 @@ class ScaleMain(object):
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(IntegrationTest))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(RequirementTest))
 
-        self.logger.info("Running " + str(ts.countTestCases()) + " tests")
+        self.logger.info("Running %d tests." % ts.countTestCases())
         result = unittest.TestResult()
         ts.run(result)
 
+        logging.debug("=======Testing Finished=======")
         if result.wasSuccessful():
             self.logger.info("Test SUCCESS")
         else:
@@ -105,11 +106,10 @@ class ScaleMain(object):
                 except OSError:
                     logging.error("Error while creating /log/ folder")
             fname = log_folder + "/roced.log"
-            logger.info("Writing to log file " + fname)
+            logger.info("Writing to log file %s" % fname)
             file_handler = TimedRotatingFileHandler(fname, when='midnight')
             file_handler.setFormatter(
-                logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s',
-                                  '%Y-%m-%d %H:%M:%S'))
+                logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s', '%Y-%m-%d %H:%M:%S'))
             logger.addHandler(file_handler)
 
     def run(self, config_file_name, debug=False, iterations=None):
