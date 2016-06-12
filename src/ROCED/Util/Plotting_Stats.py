@@ -19,7 +19,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
+from __future__ import print_function, unicode_literals
 
 import argparse
 import csv
@@ -52,15 +52,13 @@ statusDown = "down"
 
 # dictionaries to plot
 stats_dict = [
-    {title: str(statusBooting + to + statusWorking), old_status: statusBooting,
-     new_status: statusWorking},
-    {title: str(statusBooting + to + statusDown), old_status: statusBooting,
-     new_status: statusDown}]
+    {title: str(statusBooting + to + statusWorking), old_status: statusBooting, new_status: statusWorking},
+    {title: str(statusBooting + to + statusDown), old_status: statusBooting, new_status: statusDown}
+]
 total_stats_dict = [
-    {title: str(statusBooting + to + statusDown), old_status: statusBooting,
-     new_status: statusDown},
-    {title: str(statusBooting + to + statusWorking), old_status: statusBooting,
-     new_status: statusWorking}]
+    {title: str(statusBooting + to + statusDown), old_status: statusBooting, new_status: statusDown},
+    {title: str(statusBooting + to + statusWorking), old_status: statusBooting, new_status: statusWorking}
+]
 
 time_scales = {"s": ("second", 1), "m": ("minute", 60), "h": ("hour", 60 * 60),
                "d": ("day", 60 * 60 * 24)}
@@ -82,6 +80,7 @@ class Stats(object):
         self.load_logs()
 
     def load_logs(self):
+        """Read all csv information into a dictionary."""
         for input_file in self.args.input_files:
             if ".csv" in input_file:
                 with open(input_file, "r") as csv_file:
@@ -92,22 +91,24 @@ class Stats(object):
                         tmp_old_status = row[old_status]
                         tmp_new_status = row[new_status]
                         tmp_timestamp = row[timestamp]
+                        # Don't import empty entries - they are added at ROCED startup.
+                        if tmp_old_status == "" or tmp_new_status == "":
+                            continue
                         try:
                             self.sites[tmp_site][tmp_mid].append(
                                 {old_status: tmp_old_status, new_status: tmp_new_status,
-                                 timestamp: datetime.datetime.strptime(tmp_timestamp,
-                                                                       "%Y-%m-%d %H:%M:%S.%f")})
+                                 timestamp: datetime.datetime.strptime(tmp_timestamp, "%Y-%m-%d %H:%M:%S.%f")})
                         except KeyError:
-                            if not tmp_site in self.sites:
+                            if tmp_site not in self.sites:
                                 self.sites[tmp_site] = {}
-                            if not tmp_mid in self.sites[tmp_site]:
+                            if tmp_mid not in self.sites[tmp_site]:
                                 self.sites[tmp_site][tmp_mid] = []
                             self.sites[tmp_site][tmp_mid].append(
                                 {old_status: tmp_old_status, new_status: tmp_new_status,
-                                 timestamp: datetime.datetime.strptime(tmp_timestamp,
-                                                                       "%Y-%m-%d %H:%M:%S.%f")})
+                                 timestamp: datetime.datetime.strptime(tmp_timestamp, "%Y-%m-%d %H:%M:%S.%f")})
 
     def calc_stats(self, stat):
+        """stat is a certain status transition from stats_dict."""
         for site_ in self.sites:
             for mid_ in self.sites[site_]:
                 for status_change in self.sites[site_][mid_]:
@@ -115,18 +116,21 @@ class Stats(object):
                         old_status_timestamp = status_change[timestamp]
                     if status_change[new_status] == stat[new_status]:
                         new_status_timestamp = status_change[timestamp]
-                if old_status_timestamp and new_status_timestamp:
-                    time_diff = (new_status_timestamp - old_status_timestamp).total_seconds()
-                else:
-                    time_diff = np.nan
+                try:
+                    if old_status_timestamp and new_status_timestamp:
+                        time_diff = (new_status_timestamp - old_status_timestamp).total_seconds()
+                    else:
+                        time_diff = np.nan
+                except UnboundLocalError:
+                    # We found a situation that's not defined in stats_dict.
+                    continue
 
                 try:
-                    self.stats[site_][stat[title]] = np.append(self.stats[site_][stat[title]],
-                                                               [time_diff])
+                    self.stats[site_][stat[title]] = np.append(self.stats[site_][stat[title]], [time_diff])
                 except KeyError:
-                    if not site_ in self.stats:
+                    if site_ not in self.stats:
                         self.stats[site_] = {}
-                    if not stat[title] in self.stats[site_]:
+                    if stat[title] not in self.stats[site_]:
                         self.stats[site_][stat[title]] = np.array([time_diff])
                         #        print self.stats
 
@@ -148,6 +152,9 @@ class Stats(object):
                 self.total_stats[site_] = {}
                 self.total_stats[site_][stat[title]] = {machines: len(self.sites[site_]),
                                                         timediff: (max_ - min_).total_seconds()}
+            except TypeError:
+                # max_ or min_ = None
+                continue
 
             fieldnames = [machines, timediff]
             filename = str(site_ + stat[title] + "_total_stats.csv")
@@ -166,8 +173,9 @@ class Stats(object):
         fig = plt.figure()
         n_plots = 0
         for site_ in self.stats:
-            for stat in self.stats[site_]:
-                n_plots += 1
+            n_plots += len(self.stats[site_])
+        if n_plots == 0:
+            raise ValueError("Nothing to plot")
         y_pos = int(np.floor(np.sqrt(n_plots)))
         x_pos = int(np.ceil(n_plots / float(y_pos)))
         plots = {}
@@ -219,4 +227,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+        exit(0)
+    except ValueError as err:
+        print(err)
+        exit(1)
