@@ -18,29 +18,20 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
-"""
-The IntegrationAdapters are responsible for adding and removing cloud machines
-to batch servers or other scheduling infrastructure
-"""
-
 import abc
 
-from Core import Adapter
+from Core import Adapter, MachineRegistry
 
 
 class IntegrationAdapterBase(Adapter.AdapterBase):
+    """
+    IntegrationAdapters are responsible for monitoring changes in the scheduling infrastructure (batch servers!).
+    They may also be responsible for adding/removing cloud machines to the scheduling infrastructure, if the machines
+    can't do it automatically.
+    """
     __metaclass__ = abc.ABCMeta
 
-    # def nodeBootstrapFile():  # @NoSelf
-    #     """ Contains the name of the file which should be copied to new nodes """
-    #     doc = """Docstring"""  # @UnusedVariable
-    #
-    # def nodeBootstrapCall():  # @NoSelf
-    #     """
-    #     Contains shell command which is executed on new nodes AFTER bootstrap file has
-    #     been uploaded. Shell parameters contain specific information about the node
-    #     """
+    mr = MachineRegistry.MachineRegistry()
 
     @property
     @abc.abstractmethod
@@ -65,6 +56,8 @@ class IntegrationAdapterBase(Adapter.AdapterBase):
 
         1. Connect with the batch system site to retrieve a list of all machines including their status.
         2. Iterate the Machine Registry (Method getSiteMachines) and change machine status accordingly.
+
+        As described earlier, it also can be used to handle different tasks regarding the scheduling infrastructure.
 
         :return:
         """

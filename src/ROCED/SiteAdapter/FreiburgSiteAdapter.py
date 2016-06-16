@@ -77,8 +77,6 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                    description="Should ROCED set working machines to drain mode, "
                                                "if it has to terminate machines?", default=False)
 
-        self.mr = MachineRegistry.MachineRegistry()
-
     def init(self):
         self.mr.registerListener(self)
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
@@ -175,8 +173,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         # booting machines, sorted by request time (newest first).
         bootingMachines = self.getSiteMachines(self.mr.statusBooting, machineType)
         try:
-            bootingMachines = sorted(bootingMachines.values(),
-                                     key=lambda machine_: machine_[self.mr.regStatusLastUpdate],
+            bootingMachines = sorted(bootingMachines.items(),
+                                     key=lambda machine_: machine_[1][self.mr.regStatusLastUpdate],
                                      reverse=True)
         except KeyError:
             bootingMachines = []
@@ -188,8 +186,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.getSiteMachines(self.mr.statusWorking, machineType),
                 self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
             try:
-                workingMachines = sorted(workingMachines.values(),
-                                         key=lambda machine_: HTCondor.calcMachineLoad(machine_[1]),
+                workingMachines = sorted(workingMachines.items(),
+                                         key=lambda machine_: HTCondor.calcMachineLoad(machine_[0]),
                                          reverse=True)
             except KeyError:
                 workingMachines = []
@@ -207,12 +205,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         idsRemoved = []
         idsInvalidated = []
 
-        for machine in machinesToRemove:
+        for mid, machine in machinesToRemove:
             if machine[self.mr.regStatus] == self.mr.statusBooting:
                 # booting machines can be terminated immediately
                 idsToTerminate.append(machine[self.regMachineJobId])
             elif self.getConfig(self.configDrainWorkingMachines):
-                if HTCondor.calcDrainStatus(machine)[1] is True:
+                if HTCondor.calcDrainStatus(mid)[1] is True:
                     continue
                 # working machines should be set to drain mode
                 idsToDrain.append(machine[self.regMachineJobId])
@@ -223,9 +221,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         self.logger.debug("Machines to drain (%d): %s" % (len(idsToDrain), ", ".join(idsToDrain)))
         if idsToDrain:
-            for batchJobID in idsToDrain:
-                [HTCondor.drainMachine(machine) for machine in self.getSiteMachines().values()
-                 if machine[self.regMachineJobId] == batchJobID]
+            [HTCondor.drainMachine(mid) for mid, machine in self.getSiteMachines().items()
+             if machine[self.regMachineJobId] in idsToDrain]
 
         if len(idsRemoved + idsInvalidated) > 0:
             # update status
@@ -256,7 +253,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 nDrainedSlots = 0
 
                 for mid in runningMachines[machineType]:
-                    nDrainedSlots += HTCondor.calcDrainStatus(self.mr.machines[mid])[0]
+                    nDrainedSlots += HTCondor.calcDrainStatus(mid)[0]
                 nCores = self.getConfig(self.ConfigMachines)[machineType]["cores"]
                 nMachines = len(runningMachines[machineType])
                 # Calculate the number of available slots
@@ -291,7 +288,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 # Disintegrated information comes from integration adapter. Skipping a status only happens when a
                 # machine timed out -> cancel VM batch job.
                 if (self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs and
-                        evt.oldStatus != self.mr.statusDisintegrating):
+                            evt.oldStatus != self.mr.statusDisintegrating):
                     self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
                         self.regMachineJobId)])
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
@@ -335,13 +332,16 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                         else:
                             self.logger.debug("VM (%s) died with status 0!" % batchJobId)
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
-            elif batchJobId in frJobsCompleted:
+            elif batchJobId in frJobsCompleted or self.mr.calcLastStateChange(mid) > 86400:
+                # Remove machines, which are:
+                # 1. finished in ROCED & Freiburg // 2. Finished for more than 1 day and thus have no data anymore.
                 self.mr.removeMachine(mid)
                 continue
-            elif self.mr.calcLastStateChange(mid) > 60 and batchJobId in frJobsRunning:
-                # machine in status down, but job still has not completed after 60 seconds.
-                self.__cancelFreiburgMachines(batchJobId)
+            elif batchJobId in frJobsRunning:
+                # ROCED machine down, but job still running
                 frJobsRunning.pop(batchJobId)
+                if self.mr.calcLastStateChange(mid) > 60:
+                    self.__cancelFreiburgMachines(batchJobId)
                 continue
 
             # batch job running: machine -> up
@@ -367,7 +367,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             jsonLog.addItem(self.siteName, "condor_nodes",
                             len(self.getSiteMachines(status=self.mr.statusWorking)))
             jsonLog.addItem(self.siteName, "condor_nodes_draining",
-                            len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
+                            len([mid for mid in self.getSiteMachines(status=self.mr.statusPendingDisintegration)
+                                 if HTCondor.calcDrainStatus(mid)[1] == True]))
             jsonLog.addItem(self.siteName, "machines_requested",
                             len(self.getSiteMachines(status=self.mr.statusBooting)) +
                             len(self.getSiteMachines(status=self.mr.statusUp)))

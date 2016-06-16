@@ -57,8 +57,6 @@ class NovaSiteAdapter(SiteAdapterBase):
     def __init__(self):
         super(NovaSiteAdapter, self).__init__()
 
-        self.mr = MachineRegistry.MachineRegistry()
-
     def init(self):
         # todo: see whats running as we start up
         self.mr.registerListener(self)

@@ -26,7 +26,7 @@ import sys
 
 import boto3
 
-from Core import Config, MachineRegistry
+from Core import Config
 from SiteAdapter.Site import SiteAdapterBase
 from Util.Logging import JsonLog
 
@@ -105,8 +105,6 @@ class Ec2SiteAdapter(SiteAdapterBase):
                                    default=None)
         self.addOptionalConfigKeys(self.configMaxCount, Config.ConfigTypeInt,
                                    description="Number of machines to boot max")
-
-        self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):
         super(Ec2SiteAdapter, self).init()
@@ -321,7 +319,7 @@ class Ec2SiteAdapter(SiteAdapterBase):
                         self.ec2_instance_status]["Status"] == "initializing"):
                     pass
                 elif (ec2_machines_status[machine[self.reg_site_server_id]][
-                        self.ec2_instance_status]["Status"] == "ok"):
+                          self.ec2_instance_status]["Status"] == "ok"):
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                 del ec2_machines_status[machine[self.reg_site_server_id]]
 

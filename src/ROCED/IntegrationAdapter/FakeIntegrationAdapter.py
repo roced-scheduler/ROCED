@@ -44,7 +44,6 @@ class FakeIntegrationAdapter(IntegrationAdapterBase):
                                      description="Site name")
         self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
                                    description="Logger name of Site Adapter", default="FakeInt")
-        self.mr = MachineRegistry.MachineRegistry()
         self.mr.registerListener(self)
 
     def init(self):

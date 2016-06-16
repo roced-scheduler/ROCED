@@ -144,9 +144,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                                    description="Defines the flavor to be selected",
                                    default="m1.large")
 
-        # init Machine Registry
-        self.mr = MachineRegistry.MachineRegistry()
-
     def init(self):
         super(OpenStackSiteAdapter, self).init()
 
@@ -193,12 +190,12 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         :return: machineList
         """
-        statusFilter = [MachineRegistry.MachineRegistry.statusUp,
-                        MachineRegistry.MachineRegistry.statusIntegrating,
-                        MachineRegistry.MachineRegistry.statusWorking,
-                        MachineRegistry.MachineRegistry.statusPendingDisintegration,
-                        MachineRegistry.MachineRegistry.statusDisintegrating,
-                        MachineRegistry.MachineRegistry.statusDisintegrated]
+        statusFilter = [self.mr.statusUp,
+                        self.mr.statusIntegrating,
+                        self.mr.statusWorking,
+                        self.mr.statusPendingDisintegration,
+                        self.mr.statusDisintegrating,
+                        self.mr.statusDisintegrated]
 
         return self.getSiteMachinesAsDict(statusFilter)
 

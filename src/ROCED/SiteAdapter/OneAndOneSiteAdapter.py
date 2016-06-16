@@ -20,14 +20,15 @@
 # ==============================================================================
 
 from __future__ import unicode_literals
+
 import logging
 import re
-import time
 import sys
+import time
 
 from oneandone.client import OneAndOneService, Server, Hdd
 
-from Core import Config, MachineRegistry
+from Core import Config
 from SiteAdapter.Site import SiteAdapterBase
 from Util.Logging import JsonLog
 
@@ -140,16 +141,12 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configSquid, Config.ConfigTypeString,
                                    description="Squid server name",
                                    default=None)
-
         # site settings
         self.addOptionalConfigKeys(self.configMaxMachines, Config.ConfigTypeInt,
                                    description="limit amount of machines",
                                    default=None)
-
         # set name of Site Adapter for ROCED output
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
-
-        self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):
         super(OneAndOneSiteAdapter, self).init()

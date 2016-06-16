@@ -38,7 +38,6 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
 
     def __init__(self):
         super(GridEngineIntegrationAdapter, self).__init__()
-        self.mr = MachineRegistry.MachineRegistry()
 
         self.addCompulsoryConfigKeys(self.ConfigGridEngineIp, Config.ConfigTypeString)
         self.addCompulsoryConfigKeys(self.ConfigGridEngineHostname, Config.ConfigTypeString)

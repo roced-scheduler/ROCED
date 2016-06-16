@@ -67,7 +67,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         :return:
         """
         super(HTCondorIntegrationAdapter, self).__init__()
-        self.mr = MachineRegistry.MachineRegistry()
         self.addOptionalConfigKeys(self.configIntLogger, Config.ConfigTypeString,
                                    description="logger name",
                                    default="HTC_Int")
@@ -108,7 +107,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         self.mr.registerListener(self)
 
     @classmethod
-    def calcMachineLoad(cls, machine):
+    def calcMachineLoad(cls, machine_id):
         # type: (dict) -> float
         """Calculate machine load [interval (0,1)] & update object accordingly.
 
@@ -116,12 +115,13 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         Function is made available externally since site adapters may require this information to
         terminate machines accordingly.
 
-        :param machine: Single machine registry entry [without key machine ID]
-        :type machine: dict
+        :param machine_id: Single machine registry entry
+        :type machine_id: str
         :return: float
         """
+        machine = cls.mr.machines[machine_id]
         cores_claimed = 0.0
-        machine[MachineRegistry.MachineRegistry.regMachineLoad] = 0.0
+        machine[cls.mr.regMachineLoad] = 0.0
         for slot in range(len(machine[cls.reg_site_condor_status])):
             if machine[cls.reg_site_condor_status][slot][0] in cls.condorStatusClaimed:
                 cores_claimed += 1
@@ -129,21 +129,21 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                 machine[cls.reg_status_last_update] = datetime.now()
                 # update machine load in machine object
                 machineLoad = cores_claimed / len(machine[cls.reg_site_condor_status])
-                machine[MachineRegistry.MachineRegistry.regMachineLoad] = machineLoad
-        return machine[MachineRegistry.MachineRegistry.regMachineLoad]
+                machine[cls.mr.regMachineLoad] = machineLoad
+        return machine[cls.mr.regMachineLoad]
 
     @classmethod
-    def calcDrainStatus(cls, machine):
+    def calcDrainStatus(cls, machine_id):
         # type: (dict) -> Tuple(int, bool)
         """Calculate machine drain status (number of draining slots and bool for drain status).
 
-        :param machine:
+        :param machine_id:
         :return Tuple(int, bool):
         """
         nDrainedSlots = 0
         statusDraining = False
         try:
-            for slot in machine[cls.reg_site_condor_status]:
+            for slot in cls.mr.machines[machine_id][cls.reg_site_condor_status]:
                 if slot[0] == cls.condorActivityDrained:
                     nDrainedSlots += 1
                     statusDraining = True
@@ -170,7 +170,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         """
         return self.mr.getMachines(self.siteName, status, machineType)
 
-    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=900)
     def manage(self):
         """Manage machine status
 
@@ -221,13 +220,10 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                     # update condor slot status & calculate machine load
                     self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                         machine_[self.reg_site_server_condor_name]]
-                    self.calcMachineLoad(self.mr.machines[mid])
-
-                    if self.mr.machines[mid][self.mr.regMachineLoad] <= 0.1 \
-                            and self.mr.calcLastStateChange(mid) > condor_wait_working:
+                    if self.calcMachineLoad(mid) <= 0.1 and self.mr.calcLastStateChange(mid) > condor_wait_working:
                         self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
                     # If slot activity/machine state indicate draining -> Pending Disintegration
-                    if self.calcDrainStatus(self.mr.machines[mid])[1] is True:
+                    if self.calcDrainStatus(mid)[1] is True:
                         self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
                 else:
                     # Machine disappeared
@@ -242,13 +238,13 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         # update condor slot status & calculate machine load
                         self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                             machine_[self.reg_site_server_condor_name]]
-                        self.calcMachineLoad(self.mr.machines[mid])
+                        self.calcMachineLoad(mid)
 
                         # machine load > 0.1 -> at least one slot is claimed -> re-enable
                         # TODO: Switch to an integer "cores_claimed" and compare > 0
                         if self.mr.machines[mid][self.mr.regMachineLoad] > 0.1:
                             # Only re-enable non-draining nodes
-                            if self.calcDrainStatus(self.mr.machines[mid])[1] is False:
+                            if self.calcDrainStatus(mid)[1] is False:
                                 self.mr.updateMachineStatus(mid, self.mr.statusWorking)
                         elif self.mr.calcLastStateChange(mid) > condor_wait_PD:
                             self.mr.updateMachineStatus(mid, self.mr.statusDisintegrating)
@@ -322,14 +318,14 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         # {mid/OpenStackName : [[state, activity], [state, activity], ..]}
         condor_machines = defaultdict(list)
         if len(tmp_condor_machines) > 1 and any(tmp_condor_machines[0]):
-            for job_id, state, activity in tmp_condor_machines:
-                condor_machines[job_id].append([state, activity])
+            for machine_name, state, activity in tmp_condor_machines:
+                condor_machines[machine_name].append([state, activity])
 
         # return a tuple containing the needed information
         return condor_machines, valid_condor_info
 
     @classmethod
-    def drainMachine(cls, machine):
+    def drainMachine(cls, mid):
         # type: (dict) -> None
         """ Send "condor_drain" command to machine (draining machines won't accept new jobs).
 
@@ -337,6 +333,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         administrative command, so condor_user requires condor admin access rights."""
         # TODO: Implement "condor_drain"
         # TODO: Must be class method (external call!); access instance attribute condor_server...
-        if cls.calcDrainStatus(machine)[1] is True:
+        if cls.calcDrainStatus(mid)[1] is True:
             logging.debug("Machine is already in drain mode.")
-        logging.warning("Send draining command to VM not yet implemented")
+        logging.warning("Send draining command to VM not yet implemented.")

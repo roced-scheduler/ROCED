@@ -25,8 +25,7 @@ import abc
 import copy
 import logging
 
-from Core import Config
-from Core import MachineRegistry
+from Core import MachineRegistry, Config
 from Core.Adapter import AdapterBase, AdapterBoxBase
 
 
@@ -55,6 +54,8 @@ class SiteAdapterBase(AdapterBase):
     ConfigMaxMachines = "max_machines"
     ConfigMachineBootTimeout = "machine_boot_timeout"
     ConfigBaselineMachines = "baseline_machines"
+
+    mr = MachineRegistry.MachineRegistry()
 
     # Override the following for your custom cloud implementation
     @abc.abstractmethod
@@ -149,8 +150,7 @@ class SiteAdapterBase(AdapterBase):
         :param machineType: (optional) filter on machine type
         :return {machine_id: {a:b,c:d,e:f}, machine_id: {a:b,c:d,e:f}, ...}:
         """
-        mr = MachineRegistry.MachineRegistry()
-        return mr.getMachines(self.siteName, status, machineType)
+        return self.mr.getMachines(self.siteName, status, machineType)
 
     def applyMachineDecision(self, decision):
 
@@ -205,10 +205,10 @@ class SiteAdapterBase(AdapterBase):
 
         for mid, machine in myMachines.items():
             if statusFilter:  # empty list returns false in this statement
-                if machine.get(MachineRegistry.MachineRegistry.regStatus) in statusFilter:
-                    machineList[machine[MachineRegistry.MachineRegistry.regMachineType]].append(mid)
+                if machine.get(self.mr.regStatus) in statusFilter:
+                    machineList[machine[self.mr.regMachineType]].append(mid)
             else:
-                machineList[machine[MachineRegistry.MachineRegistry.regMachineType]].append(mid)
+                machineList[machine[self.mr.regMachineType]].append(mid)
 
         return machineList
 
@@ -218,11 +218,11 @@ class SiteAdapterBase(AdapterBase):
 
         :return dictionary {machine_type: [machine ID, machine ID, ...], ...} :
         """
-        statusFilter = [MachineRegistry.MachineRegistry.statusBooting,
-                        MachineRegistry.MachineRegistry.statusUp,
-                        MachineRegistry.MachineRegistry.statusIntegrating,
-                        MachineRegistry.MachineRegistry.statusWorking,
-                        MachineRegistry.MachineRegistry.statusPendingDisintegration]
+        statusFilter = [self.mr.statusBooting,
+                        self.mr.statusUp,
+                        self.mr.statusIntegrating,
+                        self.mr.statusWorking,
+                        self.mr.statusPendingDisintegration]
         return self.getSiteMachinesAsDict(statusFilter)
 
     @property
@@ -246,13 +246,13 @@ class SiteAdapterBase(AdapterBase):
 
         :return dictionary {machine_type: [machine ID, machine ID, ...], ...} :
         """
-        statusFilter = [MachineRegistry.MachineRegistry.statusBooting,
-                        MachineRegistry.MachineRegistry.statusUp,
-                        MachineRegistry.MachineRegistry.statusIntegrating,
-                        MachineRegistry.MachineRegistry.statusWorking,
-                        MachineRegistry.MachineRegistry.statusPendingDisintegration,
-                        MachineRegistry.MachineRegistry.statusDisintegrating,
-                        MachineRegistry.MachineRegistry.statusDisintegrated]
+        statusFilter = [self.mr.statusBooting,
+                        self.mr.statusUp,
+                        self.mr.statusIntegrating,
+                        self.mr.statusWorking,
+                        self.mr.statusPendingDisintegration,
+                        self.mr.statusDisintegrating,
+                        self.mr.statusDisintegrated]
         return self.getSiteMachinesAsDict(statusFilter)
 
     @property

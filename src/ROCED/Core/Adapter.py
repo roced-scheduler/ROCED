@@ -87,7 +87,6 @@ class AdapterBase(object):
         self.configKeysToLoad = []
         # config keys whose values CAN be set before staring
         self.configKeysToLoadOptional = []
-
         self.privateConfig = []
 
     def init(self):

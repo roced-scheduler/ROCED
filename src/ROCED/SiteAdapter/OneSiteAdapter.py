@@ -58,7 +58,6 @@ class OneSiteAdapter(SiteAdapterBase):
         self.addCompulsoryConfigKeys(self.ConfigUID, Config.ConfigTypeString)
         self.addCompulsoryConfigKeys(self.ConfigServerProxy, Config.ConfigTypeString)
 
-        self.mr = MachineRegistry.MachineRegistry()
         self.hostname_prefix = "cloud-"
 
         self.reg_site_one_first_dead_check = "site_one_first_dead_check"

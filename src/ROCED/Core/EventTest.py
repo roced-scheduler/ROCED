@@ -19,9 +19,10 @@
 #
 # ===============================================================================
 
+import logging
+
 from . import Event
 from . import ScaleTest
-import logging
 
 
 class EventPublisherTest(Event.EventPublisher):

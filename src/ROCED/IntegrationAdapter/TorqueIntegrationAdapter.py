@@ -35,7 +35,6 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
     def __init__(self):
         super(TorqueIntegrationAdapter, self).__init__()
 
-        self.mr = MachineRegistry.MachineRegistry()
         self.torqIp = None
         self.torqHostName = None
         """ SSH key to torque server.

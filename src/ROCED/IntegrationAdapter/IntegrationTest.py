@@ -18,8 +18,6 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
-
 import logging
 
 from Core import MachineRegistry

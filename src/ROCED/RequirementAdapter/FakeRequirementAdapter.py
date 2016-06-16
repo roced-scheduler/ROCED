@@ -20,9 +20,9 @@
 # ===============================================================================
 from __future__ import unicode_literals
 
-from time import time
 import logging
-from Core import MachineRegistry
+from time import time
+
 from RequirementAdapter.Requirement import RequirementAdapterBase
 
 
@@ -44,7 +44,6 @@ class FakeRequirementAdapter(RequirementAdapterBase):
         self.machinesRunningJobs = {}
         self._jobcount = self._curRequirement
         self._jobDuration = 4  # in seconds
-        self.mr = MachineRegistry.MachineRegistry()
 
     def init(self):
         super(FakeRequirementAdapter, self).init()

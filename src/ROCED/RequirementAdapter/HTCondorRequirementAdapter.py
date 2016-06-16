@@ -24,7 +24,7 @@ import getpass
 import logging
 import re
 
-from Core import MachineRegistry, Config
+from Core import Config
 from RequirementAdapter.Requirement import RequirementAdapterBase
 from Util import Logging, ScaleTools
 
@@ -38,7 +38,6 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
     def __init__(self):
         super(HTCondorRequirementAdapter, self).__init__()
-        self.mr = MachineRegistry.MachineRegistry()
 
         self.setConfig(self.configMachines, dict())
         self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeDictionary)
@@ -84,7 +83,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         cmd = ("condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' "
                "-format '%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements | "
                "grep '" + requirement_string + "' | "
-               "awk -F',' '{print $1\",\"$2}'")
+                                               "awk -F',' '{print $1\",\"$2}'")
 
         result = ssh.handleSshCall(call=cmd, quiet=True)
 

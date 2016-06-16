@@ -19,6 +19,7 @@
 #
 # ===============================================================================
 from __future__ import unicode_literals
+
 import random
 
 from Core import MachineRegistry
@@ -38,8 +39,6 @@ class FakeSiteAdapter(SiteAdapterBase):
 
         self.setConfig(self.ConfigSiteDescription, "A Fake Site with no backend to test the scale core.")
         self.privateConfig += [self.ConfigSiteDescription]
-
-        self.mr = MachineRegistry.MachineRegistry()
 
         self.bootTimeMu = 4
         self.bootTimeSigma = 2
