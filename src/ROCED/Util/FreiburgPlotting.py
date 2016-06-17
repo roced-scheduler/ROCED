@@ -50,63 +50,64 @@ def init_plots(style=None, split=None, max=None, time_scale=None):
     Legend plot is just an invisible placeholder to reserve place for the legend.
     """
     plots = []
-    l = 1
-    n = 3
-    m = 8
-    ratio = n / m
-    gs = gridspec.GridSpec(3, 1, height_ratios=[l, n, m])
-    fig = plt.figure()
-    # top
-    ax1 = plt.subplot(gs[1, :])
-    plots.append(ax1)
-    # bottom
-    ax2 = plt.subplot(gs[2, :], sharex=ax1)
-    plots.append(ax2)
-    # legend subplot
-    leg = plt.subplot(gs[0, :])
-    plots.append(leg)
+    split_value = (split / 100 + 1) * 100
+    if split_value > max:
+        # If we only have a few jobs, all that stuff is unnecessary.
+        fig = plt.figure()
+        bottom_plot = fig.add_subplot(111)
+        plt.hold(True)
+        plots.append(bottom_plot)
+    else:
+        l = 1
+        n = 3
+        m = 8
+        ratio = n / m
+        gs = gridspec.GridSpec(3, 1, height_ratios=[l, n, m])
+        fig = plt.figure()
+        top_plot = plt.subplot(gs[1, :])
+        plots.append(top_plot)
+        bottom_plot = plt.subplot(gs[2, :], sharex=top_plot)
+        plots.append(bottom_plot)
+        legend = plt.subplot(gs[0, :])
+        plots.append(legend)
 
-    ax1.spines["bottom"].set_linestyle("dotted")
-    ax1.locator_params(axis="y", tight=True, nbins=5)
-    ax2.spines["top"].set_linestyle("dotted")
-    leg.set_frame_on(False)
-    leg.get_xaxis().set_visible(False)
-    leg.get_yaxis().set_visible(False)
-    plt.subplots_adjust(hspace=0.1)
+        top_plot.spines["bottom"].set_linestyle("dotted")
+        top_plot.locator_params(axis="y", tight=True, nbins=5)
+        bottom_plot.spines["top"].set_linestyle("dotted")
+        legend.set_frame_on(False)
+        legend.get_xaxis().set_visible(False)
+        legend.get_yaxis().set_visible(False)
+        plt.subplots_adjust(hspace=0.1)
 
-    ax1.tick_params(axis="x", bottom="off", labelbottom="off")
-    ax2.tick_params(axis="x", top="off", labeltop="off")
-    ax1.tick_params(axis="y", pad=15)
-    ax2.tick_params(axis="y", pad=15)
+        top_plot.tick_params(axis="x", bottom="off", labelbottom="off")
+        bottom_plot.tick_params(axis="x", top="off", labeltop="off")
+
+        # zoom in specific areas of the plot
+        top_plot.set_ylim(split_value, max)
+        bottom_plot.set_ylim(0, split_value)
+
+        # Diagonal splitting lines to show plot separation/different y-scales.
+        length = .01
+        kwargs = dict(transform=top_plot.transAxes, color="k", clip_on=False)
+        top_plot.plot((-length, length), (-length, length), **kwargs)  # bottom-left (0,0)
+        top_plot.plot((1 - length, 1 + length), (-length, length), **kwargs)  # bottom-right (1,0)
+        kwargs.update(transform=bottom_plot.transAxes)  # switch to the bottom plot
+        bottom_plot.plot((-length, length), (1 - length * ratio, 1 + length * ratio), **kwargs)  # top-left (0,1)
+        bottom_plot.plot((1 - length, 1 + length), (1 - length * ratio, 1 + length * ratio), **kwargs)  # top-right (1,1)
+
+    for figure in plots:
+        figure.tick_params(axis="x", pad=15)
+        figure.tick_params(axis="y", pad=15)
 
     if style == "fr-screen":
-        ax2.set_xlabel(r"Time [%s]" % time_scale, ha="right", x=1)
-        ax2.set_ylabel(r"Number of Jobs/VMs", va="top", y=.7, labelpad=20.0)
+        bottom_plot.set_xlabel(r"Time [%s]" % time_scale, ha="right", x=1)
+        bottom_plot.set_ylabel(r"Number of Jobs/VMs", va="top", y=.7, labelpad=20.0)
     elif style == "fr-slide":
-        ax2.set_xlabel(r"Time [%s]" % time_scale, ha="right", x=1, size=36.0)
-        ax2.set_ylabel(r"Number of Jobs/VMs", va="top", y=.71, labelpad=37.0, size=33.0)
-        for figure in [ax1, ax2]:
+        bottom_plot.set_xlabel(r"Time [%s]" % time_scale, ha="right", x=1, size=36.0)
+        bottom_plot.set_ylabel(r"Number of Jobs/VMs", va="top", y=.71, labelpad=37.0, size=33.0)
+        for figure in plots:
             figure.tick_params(axis="x", labelsize=34, pad=10., length=10)
             figure.tick_params(axis="y", labelsize=34, length=10)
-    else:
-        raise ValueError("Plotting style unknown!")
-
-    # zoom in specific areas of the plot
-    ax1.set_ylim((split / 100 + 1) * 100, max)
-    ax2.set_ylim(0, (split / 100 + 1) * 100)
-
-    # Diagonal splitting lines to show plot separation/different y-scales.
-    length = .01
-    kwargs = dict(transform=ax1.transAxes, color="k", clip_on=False)
-    ax1.plot((-length, length), (-length, length), **kwargs)  # bottom-left (0,0)
-    ax1.plot((1 - length, 1 + length), (-length, length), **kwargs)  # bottom-right (1,0)
-    kwargs.update(transform=ax2.transAxes)  # switch to the bottom plot
-    ax2.plot((-length, length), (1 - length * ratio, 1 + length * ratio), **kwargs)  # top-left (0,1)
-    ax2.plot((1 - length, 1 + length), (1 - length * ratio, 1 + length * ratio), **kwargs)  # top-right (1,1)
-    if style == "fr-screen":
-        pass
-    elif style == "fr-slide":
-        pass
     else:
         raise ValueError("Plotting style unknown!")
 
@@ -137,7 +138,7 @@ def main():
         plot_dict = {
             "jobs_running": ("jobs running", "#b8c9ec"),  # light blue
             "jobs_idle": ("jobs waiting", "#fdbe81"),  # light orange
-            "machines_requested": ("VM cores requested", "#fb8a1c"),  # orange
+            "machines_requested": ("Slots requested", "#fb8a1c"),  # orange
             "condor_nodes": ("Slots available", "#2c7bb6"),  # blue
             "condor_nodes_draining": ("Slots draining", "#7f69db"),  # light blue
         }
@@ -145,9 +146,9 @@ def main():
         plot_dict = {
             "jobs_running": ("Jobs running", "#b8c9ec"),  # light blue
             "jobs_idle": ("Jobs waiting", "#fdbe81"),  # light orange
-            "machines_requested": ("VM cores requested", "#fb8a1c"),  # orange
-            "condor_nodes": ("VMs available", "#2c7bb6"),  # blue
-            "condor_nodes_draining": ("VMs draining", "#7f69db"),  # light blue
+            "machines_requested": ("Slots requested", "#fb8a1c"),  # orange
+            "condor_nodes": ("Slots available", "#2c7bb6"),  # blue
+            "condor_nodes_draining": ("Slots draining", "#7f69db"),  # light blue
         }
         matplotlib.rcParams["svg.fonttype"] = "none"
         matplotlib.rcParams["path.simplify"] = True
@@ -230,8 +231,11 @@ def main():
     plots = init_plots(style=args.style, split=int(np.max(machines_requested)),
                        max=int(np.max(jobs_idle)),
                        time_scale=time_scales.get(args.time_scale, "m")[0])
+    counter = len(plots)
+    if counter == 1:
+        counter = 2
 
-    for figure in plots[:-1]:
+    for figure in plots[0:counter - 1]:
         figure.plot(rel_times, machines_requested, label=plot_dict["machines_requested"][0],
                     color=plot_dict["machines_requested"][1], linestyle="-", marker='', linewidth=2.0)
         figure.plot(rel_times, condor_nodes, label=plot_dict["condor_nodes"][0],
@@ -247,16 +251,22 @@ def main():
             figure.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())
 
     handles, labels = plots[0].get_legend_handles_labels()
-    if args.style == "fr-screen":
-        plots[-1].legend(handles, labels, bbox_to_anchor=(0, 0, 1, 1), loc=3, ncol=2, mode="expand")
-        # ax1.legend(loc="upper right", numpoints=1, frameon=False)
-        # fig.legend(handles=handles, labels=labels, loc="upper right", numpoints=1, frameon=True, ncol=2)
-        # fig.legend(handles=handles, labels=labels, bbox_to_anchor=(.125, 0, .775, 0), loc=3,
-    elif args.style == "fr-slide":
-        plots[-1].legend(handles, labels, bbox_to_anchor=(0, 0, 1, 1), loc=3, ncol=2, mode="expand", fontsize=30)
+    kwargs = {}
+    if plots[0] is not plots[-1]:
+        # If we have subplots, add legend to a separate subplot.
+        kwargs["bbox_to_anchor"] = (0, 0, 1, 1)
+        kwargs["mode"] = "expand"
+        kwargs["loc"] = "lower left"
+    else:
+        kwargs["loc"] = "best"
+    if args.style == "fr-slide":
+        kwargs["fontsize"] = 30
+
+    plots[-1].legend(handles, labels, ncol=2, **kwargs)
 
     if args.xlim:
         plt.xlim(xmin=args.xlim[0], xmax=args.xlim[1])
+
     if args.live:
         plt.show()
     else:
