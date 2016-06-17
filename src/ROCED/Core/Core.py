@@ -225,8 +225,7 @@ class ScaleCore(object):
 
         self.siteBox.applyMachineDecision(decision)
 
-        mr = MachineRegistry.MachineRegistry()
-        logger.info(str(mr.getMachineOverview()))
+        logger.info(str(self.mr.getMachineOverview()))
 
         self.dumpState()
 

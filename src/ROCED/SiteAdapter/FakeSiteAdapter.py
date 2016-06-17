@@ -65,7 +65,6 @@ class FakeSiteAdapter(SiteAdapterBase):
 
     def spawnMachines(self, machineType, count):
         for i in range(0, count):
-            self.mr = MachineRegistry.MachineRegistry()
             mid = self.mr.newMachine()
 
             self.runningMachines[mid] = {}
