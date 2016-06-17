@@ -19,8 +19,9 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 
+import abc
 import atexit
 import os
 import sys
@@ -34,6 +35,7 @@ class DaemonBase(object):
 
     Usage: subclass the Daemon class and override the run() method
     """
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, pidfile, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
         self.stdin = stdin
@@ -98,8 +100,7 @@ class DaemonBase(object):
         pid = self.get_pid_from_file()
 
         if pid:
-            message = "pidfile %s already exist. Daemon already running?\n"
-            sys.stderr.write(message % self.pidfile)
+            sys.stderr.write("pidfile %s already exist. Daemon already running?\n" % self.pidfile)
             sys.exit(1)
 
         # Start the daemon
@@ -111,9 +112,9 @@ class DaemonBase(object):
         pid = self.get_pid_from_file()
 
         if not pid:
-            print("Daemon not running")
+            print("Daemon not running.")
             return
-        print("Daemon running with PID " + str(pid))
+        print("Daemon running with PID %s." % pid)
 
     def stop(self):
         """
@@ -133,7 +134,7 @@ class DaemonBase(object):
                 time.sleep(0.1)
         except OSError as err:
             err = str(err)
-            if err.find("No such process") > 0:
+            if err.find("No such process.") > 0:
                 if os.path.exists(self.pidfile):
                     os.remove(self.pidfile)
             else:
@@ -147,11 +148,12 @@ class DaemonBase(object):
         self.stop()
         self.start()
 
+    @abc.abstractmethod
     def run(self):
         """
-        You should override this method when you subclass Daemon. It will be called after the
-        process has been daemonized by start() or restart().
+        Overwrite this method when you subclass Daemon. It will be called after the process has been daemonized.
         """
+        pass
 
     def get_pid_from_file(self):
         try:

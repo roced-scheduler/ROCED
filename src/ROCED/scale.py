@@ -104,9 +104,9 @@ class ScaleMain(object):
                 try:
                     os.makedirs(log_folder.__str__() + "/")
                 except OSError:
-                    logging.error("Error while creating /log/ folder")
+                    logging.error("Error while creating folder %s." % log_folder.__str__())
             fname = log_folder + "/roced.log"
-            logger.info("Writing to log file %s" % fname)
+            logger.info("Writing to log file %s." % fname)
             file_handler = TimedRotatingFileHandler(fname, when='midnight')
             file_handler.setFormatter(
                 logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s', '%Y-%m-%d %H:%M:%S'))
@@ -114,7 +114,7 @@ class ScaleMain(object):
 
     def run(self, config_file_name, debug=False, iterations=None):
 
-        self.logger.info("Loading config " + str(config_file_name))
+        self.logger.info("Loading config %s." % config_file_name)
         config = configparser.RawConfigParser()
         config.readfp(open(config_file_name))
 
@@ -123,7 +123,6 @@ class ScaleMain(object):
         core_factory = ScaleCoreFactory()
         scaleCore = core_factory.getCore(config, maximumInterval=iterations)
 
-        # scaleCore = Core.ScaleCore(server)
         scaleCore.init()
         scaleCore.startManage()
 
@@ -139,7 +138,6 @@ class MyDaemon(DaemonBase):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description='Run the ROCED scheduler')
     parser.add_argument('--config', nargs=1,
                         help="Run using a custom config file (default: /etc/roced/roced.conf)",
@@ -156,11 +154,11 @@ if __name__ == "__main__":
     parser_start = subparsers.add_parser('standalone', help='Run standalone')
     parser_start.set_defaults(cmd="standalone")
 
-    parser_start = subparsers.add_parser('stop', help='Stop daemon')
-    parser_start.set_defaults(cmd="stop")
-
     parser_start = subparsers.add_parser('start', help='Start as daemon')
     parser_start.set_defaults(cmd="start")
+
+    parser_start = subparsers.add_parser('stop', help='Stop daemon')
+    parser_start.set_defaults(cmd="stop")
 
     parser_start = subparsers.add_parser('status', help='Status of the daemon')
     parser_start.set_defaults(cmd="status")
@@ -185,7 +183,7 @@ if __name__ == "__main__":
 
     if args.cmd == 'start':
         daemon.start()
-    if args.cmd == 'status':
+    elif args.cmd == 'status':
         daemon.status()
     elif args.cmd == 'stop':
         daemon.stop()
