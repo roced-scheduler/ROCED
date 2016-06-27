@@ -305,8 +305,15 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         HTCondorIntegrationAdapter is responsible for handling Integrating, Working,
         PendingDisintegration, Disintegrating
         """
-        frJobsRunning = self.__runningJobs
-        frJobsCompleted = self.__completedJobs
+        try:
+            frJobsRunning = self.__runningJobs
+            frJobsCompleted = self.__completedJobs
+        except ValueError:
+            if frJobsRunning is None:
+                frJobsRunning = {}
+            if frJobsCompleted is None:
+                frJobsCompleted = {}
+
         mr = self.getSiteMachines()
         for mid in mr:
             batchJobId = mr[mid][self.regMachineJobId]
