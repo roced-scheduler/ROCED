@@ -200,7 +200,7 @@ class UnicodeWriter(object):
         if PY3:
             self.f = open(self.filename, 'at', encoding=self.encoding, newline='')
         else:
-            self.f = open(self.filename, 'wb')
+            self.f = open(self.filename, 'ab')
         self.writer = csv.DictWriter(self.f, fieldnames=self.fieldnames, dialect=self.dialect,
                                      **self.kw)
         return self
