@@ -11,10 +11,10 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="928.37677"
-   height="623.92432"
+   height="650.18829"
    id="svg2"
    version="1.1"
-   inkscape:version="0.47 r22583"
+   inkscape:version="0.48.4 r9939"
    sodipodi:docname="roced_design.svg"
    inkscape:export-filename="/usr/users/sriedel/workspace/scale/doc/roced_design_baseline.png"
    inkscape:export-xdpi="300.1702"
@@ -280,29 +280,33 @@
      inkscape:pageshadow="2"
      inkscape:zoom="0.98994949"
      inkscape:cx="415.33003"
-     inkscape:cy="356.6908"
+     inkscape:cy="342.54867"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1280"
-     inkscape:window-height="949"
-     inkscape:window-x="0"
-     inkscape:window-y="25"
+     inkscape:window-width="1871"
+     inkscape:window-height="1176"
+     inkscape:window-x="1329"
+     inkscape:window-y="24"
      inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true"
-     inkscape:snap-global="false">
+     inkscape:snap-global="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0">
     <sodipodi:guide
        orientation="0,1"
-       position="-119.02924,623.92418"
+       position="-119.02924,650.18815"
        id="guide3870" />
     <sodipodi:guide
        orientation="1,0"
-       position="342.44171,522.2488"
+       position="342.44171,548.51277"
        id="guide2975" />
     <sodipodi:guide
        orientation="1,0"
-       position="585.71429,668.45752"
+       position="585.71429,694.72149"
        id="guide2977" />
     <inkscape:grid
        type="xygrid"
@@ -310,10 +314,12 @@
        empspacing="5"
        visible="true"
        enabled="true"
-       snapvisiblegridlinesonly="true" />
+       snapvisiblegridlinesonly="true"
+       originx="-4.2529297e-07px"
+       originy="26.263974px" />
     <sodipodi:guide
        orientation="0,1"
-       position="280,427.02898"
+       position="280,453.29295"
        id="guide3692" />
   </sodipodi:namedview>
   <metadata
@@ -324,7 +330,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -438,10 +444,10 @@
        style="fill:#99ccff;fill-opacity:1;stroke:none"
        id="rect2816-6"
        width="313.48477"
-       height="223.55656"
+       height="257.90176"
        x="539.97192"
        y="201.67764"
-       ry="10.369333"
+       ry="11.962383"
        inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
        inkscape:export-xdpi="150.00394"
        inkscape:export-ydpi="150.00394" />
@@ -511,23 +517,27 @@
          sodipodi:role="line"
          id="tspan3797"
          x="552.04108"
-         y="350.66104">Torque</tspan><tspan
+         y="350.66104">HTCondor</tspan><tspan
          sodipodi:role="line"
          x="552.04108"
          y="381.30148"
-         id="tspan2915">Grid Engine</tspan><tspan
+         id="tspan3089">Torque</tspan><tspan
          sodipodi:role="line"
          x="552.04108"
          y="411.94193"
+         id="tspan2915">Grid Engine</tspan><tspan
+         sodipodi:role="line"
+         x="552.04108"
+         y="442.58237"
          id="tspan3801">...</tspan></text>
     <rect
        style="fill:#99ccff;fill-opacity:1;stroke:none"
        id="rect2816-6-1"
        width="313.48477"
-       height="226.08194"
+       height="262.44742"
        x="-74.920052"
        y="199.79343"
-       ry="10.486469"
+       ry="12.173227"
        inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
        inkscape:export-xdpi="150.00394"
        inkscape:export-ydpi="150.00394" />
@@ -597,23 +607,27 @@
          sodipodi:role="line"
          x="-62.850895"
          y="348.77682"
-         id="tspan3799-5">Torque</tspan><tspan
+         id="tspan3799-5">HTCondor</tspan><tspan
          sodipodi:role="line"
          x="-62.850895"
          y="379.41727"
-         id="tspan2913">Grid Engine</tspan><tspan
+         id="tspan3085">Torque</tspan><tspan
          sodipodi:role="line"
          x="-62.850895"
          y="410.05771"
+         id="tspan2913">Grid Engine</tspan><tspan
+         sodipodi:role="line"
+         x="-62.850895"
+         y="440.69815"
          id="tspan3801-8">...</tspan></text>
     <rect
        style="fill:#99ccff;fill-opacity:1;stroke:none"
        id="rect2816-6-1-2"
        width="313.48477"
-       height="259.1124"
+       height="285.37637"
        x="232.91254"
        y="564.60535"
-       ry="12.018537"
+       ry="13.236751"
        inkscape:export-filename="/usr/users/hauth/workspace/scale/doc/scale_design.png"
        inkscape:export-xdpi="150.00394"
        inkscape:export-ydpi="150.00394" />
@@ -683,19 +697,27 @@
          sodipodi:role="line"
          id="tspan3797-7-2"
          x="244.98169"
-         y="713.58875">Amazon EC2</tspan><tspan
+         y="713.58875">Hybrid HPC Cluster</tspan><tspan
          sodipodi:role="line"
          x="244.98169"
          y="744.22919"
-         id="tspan3799-5-8">Eucalyptus</tspan><tspan
+         id="tspan3087">Commercial Providers</tspan><tspan
          sodipodi:role="line"
          x="244.98169"
          y="774.86963"
-         id="tspan2911">OpenNebula</tspan><tspan
+         id="tspan3091">OpenStack</tspan><tspan
          sodipodi:role="line"
          x="244.98169"
          y="805.51007"
-         id="tspan3801-8-3">...</tspan></text>
+         id="tspan3799-5-8">Eucalyptus</tspan><tspan
+         sodipodi:role="line"
+         x="244.98169"
+         y="836.15051"
+         id="tspan2911">OpenNebula</tspan><tspan
+         sodipodi:role="line"
+         x="244.98169"
+         y="866.79095"
+         id="tspan3801-8-3" /></text>
     <rect
        style="fill:#99ccff;fill-opacity:1;stroke:none"
        id="rect2816-6-1-2-0"
