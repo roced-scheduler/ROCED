@@ -35,15 +35,21 @@ import os
 
 from Core.Core import ScaleCoreFactory
 
+###
 # test classes here
-# import SiteTest
-
+###
 from Core import Config, EventTest, AdapterTest
 from SiteAdapter import SiteTest
 from RequirementAdapter import RequirementTest
 from IntegrationAdapter import IntegrationTest
 from Core import CoreTest
 from Util.Daemon import DaemonBase
+
+# Optional modules with unit-tests
+try:
+    from Util import HTCondor
+except ImportWarning:
+    pass
 
 
 class ScaleMain(object):
@@ -64,10 +70,15 @@ class ScaleMain(object):
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(EventTest))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(IntegrationTest))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(RequirementTest))
+        ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(HTCondor))
 
         self.logger.info("Running %d tests." % ts.countTestCases())
         result = unittest.TestResult()
+
         ts.run(result)
+
+        for entry in result.skipped:
+            self.logger.warning("Skipped %s (%s)." % (entry[0], entry[1]))
 
         logging.debug("=======Testing Finished=======")
         if result.wasSuccessful():

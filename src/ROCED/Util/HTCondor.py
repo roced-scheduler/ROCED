@@ -18,12 +18,20 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
 # htcondor module has problem with unicode literals!
 
-import htcondor
+try:
+    import htcondor
+except ImportError:
+    # This packet is optional and only available on python 2.7
+    pass
+import logging
 import re
+import time
+import types
 from collections import defaultdict
+
+from Core import ScaleTest
 
 
 class HTCondorPy(object):
@@ -61,7 +69,7 @@ class HTCondorPy(object):
     def q(self, constraint=True):
         """Similar to condor_q."""
         condor_q = defaultdict(list)
-        queries = [schedd.xquery(requirements="JobStatus == 1 || JobStatus == 2 && %s" % constraint,
+        queries = [schedd.xquery(requirements="%s && ( JobStatus == 1 || JobStatus == 2 )" % constraint,
                                  projection=["ClusterId", "ProcId", "RequestCpus", "JobStatus"])
                    for schedd in self.schedds]
 
@@ -72,3 +80,24 @@ class HTCondorPy(object):
                 condor_q[key].append(int(ads.get("JobStatus")))
 
         return condor_q
+
+
+class CondorPyTest(ScaleTest.ScaleTestBase):
+    def setUp(self):
+        try:
+            isinstance(htcondor, types.ModuleType)
+        except NameError:
+            self.skipTest("htcondor module missing.")
+        self.condor = HTCondorPy()
+
+    def test_CondorStatus(self):
+        logging.debug("===Condor Status (Python)===")
+        startTime = time.time()
+        self.condor.status()
+        logging.info("Runtime:\t%fs" % (time.time() - startTime))
+
+    def test_CondorQ(self):
+        logging.debug("====Condor Q (Python)===")
+        startTime = time.time()
+        self.condor.q()
+        logging.info("Runtime:\t%fs" % (time.time() - startTime))
