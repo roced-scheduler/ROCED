@@ -37,10 +37,10 @@ font = {"family": "sans", "size": 20}
 matplotlib.rc("font", **font)
 matplotlib.rcParams["figure.figsize"] = 18, 8
 
-time_scales = {"s": ("second", 1.0),
-               "m": ("minute", 60.0),
-               "h": ("hour", 60.0 * 60.0),
-               "d": ("day", 60.0 * 60.0 * 24.0)}
+time_scales = {"s": ("seconds", 1.0),
+               "m": ("minutes", 60.0),
+               "h": ("hours", 60.0 * 60.0),
+               "d": ("days", 60.0 * 60.0 * 24.0)}
 
 
 def init_plots(style=None, split=None, max=None, time_scale=None):
