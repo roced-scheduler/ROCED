@@ -64,7 +64,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
         if len(mlist) == 0:
             return
 
-        (res, xmlRes) = self.runCommandOnPbs('pbsnodes -x ' + mlist.strip())
+        (res, xmlRes) = self.runCommandOnPbs('pbsnodes -x %s' % mlist.strip())
 
         if res == 0:
             try:
@@ -76,7 +76,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
                     if len(stateLs) > 0:
                         if str(stateLs[0].content).strip() == "offline" or str(
                                 stateLs[0].content).strip() == "down,offline":
-                            self.runCommandOnPbs('python torqconf.py del_node ' + nodeName)
+                            self.runCommandOnPbs('python torqconf.py del_node %s' % nodeName)
                             self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
                         else:
                             logging.info("node %s not offline yet" % nodeName)
@@ -100,7 +100,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
             "/sbin/ifconfig tun0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'")
         vpn_ip = vpn_ip.strip().strip("\n")
         if (not res == 0) or len(vpn_ip) < 1:
-            logging.error("Can't determine vpn ip for machine " + machine_id)
+            logging.error("Can't determine vpn ip for machine %s" % machine_id)
         else:
             self.mr.machines[machine_id][self.reg_torque_node_ip] = vpn_ip
 
@@ -111,24 +111,26 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
 
     def setNodeOffline(self, machine_id):
         nodeName = self.mr.machines[machine_id][self.reg_torque_node_name]
-        self.runCommandOnPbs('pbsnodes -o ' + nodeName)
+        self.runCommandOnPbs('pbsnodes -o %s' % nodeName)
 
     def integrateNode(self, machine_id):
-        nodeName = "cloud-" + str(machine_id)
+        nodeName = "cloud-%s" % machine_id
         self.mr.machines[machine_id][self.reg_torque_node_name] = nodeName
 
         # calls on node itself, routed through the node controller automatically by ssh class if needed
         ssh = ScaleTools.Ssh.getSshOnMachine(self.mr.machines[machine_id])
 
-        paramList = self.torqInternalIp + \
-                    " " + self.torqHostName + \
-                    " " + nodeName + \
-                    " " + self.mr.machines[machine_id][self.mr.regSiteType]
+        paramList = "%s %s %s %s" % (self.torqInternalIp,
+                                     self.torqHostName,
+                                     nodeName,
+                                     self.mr.machines[machine_id][self.mr.regSiteType])
 
         # call run-bootstrap.sh script if needed
         if self.torqNodeBootstrapUrl is not None:
-            ssh.handleSshCall("./run-bootstrap.sh " +
-                              self.torqNodeBootstrapUrl + " " + self.torqNodeBootstrapRoot + " " + paramList)  # additional parameters go here...
+            ssh.handleSshCall("./run-bootstrap.sh %s %s %s" %
+                              (self.torqNodeBootstrapUrl, self.torqNodeBootstrapRoot, paramList)
+                              # additional parameters go here...
+                              )
 
         # upload file if needed
         if self.nodeBootstrapFile is not None:
@@ -136,16 +138,15 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
 
         # run command if needed
         if self.nodeBootstrapCall is not None:
-            ssh.handleSshCall(self.nodeBootstrapCall + " " + paramList)
+            ssh.handleSshCall("%s %s" % (self.nodeBootstrapCall, paramList))
 
         # retrieve the ip torque uses to connect to this instance
         self.retrieveTorqueIp(machine_id)
 
     def integrateWithTorq(self, machine_id):
         ip = self.mr.machines[machine_id].get(self.reg_torque_node_ip)
-        self.runCommandOnPbs(
-            'python torqconf.py add_node ' + self.mr.machines[machine_id][
-                self.reg_torque_node_name] + ' ' + ip)
+        self.runCommandOnPbs('python torqconf.py add_node %s %s' %
+                             (self.mr.machines[machine_id][self.reg_torque_node_name], ip))
 
     '''
     uses either SSH or a simple shell call to run commands on the pbs server
@@ -162,8 +163,8 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
     def onEvent(self, evt):
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
             if evt.newStatus == self.mr.statusUp:
-                logging.debug("Integrating machine with ip " + str(
-                    self.mr.machines[evt.id].get(self.mr.regHostname)))
+                logging.debug("Integrating machine with ip %s" %
+                              self.mr.machines[evt.id].get(self.mr.regHostname))
 
                 # ha, new machine to integrate
                 self.mr.updateMachineStatus(evt.id, self.mr.statusIntegrating)
@@ -180,9 +181,9 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
                 if self.mr.machines[evt.id].get(self.reg_torque_node_name, None) is None:
                     # not listed internally, try to find the node name
 
-                    (res, nodeName) = self.runCommandOnPbs(
-                        "python torqconf.py get_node_name %s" %
-                        self.mr.machines[evt.id].get(self.reg_torque_node_ip, "xxx.xxx.xxx.xxy"))
+                    (res, nodeName) = self.runCommandOnPbs("python torqconf.py get_node_name %s" %
+                                                           self.mr.machines[evt.id].get(
+                                                               self.reg_torque_node_ip, "xxx.xxx.xxx.xxy"))
                     nodeName = nodeName.strip()
 
                     if (res == 0) and (len(nodeName) > 0):

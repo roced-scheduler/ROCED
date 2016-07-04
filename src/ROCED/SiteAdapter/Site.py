@@ -171,12 +171,9 @@ class SiteAdapterBase(AdapterBase):
                 # respect site limit for max machines for spawning but don't remove machines when
                 # above limit this limit is currently implemented per machine type, not per site!
                 if max_machines and (decision[machine_type] + n_running_machines) > max_machines:
-                    self.logger.info(
-                        "Request exceeds maximum number of allowed machines on this site (" +
-                        str(decision[machine_type] + n_running_machines) + ">" + str(max_machines) +
-                        ")! ")
-                    self.logger.info("Will spawn " + str(
-                        max(0, max_machines - n_running_machines)) + " machines.")
+                    self.logger.info("Request exceeds maximum number of allowed machines on this site (%s>%s)!"
+                                     % (decision[machine_type] + n_running_machines, max_machines))
+                    self.logger.info("Will spawn %s machines." % max(0, max_machines - n_running_machines))
                     decision[machine_type] = max_machines - n_running_machines
                     # is the new decision valid?
                     if decision[machine_type] > 0:

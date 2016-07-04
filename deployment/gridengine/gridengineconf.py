@@ -62,7 +62,7 @@ def removeIp(lines_, ip_):
 
 
 def addEntry(lines_, nodename_, ip_):
-    lines_ += ip_ + "\t" + nodename_ + "\n"
+    lines_ += "%s\t%s\n" % (ip_, nodename_)
     return lines_
 
 

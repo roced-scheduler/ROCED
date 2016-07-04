@@ -43,7 +43,7 @@ class E2basedUtil(object):
             if i.location.startswith(image_name + "/"):
                 return i
 
-        raise LookupError("No image with name " + image_name + " found")
+        raise LookupError("No image with name %s found." % image_name)
 
     def getImageIdByImageName(self, euca_conn, image_name):
         return self.getImageByImageName(euca_conn, image_name).id
@@ -55,7 +55,7 @@ class E2basedUtil(object):
             if i.id == id_:
                 return i.location.partition("/")[0]
 
-        raise LookupError("No image with id " + id_ + " found")
+        raise LookupError("No image with id %s found." % id_)
 
     def openConnection(self):
         raise NotImplementedError("This method must be implemented by the concrete derived class")

@@ -82,8 +82,7 @@ class OneSiteAdapter(SiteAdapterBase):
         try:
             return self.getProxy().one.vm.allocate(self.getOneSessionString(), template)
         except socket.error:
-            logging.debug(
-                "Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
+            logging.debug("Failed to connect to ONE RPC server %s!" % self.getConfig(self.ConfigServerProxy))
             return [False]
             # returns [True,VM_ID] or [False]
 
@@ -110,9 +109,8 @@ class OneSiteAdapter(SiteAdapterBase):
                         if vm_action[0] is True:
                             logging.info("Action %s for VM ID %s successful!" % (action, vm_id))
                     except socket.error:
-                        logging.debug(
-                            "Failed to connect to ONE RPC server %s !" % self.getConfig(
-                                self.ConfigServerProxy))
+                        logging.debug("Failed to connect to ONE RPC server %s!" %
+                                      self.getConfig(self.ConfigServerProxy))
                         vm_action[0] = False
 
         print(vm_action)
@@ -138,8 +136,7 @@ class OneSiteAdapter(SiteAdapterBase):
         try:
             vm_info = self.getProxy().one.vm.info(self.getOneSessionString(), vm_id)
         except socket.error:
-            logging.debug(
-                "Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
+            logging.debug("Failed to connect to ONE RPC server %s!" % self.getConfig(self.ConfigServerProxy))
             vm_info[0] = False
 
         if vm_info[0] is True:
@@ -185,8 +182,7 @@ class OneSiteAdapter(SiteAdapterBase):
                                                            extended_info,
                                                            state)
         except socket.error:
-            logging.debug(
-                "Failed to connect to ONE RPC server %s !" % self.getConfig(self.ConfigServerProxy))
+            logging.debug("Failed to connect to ONE RPC server %s!" % self.getConfig(self.ConfigServerProxy))
 
         if vm_pool_info[0] is True:
             info = [True, self.ParseVMPoolInfo(vm_pool_info[1])]
@@ -208,7 +204,7 @@ class OneSiteAdapter(SiteAdapterBase):
         return self.getConfig(self.ConfigUser) + ":" + hash_.hexdigest()
 
     def checkForDeadMachine(self, mid):
-        logging.info("Machine " + str(mid) + " is running but no ssh connect yet")
+        logging.info("Machine %s is running but no ssh connect yet." % mid)
         firstCheck = self.mr.machines[mid].get(self.reg_site_one_first_dead_check, None)
 
         if firstCheck is None:
@@ -216,7 +212,7 @@ class OneSiteAdapter(SiteAdapterBase):
         else:
             if (datetime.datetime.now() - firstCheck).total_seconds() > self.getConfig(
                     self.ConfigMachineBootTimeout):
-                logging.warning("Machine " + str(mid) + " did not boot in time. Shutting down")
+                logging.warning("Machine %s did not boot in time. Shutting down." % mid)
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
     def manage(self):

@@ -244,35 +244,22 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             #   - nothing to do
             ###
             if self.getConfig(self.configUseTime):
+                max_machine_count = int(self.getConfig(self.configMaxMachines) *
+                                        self.getConfig(self.configMachinePercentage))
                 if daytime.time() <= datetime.datetime.now().time() <= nighttime.time():
-                    if (requested + len(self.getSiteMachines())) > (
-                                self.getConfig(self.configMaxMachines) * self.getConfig(
-                                self.configMachinePercentage)):
-                        self.logger.info(
-                            "Request exceeds maximum number of allowed machines for daytime (" +
-                            str(requested + len(self.getSiteMachines())) + ">" + str(
-                                int(self.getConfig(self.configMaxMachines) * self.getConfig(
-                                    self.configMachinePercentage))) +
-                            ")! ")
-                        self.logger.info("Will spawn " + str(int(
-                            (self.getConfig(self.configMaxMachines) * self.getConfig(
-                                self.configMachinePercentage)) - len(
-                                self.getSiteMachines()))) + " machines")
-                        requested = int(
-                            (self.getConfig(self.configMaxMachines) * self.getConfig(
-                                self.configMachinePercentage)) - len(
-                                self.getSiteMachines()))
+                    if (requested + self.cloudOccupyingMachinesCount) > max_machine_count:
+                        self.logger.info("Request exceeds maximum number of allowed machines for daytime (%d>%d)!" %
+                                         (requested + self.cloudOccupyingMachinesCount, max_machine_count))
+                        requested = max_machine_count - self.cloudOccupyingMachinesCount
+                        self.logger.info("Will spawn %d machines." % requested)
 
             # requested amount > allowed number of machines per cycle
             if requested > self.getConfig(self.configMaxMachinesPerCycle):
-                self.logger.info(
-                    "Request exceeds maximum number of allowed machines per cycle on this site (" +
-                    str(requested) + ">" + str(
-                        self.getConfig(self.configMaxMachinesPerCycle)) + ")!")
-                self.logger.info("Will spawn " +
-                                 str(self.getConfig(self.configMaxMachinesPerCycle)) + " machines")
+                self.logger.info("Request exceeds maximum number of allowed machines per cycle on this site (%d>%d)!" %
+                                 (requested, self.getConfig(self.configMaxMachinesPerCycle)))
                 # set requested equals the number of machines per cycle
                 requested = self.getConfig(self.configMaxMachinesPerCycle)
+                self.logger.info("Will spawn %d machines." % requested)
 
             ###
             # spawn machines
@@ -518,15 +505,14 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # Write Json log file:
         #  requested machines, nodes, draining nodes.
         ###
-        self.logger.info("Current machines running at " + str(self.siteName) + " : " + str(
-            self.runningMachinesCount[self.getConfig(self.configMachines)]))  # ["vm-default"]))
+        self.logger.info("Current machines running at %s: %s" %
+                         (self.siteName, self.runningMachinesCount[self.getConfig(self.configMachines)]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, 'machines_requested',
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                              len(self.getSiteMachines(status=self.mr.statusUp)) +
                              len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        json_log.addItem(self.siteName, 'condor_nodes',
-                         len(self.getSiteMachines(status=self.mr.statusWorking)))
+        json_log.addItem(self.siteName, 'condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
         json_log.addItem(self.siteName, 'condor_nodes_draining',
                          len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 

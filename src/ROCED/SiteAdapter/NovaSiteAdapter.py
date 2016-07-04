@@ -88,7 +88,7 @@ class NovaSiteAdapter(SiteAdapterBase):
             return m[0]
 
     def checkForDeadMachine(self, mid):
-        logging.info("Machine " + str(mid) + " is running but no ssh connect yet")
+        logging.info("Machine %s is running but no ssh connect yet." % mid)
         firstCheck = self.mr.machines[mid].get(self.reg_site_euca_first_dead_check, None)
 
         if firstCheck is None:
@@ -96,7 +96,7 @@ class NovaSiteAdapter(SiteAdapterBase):
         else:
             if (datetime.datetime.now() - firstCheck).total_seconds() > self.getConfig(
                     self.ConfigMachineBootTimeout):
-                logging.warning("Machine " + str(mid) + " did not boot in time. Shutting down")
+                logging.warning("Machine %s did not boot in time. Shutting down." % mid)
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
     def manage(self):
@@ -193,7 +193,7 @@ class NovaSiteAdapter(SiteAdapterBase):
             if machine.imageName == imageName:
                 return mtype
 
-        raise LookupError("Machine Image " + imageName + " is not configured to be used by scale")
+        raise LookupError("Machine Image %s is not configured to be used by scale." % imageName)
 
     def eucaTerminateMachines(self, euca_ids):
 
@@ -218,7 +218,7 @@ class NovaSiteAdapter(SiteAdapterBase):
 
     def spawnMachines(self, machineType, count):
         if not self.isMachineTypeSupported(machineType):
-            raise LookupError("Machine Image " + machineType + " not supported by this Adapter")
+            raise LookupError("Machine Image %s not supported by this Adapter." % machineType)
 
         # ensure we dont overstep the site quota
         if not self.getConfig(self.ConfigMaxMachines) is None:
@@ -228,8 +228,7 @@ class NovaSiteAdapter(SiteAdapterBase):
 
             if slotsLeft < count:
                 logging.warning(
-                    "Site " + self.siteName + " reached MaxMachines, truncating to " + str(
-                        slotsLeft) + " new machines")
+                    "Site %s reached MaxMachines, truncating to %s new machines." % (self.siteName, slotsLeft))
                 count = max(0, slotsLeft)
 
         if count == 0:
@@ -245,8 +244,7 @@ class NovaSiteAdapter(SiteAdapterBase):
             else:
                 secGroup = [machineConf.securityGroup]
 
-            logging.info("EucaSpawnAdapter: running " + str(
-                count) + " instances of image " + machineConf.imageName)
+            logging.info("EucaSpawnAdapter: running %s instances of image %s." % (count, machineConf.imageName))
             reservation = euca_conn.run_instances(image_id=imgId,
                                                   min_count=count,
                                                   max_count=count,

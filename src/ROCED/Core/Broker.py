@@ -18,6 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
+from __future__ import unicode_literals
 
 import abc
 import logging
@@ -100,8 +101,8 @@ class StupidBroker(SiteBrokerBase):
                 delta = 0
             delta = min(self._maxInstances - mreq.actual, delta)
 
-            self.logger.info("machine type \'" + mname + "\': " + str(mreq.actual) + " running, " +
-                             str(mreq.required) + " needed. Spawning/removing " + str(delta))
+            self.logger.info("Machine type '%s': %d running, %d needed. Spawning/removing %d." %
+                             (mname, mreq.actual, mreq.required, delta))
 
             # if delta > 0:
             if mname in machinesToSpawn:

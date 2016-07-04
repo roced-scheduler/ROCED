@@ -27,8 +27,8 @@ from __future__ import print_function, unicode_literals, division
 import argparse
 import json
 import numpy as np
-from os import path
 from collections import OrderedDict
+from os import path
 # import datetime
 import matplotlib
 import matplotlib.pyplot as plt

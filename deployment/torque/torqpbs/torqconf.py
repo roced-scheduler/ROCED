@@ -56,7 +56,7 @@ def removeIp(lines_, ip_):
 
 
 def addEntry(lines_, nodename_, ip_):
-    lines_ += ip_ + " " + nodename_ + "\n"
+    lines_ += "%s %s\n" % (ip_, nodename_)
     return lines_
 
 
@@ -111,7 +111,7 @@ if sys.argv[1] == "add_node":
     lines = addEntry(lines, nodename, ip)
     storeHosts(lines)
 
-    callQmgr("create node " + nodename)
+    callQmgr("create node %s" % nodename)
     pokeQueue()
 
     print("done")
@@ -126,7 +126,7 @@ if sys.argv[1] == "get_node_name":
 if sys.argv[1] == "del_node":
     print("Deleting Node...")
     nodename = sys.argv[2]
-    callQmgr("delete node " + nodename)
+    callQmgr("delete node %s" % nodename)
     lines = removeNode(lines, nodename)
     storeHosts(lines)
 

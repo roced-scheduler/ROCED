@@ -139,7 +139,7 @@ class ScaleMain(object):
 
         # Run the server's main loop
         self.logger.info("----------------------------------")
-        self.logger.info(scaleCore.description + " running")
+        self.logger.info("%s running" % scaleCore.description)
 
 
 class MyDaemon(DaemonBase):

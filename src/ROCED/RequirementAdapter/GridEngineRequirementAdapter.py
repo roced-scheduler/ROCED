@@ -98,8 +98,7 @@ class GridEngineRequirementAdapter(RequirementAdapterBase):
             self._curRequirement = int(math.ceil(float(self._curRequirement) /
                                                  float(self.qsizeDivider)))
 
-            logging.info("grid engine needs " + str(self._curRequirement) +
-                         " nodes. qsizeoffset is " + str(self.qsizeOffset))
+            logging.info("grid engine needs %d nodes. qsizeoffset is %d." % (self._curRequirement, self.qsizeOffset))
         else:
             self._curRequirement = 0
 

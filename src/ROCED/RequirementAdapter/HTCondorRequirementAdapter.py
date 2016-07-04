@@ -36,6 +36,10 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
     configCondorServer = "condor_server"
     configCondorRequirement = "condor_requirement"
 
+    # class constants for condor_q query: condor autoformat string & gawk processing string
+    _query_format_string = "'%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements"
+    _query_processing = "',' '{print $1\",\"$2}'"
+
     def __init__(self):
         super(HTCondorRequirementAdapter, self).__init__()
 
@@ -67,7 +71,6 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
     @property
     @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=900)
     def requirement(self):
-        requirement_string = self.getConfig(self.configCondorRequirement)
         ssh = ScaleTools.Ssh(host=self.getConfig(self.configCondorServer),
                              username=self.getConfig(self.configCondorUser),
                              key=self.getConfig(self.configCondorKey))
@@ -80,10 +83,8 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
         # TODO: htcondor python bindings? || condor_q -global -constraint "REMOTE_JOB==True"
 
-        cmd = ("condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' "
-               "-format '%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements | "
-               "grep '" + requirement_string + "' | "
-                                               "awk -F',' '{print $1\",\"$2}'")
+        cmd = ("condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' -format %s | grep -i '%s' | awk -F%s" %
+               (self._query_format_string, self.getConfig(self.configCondorRequirement), self._query_processing))
 
         result = ssh.handleSshCall(call=cmd, quiet=True)
 

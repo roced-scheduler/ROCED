@@ -71,8 +71,7 @@ class TorqueRequirementAdapter(RequirementAdapterBase):
             # apply divider
             self._curRequirement //= self.qsizeDivider
 
-            logging.info("torq needs " + str(self._curRequirement) +
-                         " nodes. qsizeoffset is " + str(self.qsizeOffset))
+            logging.info("torq needs %d nodes. qsizeoffset is %d." % (self._curRequirement, self.qsizeOffset))
             return self._curRequirement
         else:
             return None

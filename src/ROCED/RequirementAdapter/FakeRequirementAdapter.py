@@ -22,6 +22,7 @@ from __future__ import unicode_literals
 
 import logging
 from time import time
+
 from Core import MachineRegistry
 from RequirementAdapter.Requirement import RequirementAdapterBase
 

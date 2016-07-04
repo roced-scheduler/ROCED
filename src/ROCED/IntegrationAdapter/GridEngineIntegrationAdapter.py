@@ -79,7 +79,7 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
 
         paramList = self.mr.machines[machine_id][self.reg_gridengine_node_name]
 
-        return self.runCommandOnGridEngineServer("python gridengineconf.py drain_node " + paramList)
+        return self.runCommandOnGridEngineServer("python gridengineconf.py drain_node %s" % paramList)
 
     def integrateNode(self, machine_id):
 
@@ -92,7 +92,7 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
 
         ssh.copyToRemote("gridengineconf.py")
 
-        return ssh.handleSshCall("python gridengineconf.py add_node " + paramList)
+        return ssh.handleSshCall("python gridengineconf.py add_node %s" % paramList)
 
     def disintegrateNode(self, machine_id):
 
@@ -102,19 +102,17 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
 
     def integrateWithGridEngine(self, machine_id):
 
-        paramList = (self.mr.machines[machine_id][self.reg_gridengine_node_name] + " " +
-                     self.mr.machines[machine_id][self.mr.regVpnIp])
+        paramList = ("%s %s" % (self.mr.machines[machine_id][self.reg_gridengine_node_name],
+                                self.mr.machines[machine_id][self.mr.regVpnIp]))
 
-        return self.runCommandOnGridEngineServer("python gridengineconf.py register_node %s"
-                                                 % paramList)
+        return self.runCommandOnGridEngineServer("python gridengineconf.py register_node %s" % paramList)
 
     def disintegrateWithGridEngine(self, machine_id):
 
-        paramList = (self.mr.machines[machine_id][self.reg_gridengine_node_name] + " " +
-                     self.mr.machines[machine_id][self.mr.regVpnIp])
+        paramList = ("%s %s" % (self.mr.machines[machine_id][self.reg_gridengine_node_name],
+                                self.mr.machines[machine_id][self.mr.regVpnIp]))
 
-        return self.runCommandOnGridEngineServer("python gridengineconf.py unregister_node %s"
-                                                 % paramList)
+        return self.runCommandOnGridEngineServer("python gridengineconf.py unregister_node %s" % paramList)
 
     def runCommandOnGridEngineServer(self, cmd):
 
