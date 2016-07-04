@@ -179,15 +179,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.cmd == 'test':
-        sm = ScaleMain()
-        sm.test()
-        exit(0)
-
-    if args.cmd == 'standalone':
-        sm = ScaleMain()
-        sm.run(args.config[0], args.debug, args.iterations)
-        exit(0)
+    try:
+        if args.cmd == 'test':
+            sm = ScaleMain()
+            sm.test()
+            exit(0)
+        elif args.cmd == 'standalone':
+            sm = ScaleMain()
+            sm.run(args.config[0], args.debug, args.iterations)
+            exit(0)
+    except AttributeError:
+        logging.error("Please supply a command type!")
+        exit(1)
 
     daemon = MyDaemon('/tmp/daemon-scale.pid')
     daemon.configfile = args.config[0]
