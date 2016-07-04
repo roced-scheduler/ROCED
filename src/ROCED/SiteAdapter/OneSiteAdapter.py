@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import print_function, unicode_literals
+from __future__ import unicode_literals, absolute_import
 
 import datetime
 import hashlib
@@ -105,7 +105,7 @@ class OneSiteAdapter(SiteAdapterBase):
                     try:
                         vm_action = self.getProxy().one.vm.action(self.getOneSessionString(),
                                                                   action, vm_id)
-                        print(vm_action)
+                        logging.debug(vm_action)
                         if vm_action[0] is True:
                             logging.info("Action %s for VM ID %s successful!" % (action, vm_id))
                     except socket.error:
@@ -113,7 +113,7 @@ class OneSiteAdapter(SiteAdapterBase):
                                       self.getConfig(self.ConfigServerProxy))
                         vm_action[0] = False
 
-        print(vm_action)
+        logging.debug(vm_action)
         return vm_action
 
     def ParseVmInfo(self, response):
@@ -240,9 +240,9 @@ class OneSiteAdapter(SiteAdapterBase):
         for mid in myMachines:
             if myMachines[mid]["status"] == "booting":
                 vm_info = self.VMInfo(myMachines[mid]["one_vmid"])
-                print(myMachines[mid]["vpn_ip"])
-                print(myMachines[mid]["vpn_cert_is_valid"])
-                print(myMachines[mid]["vpn_cert"])
+                logging.debug(myMachines[mid]["vpn_ip"])
+                logging.debug(myMachines[mid]["vpn_cert_is_valid"])
+                logging.debug(myMachines[mid]["vpn_cert"])
                 if vm_info[0] is True:
 
                     if vm_info[1]["STATE"] == "3" and vm_info[1]["LCM_STATE"] == "3":
@@ -260,12 +260,12 @@ class OneSiteAdapter(SiteAdapterBase):
                                     if (vpn.connectVPN(myMachines[mid]["vpn_cert"],
                                                        myMachines[mid]) == 0):
                                         (res, ip) = vpn.getIP(myMachines[mid])
-                                        print(res)
-                                        print(ip)
+                                        logging.debug(res)
+                                        logging.debug(ip)
                                         if res == 0 and ip != "":
                                             myMachines[mid]["vpn_ip"] = ip
                                         else:
-                                            print("getting VPN IP failed!!")
+                                            logging.debug("getting VPN IP failed!!")
 
                             if (myMachines[mid]["vpn_cert_is_valid"] == True and myMachines[mid][
                                 "vpn_ip"] is not None):
@@ -273,9 +273,9 @@ class OneSiteAdapter(SiteAdapterBase):
                                 #    myMachines[k]["vpn_cert_is_valid"] == False
                                 self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
-                            print(myMachines[mid]["vpn_ip"])
-                            print(myMachines[mid]["vpn_cert_is_valid"])
-                            print(myMachines[mid]["vpn_cert"])
+                            logging.debug(myMachines[mid]["vpn_ip"])
+                            logging.debug(myMachines[mid]["vpn_cert_is_valid"])
+                            logging.debug(myMachines[mid]["vpn_cert"])
 
                         else:
                             self.checkForDeadMachine(mid)

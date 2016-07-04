@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ==============================================================================
-from __future__ import print_function, unicode_literals
+from __future__ import unicode_literals, absolute_import
 
 import datetime
 import logging
@@ -607,5 +607,5 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             return nova_machines
 
         except Exception as e:
-            print(e.message)
+            logging.warning(e.message)
             return {}

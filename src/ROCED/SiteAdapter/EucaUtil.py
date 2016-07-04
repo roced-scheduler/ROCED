@@ -18,6 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
+from __future__ import unicode_literals, absolute_import
 
 # see http://docs.pythonboto.org/
 import boto

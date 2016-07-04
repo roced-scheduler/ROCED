@@ -18,7 +18,7 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-
+from __future__ import unicode_literals, absolute_import
 
 """
 The RequirementAdapters check the state of the queues and tell the broker the current requirements.
