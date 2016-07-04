@@ -151,7 +151,7 @@ class MachineRegistry(Event.EventPublisher):
         :type: int
         """
         diff = datetime.now() - self.machines[mid].get(self.regStatusLastUpdate, datetime.now())
-        return diff.seconds
+        return diff.total_seconds()
 
     def getMachineOverview(self):
         """Create comma-separated list of machines in different statuses."""

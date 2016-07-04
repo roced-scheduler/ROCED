@@ -94,7 +94,7 @@ class NovaSiteAdapter(SiteAdapterBase):
         if firstCheck is None:
             self.mr.machines[mid][self.reg_site_euca_first_dead_check] = datetime.datetime.now()
         else:
-            if (datetime.datetime.now() - firstCheck).seconds > self.getConfig(
+            if (datetime.datetime.now() - firstCheck).total_seconds() > self.getConfig(
                     self.ConfigMachineBootTimeout):
                 logging.warning("Machine " + str(mid) + " did not boot in time. Shutting down")
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
