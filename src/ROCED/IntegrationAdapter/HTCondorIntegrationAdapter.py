@@ -190,9 +190,12 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         condor_wait_working = self.getConfig(self.configCondorWaitWorking) * 60
         condor_wait_PD = self.getConfig(self.configCondorWaitPD) * 60
 
-        # get list of condor machines and validity (condor_status returncode)
-        condor_machines, valid_condor_info = self.condorList
-        if len(self.mr.getMachines(self.siteName)) == 0 or valid_condor_info is False:
+        try:
+            condor_machines = self.condorList
+            if len(self.mr.getMachines(self.siteName)) == 0:
+                raise ValueError
+        except ValueError as err:
+            self.logger.warning(err.message)
             self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
             return None
 
@@ -282,14 +285,12 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         return "HTCondorIntegrationAdapter"
 
     @property
+    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=900)
     def condorList(self):
-        # type: () -> Defaultdict(Tuple), bool
-        """Return a list of all condor machines.
+        # type: () -> Defaultdict(List)
+        """Return list of condor machines {machine name : [[state, activity], [state, activity], ..]}
 
-        Tuple of condor machines {mid/OpenStackName : [[state, activity], [state, activity], ..]}
-        and a bool showing valid condor information.
-
-        :return: (condor_machines, valid_condor_info)
+        :return: condor_machines
         """
 
         # load the connection settings from config
@@ -305,24 +306,20 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         condor_result = condor_ssh.handleSshCall(call=cmd, quiet=True)
         condor_ssh.debugOutput(self.logger, "EKP-manage", condor_result)
 
-        # condor_result is invalid if there was a connection problem
-        valid_condor_info = True
-        if not condor_result[0] == 0:
-            self.logger.warning("SSH connection to HTCondor collector could not be established.")
-            valid_condor_info = False
+        if condor_result[0] != 0:
+            raise ValueError("SSH connection to HTCondor collector could not be established.")
 
         # prepare list of condor machines
         tmp_condor_machines = re.findall("([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)", condor_result[1], re.MULTILINE)
 
         # transform list into dictionary with one list per slot
-        # {mid/OpenStackName : [[state, activity], [state, activity], ..]}
+        # {machine name : [[state, activity], [state, activity], ..]}
         condor_machines = defaultdict(list)
         if len(tmp_condor_machines) > 1 and any(tmp_condor_machines[0]):
             for machine_name, state, activity in tmp_condor_machines:
                 condor_machines[machine_name].append([state, activity])
 
-        # return a tuple containing the needed information
-        return condor_machines, valid_condor_info
+        return condor_machines
 
     @classmethod
     def drainMachine(cls, mid):
