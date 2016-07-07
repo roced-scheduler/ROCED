@@ -110,9 +110,11 @@ class Caching(dict):
                 else:
                     if self.__redundancy is None:
                         return result
-                    elif self.__redundancy is True and args in self:
+                    elif ( self.__redundancy is True and args in self ):
+                        logging.warning("%s did't return values. Using cached values." % self.__function.__str__())
                         return self[args]
                     elif time.time() < self.__lastQueryTime + self.__redundancy and args in self:
+                        logging.warning("%s did't return values. Using cached values." % self.__function.__str__())
                         return self[args]
                     else:
                         # This includes passing the timeout or not having a value stored at all
@@ -126,12 +128,13 @@ class Caching(dict):
             ret = self.__function(*key)
             self.__lastQueryTime = time.time()
         except:
+            logging.warning("%s raised an exception when querying for new values." % self.__function.__str__())
             ret = None
         return ret
 
     def __repr__(self):
         """Return the function's docstring."""
-        return self.__function.__doc__
+        return self.__function.__doc__()
 
     def __get__(self, obj, objtype):
         """Support instance methods."""
