@@ -324,7 +324,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 try:
                     frJobsRunning.pop(batchJobId)
                     continue
-                except KeyError:
+                except (KeyError, AttributeError):
+                    # AttributeError: frJobsRunning is Empty
+                    # KeyError: batchJobId not in frJobsRunning
                     pass
             # Machines which failed to boot/died/got canceled (return code != 0) -> down
             # A machine MAY fail to boot with return code 0 or we just missed some states -> regular shutdown
