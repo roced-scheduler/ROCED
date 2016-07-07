@@ -36,9 +36,18 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
     configCondorServer = "condor_server"
     configCondorRequirement = "condor_requirement"
 
-    # class constants for condor_q query: condor autoformat string & gawk processing string
-    _query_format_string = "'%s,' JobStatus -format '%s,' RequestCpus -format '%s\\n' Requirements"
-    _query_processing = "',' '{print $1\",\"$2}'"
+    # See https://htcondor-wiki.cs.wisc.edu/index.cgi/wiki?p=MagicNumbers
+    condorStatusIdle = 1
+    condorStatusRunning = 2
+
+    # class constants for condor_q query:
+    _query_constraints = "RoutedToJobId =?= undefined && ( JobStatus == %d || JobStatus == %d )" % \
+                         (condorStatusIdle, condorStatusRunning)
+    # autoformat string: raw output, separated by comma
+    _query_format_string = "-autoformat:r, JobStatus RequestCpus Requirements"
+    # gawk processing: ", " as separator, only output the first 2 strings, not the Requirements
+    _query_processing = "', ' '{print $1\", \"$2}'"
+    _schedd_error_string = "-- Failed to fetch ads from:"
 
     def __init__(self):
         super(HTCondorRequirementAdapter, self).__init__()
@@ -75,42 +84,38 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                              username=self.getConfig(self.configCondorUser),
                              key=self.getConfig(self.configCondorKey))
 
-        # get running and idling jobs and the number of requested CPUs
-        # job status ids: https://htcondor-wiki.cs.wisc.edu/index.cgi/wiki?p=MagicNumbers
-        # this is not done with -constraints since "Requirements" can not be used for
-        # selecting specific jobs.
-        # grep is the solution here
-
-        # TODO: htcondor python bindings? || condor_q -global -constraint "REMOTE_JOB==True"
-
-        cmd = ("condor_q -global -constraint 'JobStatus == 1 || JobStatus == 2' -format %s | grep -i '%s' | awk -F%s" %
-               (self._query_format_string, self.getConfig(self.configCondorRequirement), self._query_processing))
+        # Requirements can't be filtered with -constraints since you compare the whole string.
+        cmd = ("condor_q -global -constraint '%s' %s | grep -i '%s' | awk -F %s" %
+               (self._query_constraints, self._query_format_string,
+                self.getConfig(self.configCondorRequirement), self._query_processing))
 
         result = ssh.handleSshCall(call=cmd, quiet=True)
 
-        # get number of idle jobs with requirements that allow them to run on
-        # a specific site (using -slotads)
+        # get number of idle jobs with requirements that allow them to run on a specific site (using -slotads)
         # cmd_idle = "condor_q -constraint 'JobStatus == 1' -slotads slotads_bwforcluster " \
         #            "-analyze:summary,reverse | tail -n1 | awk -F ' ' " \
         #            "'{print $3 "\n" $4}'| sort -n | head -n1"
 
-        if result[0] == 0:
-            condor_jobs = str(result[1]).strip()
-            condor_jobs = re.split(",|\n", condor_jobs)
-            condor_jobs = [condor_jobs[i:i + 2] for i in range(0, len(condor_jobs), 2)]
+        # if we're querying "-global", we have to manually parse for failed schedd queries.
+        if result[0] == 0 and re.search(self._schedd_error_string, result[1]) is None:
+            # result has format "2,1\n2,1\n1,1\n...\n" (JobStatus,RequestCpus)
+            # -> split lines into single list elements into 2 elements
+            condor_jobs = [job.split(",") for job in str(result[1]).splitlines()]
             n_slots = 0
             n_jobs_idle = 0
             n_jobs_running = 0
             if any(condor_jobs[0]):
                 for job in condor_jobs:
-                    n_slots += int(job[1])
-                    if int(job[0]) == 1:  # 1: idle
-                        n_jobs_idle += 1
-                    elif int(job[0]) == 2:  # 2: running
-                        n_jobs_running += 1
+                    status = int(job[0])
+                    cpus = int(job[1])
+                    n_slots += cpus
+                    if status == self.condorStatusIdle:
+                        n_jobs_idle += cpus
+                    elif status == self.condorStatusRunning:
+                        n_jobs_running += cpus
 
-            self.logger.debug("HTCondor queue (%d+%d). [Status, CPUs]:\n%s"
-                              % (n_jobs_idle, n_jobs_running, condor_jobs))
+            self.logger.debug("HTCondor queue: Idle: %d; Running: %d." % (n_jobs_idle, n_jobs_running))
+            self.logger.debug("[Job Status, CPUs])\n%s" % condor_jobs)
 
             # this requires the machines variable to be listed twice in the config file
             n_cores = - int(self.getConfig(self.configMachines)[self.getNeededMachineType()]["cores"])
