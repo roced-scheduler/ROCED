@@ -327,8 +327,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 except KeyError:
                     pass
             # Machines which failed to boot/died/got canceled (return code != 0) -> down
-            # -> ROCED becomes aware of failed VM requests and asks for new ones.
-            # A machine MAY fail to boot with return code 0. Could be regular shutdown -> shutdown
+            # A machine MAY fail to boot with return code 0 or we just missed some states -> regular shutdown
             if mr[mid][self.mr.regStatus] != self.mr.statusDown:
                 if batchJobId in frJobsCompleted:
                     if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
@@ -341,7 +340,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
             elif batchJobId in frJobsCompleted or self.mr.calcLastStateChange(mid) > 86400:
                 # Remove machines, which are:
-                # 1. finished in ROCED & Freiburg // 2. Finished for more than 1 day and thus have no data anymore.
+                # 1. finished in ROCED & Freiburg // 2. Finished for more than 1 day [= job history purge time]
                 self.mr.removeMachine(mid)
                 continue
             elif batchJobId in frJobsRunning:

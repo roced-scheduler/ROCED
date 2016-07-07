@@ -225,6 +225,8 @@ class Shell(object):
 
 
 class Ssh(object):
+    local_host_list = ["localhost", "127.0.0.1", "::1", "", " ", None]
+
     def __init__(self, host, username, key, password=None, timeout=3, gatewayip=None,
                  gatewaykey=None, gatewayuser=None, ):
         """Perform various commands via SSH (shell commands, copy, ...).
@@ -282,9 +284,7 @@ class Ssh(object):
         :return res: SSH call result. Consists of return-code, output, error
         :rtype res: Tuple(int, str, str)
         """
-        if (self.__gatewayIp is None and
-                    self.__host in ["localhost", "127.0.0.1", "::1", "", " ", None] and
-                    self.__username == getpass.getuser()):
+        if self.__gatewayIp is None and self.__host in self.local_host_list and self.__username == getpass.getuser():
             logging.debug("Redirecting SSH call to local shell.")
             # Perform "quiet", since this method will already generate output.
             res = Shell.executeCommand(command=call, quiet=True)

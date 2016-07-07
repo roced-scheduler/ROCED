@@ -38,12 +38,6 @@ class EventBase(object):
 class EventPublisher(object):
     __metaclass__ = abc.ABCMeta
 
-    # old singleton implementation:
-    # def __new__(self, *args):
-    #   if not '_the_instance' in self.__dict__:
-    #       self._the_instance = object.__new__(self)
-    #   return self._the_instance
-
     def __init__(self):
         """
         Abstract base event manager
