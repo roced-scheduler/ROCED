@@ -177,29 +177,28 @@ if __name__ == "__main__":
     parser_start = subparsers.add_parser('test', help='Run unit tests')
     parser_start.set_defaults(cmd="test")
 
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
 
-    try:
-        if args.cmd == 'test':
-            sm = ScaleMain()
-            sm.test()
-            exit(0)
-        elif args.cmd == 'standalone':
-            sm = ScaleMain()
-            sm.run(args.config[0], args.debug, args.iterations)
-            exit(0)
-    except AttributeError:
+    if not "cmd" in args:
         logging.error("Please supply a command type!")
         exit(1)
+    elif args["cmd"] == "test":
+        sm = ScaleMain()
+        sm.test()
+        exit(0)
+    elif args["cmd"] == "standalone":
+        sm = ScaleMain()
+        sm.run(args["config"][0], args["debug"], args["iterations"])
+        exit(0)
 
-    daemon = MyDaemon('/tmp/daemon-scale.pid')
-    daemon.configfile = args.config[0]
+    daemon = MyDaemon("/tmp/daemon-scale.pid")
+    daemon.configfile = args["config"][0]
 
-    if args.cmd == 'start':
+    if args["cmd"] == "start":
         daemon.start()
-    elif args.cmd == 'status':
+    elif args["cmd"] == "status":
         daemon.status()
-    elif args.cmd == 'stop':
+    elif args["cmd"] == "stop":
         daemon.stop()
-    elif args.cmd == 'restart':
+    elif args["cmd"] == "restart":
         daemon.restart()
