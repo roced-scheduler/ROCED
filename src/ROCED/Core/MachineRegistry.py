@@ -63,8 +63,12 @@ class MachineRegistry(Event.EventPublisher, Singleton):
     statusPendingDisintegration = "pending-disintegration"
     statusDisintegrating = "disintegrating"
     statusDisintegrated = "disintegrated"
-    statusShutdown = "down"  # not in PBS, but still running and needing cloud resources
+    # statusShutdown = "down"  # not in PBS, but still running and needing cloud resources
     statusDown = "down"
+
+    # list of all states (in consecutive order)
+    list_status = [statusBooting, statusUp, statusIntegrating, statusWorking, statusPendingDisintegration,
+                   statusDisintegrating, statusDisintegrated, statusDown]
 
     statusChangeHistory = "state_change_history"
 
@@ -108,6 +112,7 @@ class MachineRegistry(Event.EventPublisher, Singleton):
         return newd
 
     def updateMachineStatus(self, mid, newStatus):
+        """Change Machine status"""
         newTime = datetime.now()
         if self.regStatusLastUpdate in self.machines[mid]:
             oldTime = self.machines[mid][self.regStatusLastUpdate]
@@ -147,27 +152,15 @@ class MachineRegistry(Event.EventPublisher, Singleton):
         return diff.total_seconds()
 
     def getMachineOverview(self):
-        """Create comma-separated list of machines in different statuses."""
-        info = "MachineState: "
-        l = list(self.getMachines(status=self.statusBooting))
-        info += "%d," % len(l)
-        l = list(self.getMachines(status=self.statusUp))
-        info += "%d," % len(l)
-        l = list(self.getMachines(status=self.statusIntegrating))
-        info += "%d," % len(l)
-        l = list(self.getMachines(status=self.statusWorking))
-        info += "%d," % len(l)
-        l = list(self.getMachines(status=self.statusPendingDisintegration))
-        info += "%d," % len(l)
-        l = list(self.getMachines(status=self.statusDisintegrating))
-        info += "%d," % len(l)
-        l = list(self.getMachines(status=self.statusDisintegrated))
-        info += "%d," % len(l)
-        l = list(self.getMachines(status=self.statusDown))
-        info += "%d" % len(l)
+        # type: () -> str
+        """Create comma-separated list of number of machines in each state."""
+        info = "MachineState: %s" % ",".join([str(len(self.getMachines(status=status_)))
+                                              for status_ in self.list_status])
         return info
 
     def newMachine(self, mid=None):
+        # type: uuid.uuid4 -> uuid.uuid4
+        """Create a new machine entry and publish "NewMachineEvent" event to all listeners."""
         if mid is None:
             mid = str(uuid.uuid4())
         self.logger.debug("Adding machine with id %s." % mid)
@@ -177,11 +170,13 @@ class MachineRegistry(Event.EventPublisher, Singleton):
         return mid
 
     def removeMachine(self, mid):
+        # type: UUID -> None
+        """Remove a machine entry and publish "MachineRemovedEvent" event to all listeners."""
         self.logger.debug("Removing machine with id %s." % mid)
         self.machines.pop(mid)
         self.publishEvent(MachineRemovedEvent(mid))
 
     def clear(self):
-        """ Clear machine registry. Should only be used in unit tests."""
+        """ Clear machine registry (without raising any events). Should only be used in unit tests."""
         self.machines = dict()
         self.clearListeners()

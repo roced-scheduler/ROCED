@@ -58,6 +58,7 @@ class Singleton(object):
     __init__ is called each time (by python).
     Init is only called once.
     """
+
     def __new__(cls, *args, **kwds):
         it = cls.__dict__.get("__it__")
         if it is not None:
