@@ -341,7 +341,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                         else:
                             self.logger.debug("VM (%s) died with status 0!" % batchJobId)
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
-            elif batchJobId in frJobsCompleted or self.mr.calcLastStateChange(mid) > 86400:
+            elif batchJobId in frJobsCompleted or self.mr.calcLastStateChange(mid) > 24 * 60 * 60:
                 # Remove machines, which are:
                 # 1. finished in ROCED & Freiburg // 2. Finished for more than 1 day [= job history purge time]
                 self.mr.removeMachine(mid)

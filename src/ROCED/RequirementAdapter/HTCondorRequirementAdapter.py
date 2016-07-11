@@ -68,7 +68,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                                    default="~/")
         self.addCompulsoryConfigKeys(self.configCondorRequirement, Config.ConfigTypeString)
 
-        self.logger = logging.getLogger('HTCondorReq')
+        self.logger = logging.getLogger("HTCondorReq")
         self.__str__ = self.description
 
     def init(self):
@@ -125,8 +125,8 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
             self._curRequirement = - (n_slots // n_cores)
 
             with Logging.JsonLog() as json_log:
-                json_log.addItem(self.getNeededMachineType(), 'jobs_idle', n_jobs_idle)
-                json_log.addItem(self.getNeededMachineType(), 'jobs_running', n_jobs_running)
+                json_log.addItem(self.getNeededMachineType(), "jobs_idle", n_jobs_idle)
+                json_log.addItem(self.getNeededMachineType(), "jobs_running", n_jobs_running)
 
             return self._curRequirement
         else:

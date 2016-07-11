@@ -37,7 +37,7 @@ class DaemonBase(object):
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, pidfile, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
+    def __init__(self, pidfile, stdin="/dev/null", stdout="/dev/null", stderr="/dev/null"):
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -76,9 +76,9 @@ class DaemonBase(object):
         # redirect standard file descriptors
         sys.stdout.flush()
         sys.stderr.flush()
-        si = open(self.stdin, 'r')
-        so = open(self.stdout, 'a+')
-        se = open(self.stderr, 'a+', 0)
+        si = open(self.stdin, "r")
+        so = open(self.stdout, "a+")
+        se = open(self.stderr, "a+", 0)
         os.dup2(si.fileno(), sys.stdin.fileno())
         os.dup2(so.fileno(), sys.stdout.fileno())
         os.dup2(se.fileno(), sys.stderr.fileno())
@@ -86,7 +86,7 @@ class DaemonBase(object):
         # write pidfile
         atexit.register(self.delpid)
         pid = str(os.getpid())
-        with open(self.pidfile, 'w+') as file_:
+        with open(self.pidfile, "w+") as file_:
             file_.write("%s\n" % pid)
 
     def delpid(self):
@@ -157,7 +157,7 @@ class DaemonBase(object):
 
     def get_pid_from_file(self):
         try:
-            with open(self.pidfile, 'r') as file_:
+            with open(self.pidfile, "r") as file_:
                 return int(file_.read().strip())
         except IOError:
             return None

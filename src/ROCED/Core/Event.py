@@ -29,9 +29,7 @@ class EventBase(object):
 
     @abc.abstractmethod
     def __init__(self):
-        """
-        Abstract base event class
-        """
+        """Abstract base event class."""
         pass
 
 
@@ -46,6 +44,7 @@ class EventPublisher(object):
         self.__listener = []
 
     def publishEvent(self, evt):
+        # type: (EventBase) -> None
         [listener.onEvent(evt) for listener in self.__listener]
 
     def registerListener(self, new_listener):

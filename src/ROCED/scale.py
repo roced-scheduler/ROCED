@@ -55,10 +55,10 @@ except ImportWarning:
 class ScaleMain(object):
     def __init__(self):
         # initialize root logger with basic config
-        logging.basicConfig(format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
+        logging.basicConfig(format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+                            datefmt="%Y-%m-%d %H:%M:%S")
         # initialize a class logger which inherits from root logger
-        self.logger = logging.getLogger('Scale')
+        self.logger = logging.getLogger("Scale")
 
     def test(self):
         logging.getLogger().setLevel(logging.DEBUG)
@@ -118,9 +118,9 @@ class ScaleMain(object):
                     logging.error("Error while creating folder %s." % log_folder.__str__())
             fname = log_folder + "/roced.log"
             logger.info("Writing to log file %s." % fname)
-            file_handler = TimedRotatingFileHandler(fname, when='midnight')
+            file_handler = TimedRotatingFileHandler(fname, when="midnight")
             file_handler.setFormatter(
-                logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s', '%Y-%m-%d %H:%M:%S'))
+                logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S"))
             logger.addHandler(file_handler)
 
     def run(self, config_file_name, debug=False, iterations=None):
@@ -149,32 +149,30 @@ class MyDaemon(DaemonBase):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run the ROCED scheduler')
-    parser.add_argument('--config', nargs=1,
-                        help="Run using a custom config file (default: /etc/roced/roced.conf)",
+    parser = argparse.ArgumentParser(description="Run the ROCED scheduler")
+    parser.add_argument("--config", nargs=1,
+                        help="Run using a custom config file (default: %(default)s)",
                         default="/etc/roced/roced.conf")
-
-    parser.add_argument('--iterations', type=int,
+    parser.add_argument("--iterations", type=int,
                         help="Number of control iterations to run (default: unlimited)",
                         default=None)
+    parser.add_argument("--debug", action="store_true", help="Print debug information")
 
-    parser.add_argument('--debug', action='store_true', help="Print debug information")
+    subparsers = parser.add_subparsers(help="")
 
-    subparsers = parser.add_subparsers(help='')
-
-    parser_start = subparsers.add_parser('standalone', help='Run standalone')
+    parser_start = subparsers.add_parser("standalone", help="Run standalone (output to current session)")
     parser_start.set_defaults(cmd="standalone")
 
-    parser_start = subparsers.add_parser('start', help='Start as daemon')
+    parser_start = subparsers.add_parser("start", help="Start daemon")
     parser_start.set_defaults(cmd="start")
 
-    parser_start = subparsers.add_parser('stop', help='Stop daemon')
+    parser_start = subparsers.add_parser("stop", help="Stop daemon")
     parser_start.set_defaults(cmd="stop")
 
-    parser_start = subparsers.add_parser('status', help='Status of the daemon')
+    parser_start = subparsers.add_parser("status", help="Show daemon status")
     parser_start.set_defaults(cmd="status")
 
-    parser_start = subparsers.add_parser('test', help='Run unit tests')
+    parser_start = subparsers.add_parser("test", help="Run unit tests")
     parser_start.set_defaults(cmd="test")
 
     args = vars(parser.parse_args())

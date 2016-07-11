@@ -69,7 +69,7 @@ class AdapterBaseTest(ScaleTest.ScaleTestBase):
 
         # general
         config.add_section(Config.GeneralSection)
-        config.set(Config.GeneralSection, Config.GeneralSiteAdapters, 'fake_site')
+        config.set(Config.GeneralSection, Config.GeneralSiteAdapters, "fake_site")
 
         # Site
         config.add_section("fake_site")

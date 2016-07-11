@@ -65,7 +65,7 @@ class StupidBroker(SiteBrokerBase):
         self.delayedShutdownTime = None
         self.shutdownDelay = shutdown_delay  # seconds
         self._maxInstances = max_instances
-        self.logger = logging.getLogger('Broker')
+        self.logger = logging.getLogger("Broker")
 
     @staticmethod
     def modSiteOrders(dict_, siteName, machineName, mod):
@@ -112,9 +112,9 @@ class StupidBroker(SiteBrokerBase):
 
         # machinesToSpawn contains a wishlist of machines. Distribute this to the cloud.
         # Spawn cheap sites first.
-        cheapFirst = sorted(siteInfo, key=attrgetter('cost'), reverse=False)
+        cheapFirst = sorted(siteInfo, key=attrgetter("cost"), reverse=False)
         # Shutdown expensive sites first.
-        expensiveFirst = sorted(siteInfo, key=attrgetter('cost'), reverse=True)
+        expensiveFirst = sorted(siteInfo, key=attrgetter("cost"), reverse=True)
 
         siteOrders = dict()
 

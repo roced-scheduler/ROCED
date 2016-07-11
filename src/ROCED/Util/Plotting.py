@@ -297,7 +297,7 @@ def plot_to_file(logs_, plot_dict, style, time_scale, output, proportion, resolu
     if style == "screen":
         for site in logs_:
             fig = plt.figure(num=None, figsize=(proportion[0], proportion[1]), dpi=360,
-                             facecolor='w', edgecolor='k')
+                             facecolor="w", edgecolor="k")
             plot = fig.add_subplot(1, 1, 1)
             # plot.hold(True)
             plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"],
@@ -352,7 +352,7 @@ def plot_to_file(logs_, plot_dict, style, time_scale, output, proportion, resolu
     elif style == "slide":
         for site in logs_:
             fig = plt.figure(num=None, figsize=(proportion[0], proportion[1]), dpi=360,
-                             facecolor='w', edgecolor='k')
+                             facecolor="w", edgecolor="k")
             plot = fig.add_subplot(1, 1, 1)
             plot.set_title("Resource allocation over time @ " + machine_settings[site]["label"],
                            size=24)

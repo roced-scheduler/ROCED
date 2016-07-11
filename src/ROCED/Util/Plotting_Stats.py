@@ -226,7 +226,7 @@ def main():
     stats.plot_stats_to_screen()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
         exit(0)

@@ -61,7 +61,7 @@ class JsonLog(object):
         # Build log file name
         if not cls.__fileName:
             cls.__fileName = ("%s/%s_%s%s.json"
-                              % (dir_, prefix, datetime.today().strftime('%Y-%m-%d'), suffix))
+                              % (dir_, prefix, datetime.today().strftime("%Y-%m-%d"), suffix))
 
     @classmethod
     def __enter__(cls):
@@ -135,7 +135,7 @@ class JsonStats(object):
         # Build log file name
         if not cls.__fileName:
             cls.__fileName = ("%s/%s_%s%s.json"
-                              % (dir_, prefix, datetime.today().strftime('%Y-%m-%d'), suffix))
+                              % (dir_, prefix, datetime.today().strftime("%Y-%m-%d"), suffix))
 
     @classmethod
     def add_item(cls, site, mid, value):
@@ -198,9 +198,9 @@ class UnicodeWriter(object):
 
     def __enter__(self):
         if PY3:
-            self.f = open(self.filename, 'at', encoding=self.encoding, newline='')
+            self.f = open(self.filename, "at", encoding=self.encoding, newline="")
         else:
-            self.f = open(self.filename, 'ab')
+            self.f = open(self.filename, "ab")
         self.writer = csv.DictWriter(self.f, fieldnames=self.fieldnames, dialect=self.dialect,
                                      **self.kw)
         return self
@@ -240,11 +240,11 @@ class CsvStats(object):
                 logging.error("Error when creating %s folder" % dir_)
         if not cls.__fileName:
             cls.__fileName = ("%s/%s_%s%s.csv"
-                              % (dir_, prefix, datetime.today().strftime('%Y-%m-%d'), suffix))
+                              % (dir_, prefix, datetime.today().strftime("%Y-%m-%d"), suffix))
 
         # Existence check for log file
         if not os.path.isfile(cls.__fileName):
-            # with open(cls.__fileName, "w", newline='') as stats_file:
+            # with open(cls.__fileName, "w", newline="") as stats_file:
             #     writer = UnicodeWriter(stats_file, fieldnames=cls.__fieldnames)
             with UnicodeWriter(cls.__fileName, fieldnames=cls.__fieldnames) as writer:
                 writer.writeheader()

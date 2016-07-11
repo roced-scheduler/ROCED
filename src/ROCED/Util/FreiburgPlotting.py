@@ -270,11 +270,11 @@ def main(file_list, live, output_name, correction_period, correct_zero, time_sca
 
     for figure in plots[0:plot_count - 1]:
         figure.plot(rel_times, machines_requested, label=plot_dict[Data.vm_requested][0],
-                    color=plot_dict[Data.vm_requested][1], linestyle="-", marker='', linewidth=2.0)
+                    color=plot_dict[Data.vm_requested][1], linestyle="-", marker="", linewidth=2.0)
         figure.plot(rel_times, condor_nodes, label=plot_dict[Data.vm_running][0],
-                    color=plot_dict[Data.vm_running][1], linestyle="-", marker='', linewidth=2.0)
+                    color=plot_dict[Data.vm_running][1], linestyle="-", marker="", linewidth=2.0)
         figure.plot(rel_times, condor_nodes_draining, label=plot_dict[Data.vm_draining][0],
-                    color=plot_dict[Data.vm_draining][1], linestyle="-", marker='', linewidth=2.0)
+                    color=plot_dict[Data.vm_draining][1], linestyle="-", marker="", linewidth=2.0)
 
         stack1 = figure.fill_between(rel_times, jobs_idle, facecolor=plot_dict[Data.condor_idle][1],
                                      color=None, edgecolor=None, linewidth=0.0, label=plot_dict[Data.condor_idle][0])

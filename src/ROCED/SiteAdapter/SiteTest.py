@@ -68,8 +68,8 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
         return m
 
     def getDefaultMachines(self):
-        return dict({'euca-default': self.getDefaultMachine(),
-                     'euca-alt-default': self.getAltDefaultMachine(),})
+        return dict({"euca-default": self.getDefaultMachine(),
+                     "euca-alt-default": self.getAltDefaultMachine(),})
 
     def test_getMachineAvailable(self):
         espawn = EucaSiteAdapter()
@@ -84,8 +84,8 @@ class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):
 
         siteInfo = espawn.siteInformation
         self.assertEqual(len(siteInfo.supportedMachineTypes), 2)
-        self.assertTrue('euca-default' in siteInfo.supportedMachineTypes)
-        self.assertTrue('euca-alt-default' in siteInfo.supportedMachineTypes)
+        self.assertTrue("euca-default" in siteInfo.supportedMachineTypes)
+        self.assertTrue("euca-alt-default" in siteInfo.supportedMachineTypes)
 
     def getDefaultEucaConnection(self):
         self.MockEucaConnection.utest = self

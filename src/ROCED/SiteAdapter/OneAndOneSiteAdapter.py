@@ -251,7 +251,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         :return: ip_addr - string as 128014123182
         """
         ip_string = ""
-        for ip_part in re.split(r'\.', ip):
+        for ip_part in re.split(r"\.", ip):
             ip_string += "{0:0>3}".format(ip_part)
 
         return ip_string
@@ -538,13 +538,13 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                          % (self.siteName, self.runningMachinesCount[
             self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
         json_log = JsonLog()
-        json_log.addItem(self.siteName, 'machines_requested',
+        json_log.addItem(self.siteName, "machines_requested",
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                              len(self.getSiteMachines(status=self.mr.statusUp)) +
                              len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        json_log.addItem(self.siteName, 'condor_nodes',
+        json_log.addItem(self.siteName, "condor_nodes",
                          len(self.getSiteMachines(status=self.mr.statusWorking)))
-        json_log.addItem(self.siteName, 'condor_nodes_draining',
+        json_log.addItem(self.siteName, "condor_nodes_draining",
                          len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 
         del oao_machines

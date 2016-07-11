@@ -508,12 +508,12 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         self.logger.info("Current machines running at %s: %s" %
                          (self.siteName, self.runningMachinesCount[self.getConfig(self.configMachines)]))
         json_log = JsonLog()
-        json_log.addItem(self.siteName, 'machines_requested',
+        json_log.addItem(self.siteName, "machines_requested",
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
                              len(self.getSiteMachines(status=self.mr.statusUp)) +
                              len(self.getSiteMachines(status=self.mr.statusIntegrating))))
-        json_log.addItem(self.siteName, 'condor_nodes', len(self.getSiteMachines(status=self.mr.statusWorking)))
-        json_log.addItem(self.siteName, 'condor_nodes_draining',
+        json_log.addItem(self.siteName, "condor_nodes", len(self.getSiteMachines(status=self.mr.statusWorking)))
+        json_log.addItem(self.siteName, "condor_nodes_draining",
                          len(self.getSiteMachines(status=self.mr.statusPendingDisintegration)))
 
     def onEvent(self, mid):
@@ -546,8 +546,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         """
 
         nova = self.__getNovaApi(self.getConfig(self.configUseTime))
-        nova_machines = [(vm.id, vm.__dict__['OS-EXT-SRV-ATTR:host']) for vm in
-                         nova.servers.list(search_opts={'all_tenants': True})]
+        nova_machines = [(vm.id, vm.__dict__["OS-EXT-SRV-ATTR:host"]) for vm in
+                         nova.servers.list(search_opts={"all_tenants": True})]
 
         # return the corresponding hypervisor
         for (vm_id, vm_hypervisor) in nova_machines:

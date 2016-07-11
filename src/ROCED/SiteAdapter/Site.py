@@ -78,7 +78,7 @@ class SiteAdapterBase(AdapterBase):
         self.addOptionalConfigKeys(self.ConfigMachineBootTimeout, Config.ConfigTypeInt, default=30)
         self.addOptionalConfigKeys(self.ConfigMaxMachines, Config.ConfigTypeInt, default=10)
 
-        self.logger = logging.getLogger('Site')
+        self.logger = logging.getLogger("Site")
 
     @abc.abstractmethod
     def manage(self):

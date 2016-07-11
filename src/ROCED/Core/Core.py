@@ -42,7 +42,7 @@ from SiteAdapter.Site import SiteBox
 from Util.Logging import JsonLog
 from Util.PythonTools import summarize_dicts
 
-logger = logging.getLogger('Core')
+logger = logging.getLogger("Core")
 
 
 class MachineStatus(object):
@@ -58,7 +58,7 @@ class ScaleCore(object):
         if self._rpcServer is not None:
             self._rpcServer.register_function(meth, name)
         else:
-            logger.warning("Can't register method %s with rpc, RPCServer not set." % name)
+            logger.warning("Can't register method %s with RPCServer \"%s\"." % (name, self._rpcServer))
 
     def __init__(self,
                  broker,
@@ -170,14 +170,13 @@ class ScaleCore(object):
         t.start()
 
     def init(self):
-        # self.exportMethod(self.setMachineTypeMaxInstances,
-        #                  "setMachineTypeMaxInstances")
+        # self.exportMethod(self.setMachineTypeMaxInstances, "setMachineTypeMaxInstances")
         self.loadState()
 
     def startManage(self):
         logger.info("----------------------------------")
         logger.info("Management cycle triggered")
-        logger.info("Time: %s" % datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
+        logger.info("Time: %s" % datetime.today().strftime("%Y-%m-%d %H:%M:%S"))
 
         # regular management
         self.reqBox.manage()
@@ -217,7 +216,7 @@ class ScaleCore(object):
 
         self.siteBox.applyMachineDecision(decision)
 
-        logger.info(str(self.mr.getMachineOverview()))
+        logger.info(self.mr.getMachineOverview())
 
         self.dumpState()
 
@@ -239,9 +238,9 @@ class ScaleCore(object):
 
 
 class ObjectFactory(object):
-    __packages = {Config.GeneralReqAdapters: 'RequirementAdapter',
-                  Config.GeneralIntAdapters: 'IntegrationAdapter',
-                  Config.GeneralSiteAdapters: 'SiteAdapter'}
+    __packages = {Config.GeneralReqAdapters: "RequirementAdapter",
+                  Config.GeneralIntAdapters: "IntegrationAdapter",
+                  Config.GeneralSiteAdapters: "SiteAdapter"}
 
     @classmethod
     def getObject(cls, className, adapterType=None):
@@ -264,7 +263,7 @@ class ObjectFactory(object):
             class_ = getattr(module_, className)()
             return class_
         except AttributeError:
-            logging.error('Class %s does not exist' % className)
+            logging.error("Class %s does not exist" % className)
 
 
 class ScaleCoreFactory(object):
