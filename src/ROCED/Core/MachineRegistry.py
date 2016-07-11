@@ -26,6 +26,7 @@ import uuid
 from datetime import datetime
 
 from Util.Logging import CsvStats
+from Util.PythonTools import Singleton
 from . import Event
 
 
@@ -54,8 +55,7 @@ class StatusChangedEvent(MachineEvent):
         self.oldStatus = oldStatus
 
 
-# Implemented singleton
-class MachineRegistry(Event.EventPublisher):
+class MachineRegistry(Event.EventPublisher, Singleton):
     statusBooting = "booting"
     statusUp = "up"
     statusIntegrating = "integrating"
@@ -87,17 +87,10 @@ class MachineRegistry(Event.EventPublisher):
     regVpnCert = "vpn_cert"
     regVpnCertIsValid = "vpn_cert_is_valid"
 
-    def __new__(cls, *args):
-        if '_the_instance' not in cls.__dict__:
-            cls._the_instance = object.__new__(cls)
-        return cls._the_instance
-
-    def __init__(self):
-        self.logger = logging.getLogger('MachReg')
-        if '_ready' not in dir(self):
-            self._ready = True
-            self.machines = dict()
-            super(MachineRegistry, self).__init__()
+    def init(self):
+        self.logger = logging.getLogger("MachReg")
+        self.machines = dict()
+        super(MachineRegistry, self).init()
 
     def getMachines(self, site=None, status=None, machineType=None):
         """Return MachineRegistry dictionary, filtered by variables.

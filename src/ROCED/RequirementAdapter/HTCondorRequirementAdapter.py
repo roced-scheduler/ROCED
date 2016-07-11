@@ -27,6 +27,7 @@ import re
 from Core import Config
 from RequirementAdapter.Requirement import RequirementAdapterBase
 from Util import Logging, ScaleTools
+from Util.PythonTools import Caching
 
 
 class HTCondorRequirementAdapter(RequirementAdapterBase):
@@ -78,7 +79,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         return "HTCondorRequirementAdapter"
 
     @property
-    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=900)
+    @Caching(validityPeriod=-1, redundancyPeriod=900)
     def requirement(self):
         ssh = ScaleTools.Ssh(host=self.getConfig(self.configCondorServer),
                              username=self.getConfig(self.configCondorUser),

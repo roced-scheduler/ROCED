@@ -29,6 +29,7 @@ from datetime import datetime
 from Core import MachineRegistry, Config
 from IntegrationAdapter.Integration import IntegrationAdapterBase
 from Util import ScaleTools
+from Util.PythonTools import Caching
 
 
 class HTCondorIntegrationAdapter(IntegrationAdapterBase):
@@ -285,7 +286,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         return "HTCondorIntegrationAdapter"
 
     @property
-    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=900)
+    @Caching(validityPeriod=-1, redundancyPeriod=900)
     def condorList(self):
         # type: () -> Defaultdict(List)
         """Return list of condor machines {machine name : [[state, activity], [state, activity], ..]}

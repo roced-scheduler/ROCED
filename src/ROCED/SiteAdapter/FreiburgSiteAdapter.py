@@ -26,8 +26,9 @@ import re
 from Core import MachineRegistry, Config
 from IntegrationAdapter.HTCondorIntegrationAdapter import HTCondorIntegrationAdapter as HTCondor
 from SiteAdapter.Site import SiteAdapterBase
-from Util import ScaleTools
 from Util.Logging import JsonLog
+from Util.PythonTools import Caching, merge_dicts
+from Util.ScaleTools import Ssh
 
 
 class FreiburgSiteAdapter(SiteAdapterBase):
@@ -181,7 +182,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         # Running machines, sorted by load (idle first). These machines are put into drain mode
         if self.getConfig(self.configDrainWorkingMachines) is True:
-            workingMachines = self.__merge_dicts(
+            workingMachines = merge_dicts(
                 self.getSiteMachines(self.mr.statusIntegrating, machineType),
                 self.getSiteMachines(self.mr.statusWorking, machineType),
                 self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
@@ -387,9 +388,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         :param cmd:
         :return: Tuple: (return_code, std_out, std_err)
         """
-        frSsh = ScaleTools.Ssh(host=self.getConfig(self.configFreiburgServer),
-                               username=self.getConfig(self.configFreiburgUser),
-                               key=self.getConfig(self.configFreiburgKey))
+        frSsh = Ssh(host=self.getConfig(self.configFreiburgServer),
+                    username=self.getConfig(self.configFreiburgUser),
+                    key=self.getConfig(self.configFreiburgKey))
         return frSsh.handleSshCall(call=cmd, quiet=True)
 
     def __cancelFreiburgMachines(self, batchJobIds):
@@ -415,7 +416,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         idsRemoved = []
         idsInvalidated = []
         if result[0] <= 1:
-            ScaleTools.Ssh.debugOutput(self.logger, "FR-terminate", result)
+            Ssh.debugOutput(self.logger, "FR-terminate", result)
             idsRemoved += re.findall("\'(\d+)\'", result[1])
             idsInvalidated += re.findall("invalid job specified \((\d+)", result[2])
             if len(idsRemoved) > 0:
@@ -452,7 +453,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return res
 
     @property
-    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=300)
+    @Caching(validityPeriod=-1, redundancyPeriod=300)
     def __runningJobs(self):
         # type: () -> dict
         """Get list of running batch jobs, filtered by user ID."""
@@ -488,7 +489,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return frJobsRunning
 
     @property
-    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=300)
+    @Caching(validityPeriod=-1, redundancyPeriod=300)
     def __idleJobs(self):
         # type: () -> list
         """Get list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
@@ -513,7 +514,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return frJobsIdle
 
     @property
-    @ScaleTools.Caching(validityPeriod=-1, redundancyPeriod=300)
+    @Caching(validityPeriod=-1, redundancyPeriod=300)
     def __completedJobs(self):
         # type: () -> dict
         """Get list of completed batch jobs, filtered by user ID."""
@@ -544,14 +545,3 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         self.logger.debug("Completed:\n%s" % frJobsCompleted)
         return frJobsCompleted
-
-    @staticmethod
-    def __merge_dicts(*dict_args):
-        # type: (*dict) -> dict
-        """Given any number of dicts, shallow copy and merge into a new dict.
-        Precedence goes to key value pairs in latter dicts.
-        """
-        result = {}
-        for dictionary in dict_args:
-            result.update(dictionary)
-        return result

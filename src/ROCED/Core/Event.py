@@ -39,9 +39,10 @@ class EventPublisher(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
-        """
-        Abstract base event manager
-        """
+        """(Abstract) Event manager. Registers listeners and publishes events."""
+        pass
+
+    def init(self):
         self.__listener = []
 
     def publishEvent(self, evt):

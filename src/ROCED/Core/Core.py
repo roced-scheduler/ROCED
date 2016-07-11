@@ -30,7 +30,6 @@ import importlib
 import json
 import logging
 import shutil
-from functools import reduce
 from datetime import datetime
 from threading import Timer
 
@@ -41,6 +40,7 @@ from IntegrationAdapter.Integration import IntegrationBox
 from RequirementAdapter.Requirement import RequirementBox
 from SiteAdapter.Site import SiteBox
 from Util.Logging import JsonLog
+from Util.PythonTools import summarize_dicts
 
 logger = logging.getLogger('Core')
 
@@ -191,16 +191,8 @@ class ScaleCore(object):
         siteInfo = self.siteBox.siteInformation
         runningBySite = self.siteBox.runningMachinesCount
 
-        def mergeDicts(dict1, dict2):
-            for (key_, value_) in dict2.items():
-                if key_ in dict1:
-                    dict1[key_] += value_
-                else:
-                    dict1[key_] = value_
-            return dict1
-
         # contains a list of all machine types merged
-        runningOverall = reduce(mergeDicts, runningBySite.values(), dict())
+        runningOverall = summarize_dicts(list(runningBySite.values()))
 
         machStat = dict()
         for (k, v) in runningOverall.items():
