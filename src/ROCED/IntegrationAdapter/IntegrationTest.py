@@ -68,12 +68,15 @@ class TorqueIntegrationAdapterTest(ScaleTest.ScaleTestBase):
 
         mid = self.mr.newMachine()
         self.mr.machines[mid][self.mr.regSite] = "cloud-site"
-        self.mr.updateMachineStatus(mid, self.mr.statusWorking)
+        self.mr.updateMachineStatus(mid, self.mr.statusBooting)
         self.mr.machines[mid][integration.reg_torque_node_name] = "cloud-001"
 
         mid_notorque = self.mr.newMachine()
         self.mr.machines[mid_notorque][self.mr.regSite] = "cloud_site"
-        self.mr.updateMachineStatus(mid_notorque, self.mr.statusWorking)
+        self.mr.updateMachineStatus(mid_notorque, self.mr.statusBooting)
+        self.mr.updateMachineStatus(mid_notorque, self.mr.statusUp)
+        self.mr.updateMachineStatus(mid_notorque, self.mr.statusIntegrating)
+        self.mr.updateMachineStatus(mid_notorque, self.mr.statusDown)
 
         ScaleTools.Ssh = FakeSsh
         self.assertEqual(ScaleTools.Ssh.getSshOnMachine(self.mr.machines[mid]).host, "localhost")
