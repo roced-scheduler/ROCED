@@ -22,11 +22,12 @@ from __future__ import unicode_literals, absolute_import
 
 import logging
 
+from Util.PythonTools import Singleton
 from . import Event
 from . import ScaleTest
 
 
-class EventPublisherTest(Event.EventPublisher):
+class EventPublisherTest(Event.EventPublisher, Singleton):
     pass
 
 

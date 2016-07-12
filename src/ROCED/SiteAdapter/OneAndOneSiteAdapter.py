@@ -26,7 +26,10 @@ import re
 import sys
 import time
 
-from oneandone.client import OneAndOneService, Server, Hdd
+try:
+    from oneandone.client import OneAndOneService, Server, Hdd
+except ImportError:
+    pass
 
 from Core import Config
 from SiteAdapter.Site import SiteAdapterBase
@@ -60,6 +63,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
     configPassword = "password"
     configPrivateNetworkID = "private_network_id"
     configSquid = "squid"
+    configTimeStart = "time_start"
+    configTimeEnd = "time_end"
 
     # site settings
     configMaxMachines = "max_machines"
@@ -141,10 +146,18 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configSquid, Config.ConfigTypeString,
                                    description="Squid server name",
                                    default=None)
+        self.addOptionalConfigKeys(self.configTimeStart, Config.ConfigTypeString,
+                                   description="Define time that should be used to start VMs",
+                                   default=None)
+        self.addOptionalConfigKeys(self.configTimeEnd, Config.ConfigTypeString,
+                                   description="Define time that should be used to shut down VMs",
+                                   default=None)
+
         # site settings
         self.addOptionalConfigKeys(self.configMaxMachines, Config.ConfigTypeInt,
                                    description="limit amount of machines",
                                    default=None)
+
         # set name of Site Adapter for ROCED output
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
 
@@ -271,6 +284,13 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # get 1and1 client and machine list
         client = self.getOneAndOneClient()
         servers = self.getOneAndOneMachines()
+        #
+        # # check if it is the prefered time slot
+        # start_time = self.getConfig(self.configTimeStart)
+        # end_time = self.getConfig(self.configTimeEnd)
+        # now = datetime.datetime.now().strftime("%H:%M")
+        # if now < start_time and now > end_time:
+        #     return
 
         # find all unused indices to spawn machines
         index = self.getIndex(servers, requested)
@@ -317,7 +337,6 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
         # all machines booted
-        # return
         return
 
     def modifyMachineStatus(self, mid, action, method=oao_method_software):

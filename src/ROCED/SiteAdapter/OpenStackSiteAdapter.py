@@ -23,8 +23,12 @@ from __future__ import unicode_literals, absolute_import
 import datetime
 import logging
 import uuid
-from novaclient.client import Client
-from novaclient.v1_1.hypervisors import HypervisorManager
+
+try:
+    from novaclient.client import Client
+    from novaclient.v1_1.hypervisors import HypervisorManager
+except ImportError as e:
+    print(e.message)
 
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase
@@ -58,14 +62,16 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     # configMachineName = "machine_name"
     configMachines = "machines"
     # configMachineType = "machine_type"
-    configMaxMachinesPerCycle = "openstack_machines_per_cycle"
+    configMaxMachinesPerCycle = "max_machines_per_cycle"
     configMaxMachines = "max_machines"
     configUseTime = "openstack_use_time"
     configMachinePercentage = "openstack_usage_daytime"
     configDay = "openstack_daytime"
     configNight = "openstack_nighttime"
-    configImage = "openstack_image"
-    configFlavor = "openstack_flavor"
+    configImage = "openstack_image_id"
+    configFlavor = "openstack_flavor_id"
+    configKeypair = "openstack_keypair_id"
+    configNetwork = "openstack_network_id"
 
     # name, id and status of VMs at OpenStack
     reg_site_server_name = "reg_site_server_name"
@@ -120,7 +126,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # init ConfigMachines with empty dictionary
         # self.setConfig(self.configMachines, dict())
         # self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeDictionary, "Machine dictionary")
-        self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeString, "Machine name")
+        self.addCompulsoryConfigKeys(self.configMachines, Config.ConfigTypeDictionary, "Machine name")
 
         # load machine specific settings from config file
         self.addOptionalConfigKeys(self.configMaxMachinesPerCycle, Config.ConfigTypeInt,
@@ -143,6 +149,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configFlavor, Config.ConfigTypeString,
                                    description="Defines the flavor to be selected",
                                    default="m1.large")
+        self.addCompulsoryConfigKeys(self.configNetwork, Config.ConfigTypeString,
+                                     description="Defines the network to be selected")
+        self.addOptionalConfigKeys(self.configKeypair, Config.ConfigTypeString,
+                                   description="Defines the keypair that shoud be used",
+                                   default=None)
 
     def init(self):
         super(OpenStackSiteAdapter, self).init()
@@ -160,6 +171,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         urllib3_logger.setLevel(logging.CRITICAL)
 
         self.mr.registerListener(self)
+
+        self._machineType = list(self.getConfig(self.configMachines).keys())[0]
 
     def getMaxMachines(self):
         """
@@ -190,14 +203,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         :return: machineList
         """
-        statusFilter = [self.mr.statusUp,
-                        self.mr.statusIntegrating,
-                        self.mr.statusWorking,
-                        self.mr.statusPendingDisintegration,
-                        self.mr.statusDisintegrating,
-                        self.mr.statusDisintegrated]
-
-        return self.getSiteMachinesAsDict(statusFilter)
+        return self.cloudOccupyingMachines
 
     def spawnMachines(self, machineType, requested):
         """Function to spawn requested amount of machines
@@ -218,17 +224,17 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         :return: count
         """
 
-        if not machineType == self.getConfig(self.configMachines):
+        if not machineType == self._machineType:  # self.getConfig(self.configMachines):
             return 0
 
         try:
             nova = self.__getNovaApi()
 
             # important to give a specifc network due to bug in nova api:
-            netw = nova.networks.list()[0]
-            fls = nova.flavors.find(name=self.getConfig(self.configFlavor))
-            img = nova.images.find(name=self.getConfig(self.configImage))
-            key = nova.keypairs.list()
+            netw = self.getConfig(self.configNetwork)
+            fls = self.getConfig(self.configFlavor)  # nova.flavors.find(name=self.getConfig(self.configFlavor))
+            img = self.getConfig(self.configImage)  # nova.images.find(name=self.getConfig(self.configImage))
+            key = self.getConfig(self.configKeypair)  # nova.keypairs.list()
             name_prefix = str(self.siteName + "-")
 
             daytime = datetime.datetime.strptime(self.getConfig(self.configDay), "%H:%M")
@@ -269,11 +275,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 mid = name_prefix + str(uuid.uuid4())
                 self.mr.newMachine(mid)
                 # spawn machine at site
-                if len(key) >= 1:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw.id}],
-                                             key_name=key[0].id)
+                if not key is None:
+                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}],
+                                             key_name=key)
                 else:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw.id}])
+                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}])
 
                 # set some machine information in machine registry
                 self.mr.machines[mid][self.mr.regSite] = self.siteName
@@ -296,7 +302,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             return requested
 
         # if spawning fails, do nothing
-        except:
+        except Exception as e:
+            print(e.message)
             self.logger.warning("Spawning machines failed...")
 
     def __openstackTerminateMachines(self, mid):
@@ -481,8 +488,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.machines[new][self.mr.regSite] = self.siteName
                 self.mr.machines[new][self.mr.regSiteType] = self.siteType
                 # TODO: handle different machine types
-                self.mr.machines[new][self.mr.regMachineType] = self.getConfig(
-                    self.configMachines)  # "vm-default"
+                self.mr.machines[new][self.mr.regMachineType] = self._machineType  # self.getConfig(
+                # self.configMachines)  # "vm-default"
                 self.mr.machines[new][self.reg_site_server_id] = nova_machines[mid][
                     self.reg_site_server_id]
                 self.mr.machines[new][self.reg_site_server_status] = nova_machines[mid][
@@ -505,8 +512,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # Write Json log file:
         #  requested machines, nodes, draining nodes.
         ###
-        self.logger.info("Current machines running at %s: %s" %
-                         (self.siteName, self.runningMachinesCount[self.getConfig(self.configMachines)]))
+        self.logger.info("Current machines running at %s: %d"%
+                         (self.siteName, self.runningMachinesCount[self.getConfig(self.configMachines).keys()[0]]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, "machines_requested",
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
@@ -577,7 +584,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         keystone = self.getConfig(self.configKeystoneServer)
         time_out = self.getConfig(self.configTimeout)
 
-        # client = __import__('novaclient', globals(), locals(), [], 0)
+        # client = __import__("novaclient", globals(), locals(), [], 0)
         return Client(2, user, password, tenant, keystone, timeout=time_out)
 
     def __getNovaMachines(self):

@@ -24,7 +24,10 @@ import logging
 import re
 import sys
 
-import boto3
+try:
+    import boto3
+except ImportError:
+    pass
 
 from Core import Config
 from SiteAdapter.Site import SiteAdapterBase
@@ -49,10 +52,12 @@ class Ec2SiteAdapter(SiteAdapterBase):
     configUserData = "user_data"
     configSecurityGroupIDs = "security_group_ids"
     configInstanceType = "instance_type"
+    configServiceIDs = "service_ids"
 
     # site settings
     configMinCount = "min_count"
     configMaxCount = "max_count"
+    configOwnerID = "owner_id"
 
     # keywords for EC2
     ec2 = "ec2"
@@ -105,6 +110,11 @@ class Ec2SiteAdapter(SiteAdapterBase):
                                    default=None)
         self.addOptionalConfigKeys(self.configMaxCount, Config.ConfigTypeInt,
                                    description="Number of machines to boot max")
+        self.addOptionalConfigKeys(self.configServiceIDs, Config.ConfigTypeString,
+                                   description="Server machines that need to be started",
+                                   default=None)
+        self.addCompulsoryConfigKeys(self.configOwnerID, Config.ConfigTypeString,
+                                     description="Owner ID in Amazon EC2")
 
     def init(self):
         super(Ec2SiteAdapter, self).init()
@@ -155,6 +165,36 @@ class Ec2SiteAdapter(SiteAdapterBase):
 
         return ec2_machines_status, ec2_machines_list
 
+    def checkServiceMachines(self):
+        """
+        check if service machines are already running and start them if not
+        :return: running
+        """
+
+        ec2 = boto3.client(self.ec2)
+
+        ec2_machines_status, ec2_machines_list = self.getEC2Machines()
+
+        all_running = True
+        for service_machine in self.getConfig(self.configServiceIDs).split():
+            try:
+                if service_machine in ec2_machines_list and not service_machine in ec2_machines_status:
+                    ec2.start_instances(InstanceIds=[service_machine])
+                    all_running *= False
+                elif service_machine in ec2_machines_list and \
+                                ec2_machines_status[service_machine][self.ec2_instance_status][
+                                    "Status"] == "initializing":
+                    all_running *= False
+                elif service_machine in ec2_machines_list and \
+                                ec2_machines_status[service_machine][self.ec2_instance_status][
+                                    "Status"] == "ok":
+                    all_running *= True
+            except KeyError as e:
+                print(e)
+                all_running *= False
+
+        return all_running
+
     def spawnMachines(self, machineType, requested):
         """
         spawn VMs for amazon cloud service
@@ -169,7 +209,9 @@ class Ec2SiteAdapter(SiteAdapterBase):
 
         # get EC2 client
         ec2 = boto3.resource(self.ec2)
-        userdata = open(self.getConfig(self.configUserData), "r").read()
+
+        if not self.checkServiceMachines():
+            return
 
         if requested > self.getConfig(self.configMaxCount):
             max_count = self.getConfig(self.configMaxCount)
@@ -181,13 +223,30 @@ class Ec2SiteAdapter(SiteAdapterBase):
         else:
             min_count = self.getConfig(self.configMinCount)
 
+        userdata = open(self.getConfig(self.configUserData), "r").read()
+
         new_machines = ec2.create_instances(ImageId=self.getConfig(self.configImageID),
                                             MinCount=min_count,
                                             MaxCount=max_count,
                                             UserData=userdata,
                                             SecurityGroupIds=self.getConfig(
                                                 self.configSecurityGroupIDs).split(),
-                                            InstanceType=self.getConfig(self.configInstanceType))
+                                            InstanceType=self.getConfig(self.configInstanceType)
+                                            # BlockDeviceMappings=[
+                                            #     {
+                                            #         "VirtualName": "Storage",
+                                            #         "DeviceName": "/dev/xvda",
+                                            #         "Ebs": {
+                                            #             "SnapshotId": "snap-46c947ad",
+                                            #             "VolumeSize": 80,
+                                            #             "DeleteOnTermination": True,
+                                            #             "Encrypted": False,
+                                            #             "VolumeType": "standard",
+                                            #             "Iops": ""
+                                            #         }
+                                            #     }
+                                            # ]
+                                            )
 
         for machine in new_machines:
             # create new machine in machine registry
@@ -221,11 +280,15 @@ class Ec2SiteAdapter(SiteAdapterBase):
 
         images = ec2.images.all()
         images = [image.id for image in images]
-        for snapshot in ec2.snapshots.filter(OwnerIds=["181010420550"]):
-            r = re.match(r".*for (ami-.*) from.*", snapshot.description)
+        for snapshot in ec2.snapshots.filter(OwnerIds=[self.getConfig(self.configOwnerID)]):
+            r = re.match(r"(ami-.*)", snapshot.description)
             if r:
                 if r.groups()[0] not in images:
                     snapshot.delete()
+
+        if len(self.getSiteMachines()) == 0:
+            ec2 = boto3.client(self.ec2)
+            ec2.stop_instances(InstanceIds=self.getConfig(self.configServiceIDs).split())
 
     def terminateEC2Machine(self, state, mids):
         """
@@ -247,6 +310,11 @@ class Ec2SiteAdapter(SiteAdapterBase):
                 self.cleanupEC2()
 
         return
+
+    def modServiceMachineDecision(self, decision):
+        # type: (dict) -> dict
+        """Modify "decision to order" (add or replace) to boot service machines (e.g. SQUIDs)."""
+        print(decision)
 
     def manage(self):
         """
@@ -286,6 +354,7 @@ class Ec2SiteAdapter(SiteAdapterBase):
                 if not machine[self.reg_site_server_id] in ec2_machines_list:
                     self.mr.removeMachine(mid)
                     # del ec2_machines_status[machine[self.reg_site_server_id]]
+                    self.cleanupEC2()
                     continue
 
             elif machine[self.mr.regStatus] == self.mr.statusDisintegrated:
@@ -328,17 +397,19 @@ class Ec2SiteAdapter(SiteAdapterBase):
 
         # add all machines remaining in machine list from 1&1
         for machine in ec2_machines_status:
-            # create new machine in machine registry
-            mid = self.mr.newMachine()
-            self.mr.machines[mid][self.mr.regSite] = self.siteName
-            self.mr.machines[mid][self.mr.regSiteType] = self.siteType
-            self.mr.machines[mid][self.mr.regMachineType] = self.ec2  # machineType
-            # self.mr.machines[mid][self.reg_site_server_name] = oao_machines[vm][self.oao_name]
-            self.mr.machines[mid][self.reg_site_server_id] = machine
-            # self.mr.machines[mid][self.reg_site_server_status] = ec2_machines_status[machine][self.ec2_instance_status]
-            self.mr.machines[mid][self.reg_site_server_condor_name] = machine
+            # if machine is listed in the service machine section, skip it!
+            if not machine in self.getConfig(self.configServiceIDs):
+                # create new machine in machine registry
+                mid = self.mr.newMachine()
+                self.mr.machines[mid][self.mr.regSite] = self.siteName
+                self.mr.machines[mid][self.mr.regSiteType] = self.siteType
+                self.mr.machines[mid][self.mr.regMachineType] = self.ec2  # machineType
+                # self.mr.machines[mid][self.reg_site_server_name] = oao_machines[vm][self.oao_name]
+                self.mr.machines[mid][self.reg_site_server_id] = machine
+                # self.mr.machines[mid][self.reg_site_server_status] = ec2_machines_status[machine][self.ec2_instance_status]
+                self.mr.machines[mid][self.reg_site_server_condor_name] = machine
 
-            self.mr.updateMachineStatus(mid, self.mr.statusBooting)
+                self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at %s: %d"
