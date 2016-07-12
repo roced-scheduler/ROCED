@@ -512,7 +512,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # Write Json log file:
         #  requested machines, nodes, draining nodes.
         ###
-        self.logger.info("Current machines running at %s: %d"%
+        self.logger.info("Current machines running at %s: %d" %
                          (self.siteName, self.runningMachinesCount[self.getConfig(self.configMachines).keys()[0]]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, "machines_requested",

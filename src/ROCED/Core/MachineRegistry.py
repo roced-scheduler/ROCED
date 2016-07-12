@@ -30,31 +30,6 @@ from Util.PythonTools import Singleton
 from . import Event
 
 
-class MachineEvent(Event.EventBase):
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self, mid):
-        super(MachineEvent, self).__init__()
-        self.id = mid
-
-
-class NewMachineEvent(MachineEvent):
-    def __init__(self, mid):
-        super(NewMachineEvent, self).__init__(mid)
-
-
-class MachineRemovedEvent(MachineEvent):
-    def __init__(self, mid):
-        super(MachineRemovedEvent, self).__init__(mid)
-
-
-class StatusChangedEvent(MachineEvent):
-    def __init__(self, mid, oldStatus, newStatus):
-        super(StatusChangedEvent, self).__init__(mid)
-        self.newStatus = newStatus
-        self.oldStatus = oldStatus
-
-
 class MachineRegistry(Event.EventPublisher, Singleton):
     statusBooting = "booting"
     statusUp = "up"
@@ -180,3 +155,28 @@ class MachineRegistry(Event.EventPublisher, Singleton):
         """ Clear machine registry (without raising any events). Should only be used in unit tests."""
         self.machines = dict()
         self.clearListeners()
+
+
+class MachineEvent(Event.EventBase):
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, mid):
+        super(MachineEvent, self).__init__()
+        self.id = mid
+
+
+class NewMachineEvent(MachineEvent):
+    def __init__(self, mid):
+        super(NewMachineEvent, self).__init__(mid)
+
+
+class MachineRemovedEvent(MachineEvent):
+    def __init__(self, mid):
+        super(MachineRemovedEvent, self).__init__(mid)
+
+
+class StatusChangedEvent(MachineEvent):
+    def __init__(self, mid, oldStatus, newStatus):
+        super(StatusChangedEvent, self).__init__(mid)
+        self.newStatus = newStatus
+        self.oldStatus = oldStatus
