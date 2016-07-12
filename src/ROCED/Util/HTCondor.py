@@ -43,7 +43,10 @@ class HTCondorPy(object):
     jobStatusTransferOutput = 6
     jobStatusSuspended = 7
 
+    __q_requirement_string = "RoutedToJobId =?= undefined && ( JobStatus == 1 || JobStatus == 2 )"
+
     def __init__(self, collector=None):
+        """Helper class to query HTCondor via python bindings."""
         if collector is None:
             self.collector = htcondor.Collector()
         else:
@@ -53,7 +56,8 @@ class HTCondorPy(object):
         """List of schedd objects, retrieved from collector."""
 
     def status(self, constraint=True):
-        """Similar to condor_status."""
+        # type: Union[bool, str] -> defaultdict
+        """Return condor machine status (CLI condor_status)."""
         condor_machines = defaultdict(list)
         result = self.collector.query(ad_type=htcondor.AdTypes.Startd,
                                       projection=["Name", "State", "Activity"],
@@ -67,9 +71,10 @@ class HTCondorPy(object):
         return condor_machines
 
     def q(self, constraint=True):
-        """Similar to condor_q."""
+        # type: Union[bool, str] -> defaultdict
+        """Return list of running and idle condor jobs (CLI condor_q)."""
         condor_q = defaultdict(list)
-        queries = [schedd.xquery(requirements="%s && ( JobStatus == 1 || JobStatus == 2 )" % constraint,
+        queries = [schedd.xquery(requirements="%s && %s" % (self.__q_requirement_string, constraint),
                                  projection=["ClusterId", "ProcId", "RequestCpus", "JobStatus"])
                    for schedd in self.schedds]
 
@@ -87,7 +92,7 @@ class CondorPyTest(ScaleTest.ScaleTestBase):
         try:
             isinstance(htcondor, types.ModuleType)
         except NameError:
-            self.skipTest("htcondor module missing.")
+            self.skipTest("htcondor module missing")
         self.condor = HTCondorPy()
 
     def test_CondorStatus(self):
