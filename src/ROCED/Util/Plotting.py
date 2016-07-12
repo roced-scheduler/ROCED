@@ -57,6 +57,10 @@ machine_settings = {
     "oneandone": {
         "label": "OneAndOne",
         "vcpu": 4.0
+    },
+    "ec2": {
+        "label": "Amazon EC2",
+        "vcpu": 4.0
     }
 }
 
