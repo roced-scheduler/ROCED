@@ -116,10 +116,10 @@ def init_plots(style=None, split=None, max_=None, time_scale=None):
         figure.tick_params(axis="x", pad=15)
         figure.tick_params(axis="y", pad=15)
 
-    if style == "fr-screen":
+    if style == "screen":
         kwargs = dict()
         kwargs2 = dict(y=0.7, labelpad=20.0)
-    elif style == "fr-slide":
+    elif style == "slide":
         kwargs = dict(size=36.0)
         kwargs2 = dict(y=0.71, labelpad=37.0, size=33.0)
         for figure in plots:
@@ -136,7 +136,7 @@ def init_plots(style=None, split=None, max_=None, time_scale=None):
 def get_plot_dict(plot_style):
     """Define plot styles."""
     # set dictionary for labels and colors, depending on style setting
-    if plot_style == "fr-screen":
+    if plot_style == "screen":
         plot_dict = {
             Data.condor_running: ("jobs running", "#b8c9ec"),  # light blue
             Data.condor_idle: ("jobs waiting", "#fdbe81"),  # light orange
@@ -144,7 +144,7 @@ def get_plot_dict(plot_style):
             Data.vm_running: ("Slots available", "#2c7bb6"),  # blue
             Data.vm_draining: ("Slots draining", "#7f69db"),  # light blue
         }
-    elif plot_style == "fr-slide":
+    elif plot_style == "slide":
         plot_dict = {
             Data.condor_running: ("Jobs running", "#b8c9ec"),  # light blue
             Data.condor_idle: ("Jobs waiting", "#fdbe81"),  # light orange
@@ -157,6 +157,7 @@ def get_plot_dict(plot_style):
         matplotlib.rcParams["path.simplify_threshold"] = 0.5
         matplotlib.rcParams["font.sans-serif"] = "Linux Biolinum O"
         matplotlib.rcParams["font.family"] = "sans-serif"
+        matplotlib.rcParams["figure.dpi"] = 300
     else:
         raise ValueError("Plotting style unknown!")
     return plot_dict
@@ -283,6 +284,9 @@ def main(file_list, live, output_name, correction_period, correct_zero, time_sca
         for entry in stack1, stack2:
             figure.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())
 
+        if x_limits:
+            figure.set_xlim(x_limits[0], x_limits[1])
+
     # We add multiple instances of line descriptions - get rid of them via OrderedDict
     handles, labels = plots[0].get_legend_handles_labels()
     by_label = OrderedDict(zip(labels, handles))
@@ -295,9 +299,6 @@ def main(file_list, live, output_name, correction_period, correct_zero, time_sca
         kwargs["fontsize"] = 30
 
     plots[-1].legend(by_label.values(), by_label.keys(), ncol=2, **kwargs)
-
-    if x_limits:
-        plt.xlim(xmin=x_limits[0], xmax=x_limits[1])
 
     if live:
         plt.show()
@@ -326,7 +327,7 @@ if __name__ == "__main__":
                              "values of --correction-period. (default: %(default))")
     parser.add_argument("-t", "--time-scale", type=str, default="m",
                         help="time scale of plot: s(econd), m(inute), h(our), d(ay) (default: %(default)s)")
-    parser.add_argument("-s", "--plot_style", type=str, default="fr-screen",
+    parser.add_argument("-s", "--plot_style", type=str, default="screen",
                         help="output style (screen or print for presentations/poster) (default: %(default)s)")
     parser.add_argument("-x", "--x-limits", type=float, default=None, nargs=2,
                         help="x-axis limit (lower, upper) (default: %(default)s)")
