@@ -308,12 +308,16 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         """
         try:
             frJobsRunning = self.__runningJobs
-            frJobsCompleted = self.__completedJobs
-        except ValueError:
             if frJobsRunning is None:
-                frJobsRunning = {}
+                raise ValueError
+        except ValueError:
+            frJobsRunning = {}
+        try:
+            frJobsCompleted = self.__completedJobs
             if frJobsCompleted is None:
-                frJobsCompleted = {}
+                raise ValueError
+        except ValueError:
+            frJobsCompleted = {}
 
         mr = self.getSiteMachines()
         for mid in mr:

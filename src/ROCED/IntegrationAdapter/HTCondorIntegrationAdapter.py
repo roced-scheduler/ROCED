@@ -193,7 +193,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         try:
             condor_machines = self.condorList
-            if len(self.mr.getMachines(self.siteName)) == 0:
+            if condor_machines is None or len(self.mr.getMachines(self.siteName)) == 0:
                 raise ValueError
         except ValueError as err:
             self.logger.warning(err.message)
