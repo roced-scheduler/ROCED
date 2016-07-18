@@ -36,12 +36,18 @@ import matplotlib.gridspec as gridspec
 
 font = {"family": "sans", "size": 20}
 matplotlib.rc("font", **font)
-matplotlib.rcParams["figure.figsize"] = 18, 8
+matplotlib.rcParams["figure.figsize"] = 24, 10
 
 time_scales = {"s": ("seconds", 1.0),
                "m": ("minutes", 60.0),
                "h": ("hours", 60.0 * 60.0),
                "d": ("days", 60.0 * 60.0 * 24.0)}
+
+
+def moving_average(a, n=3):
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
 
 
 class Data(object):
@@ -87,7 +93,6 @@ def init_plots(style=None, split=None, max_=None, time_scale=None):
         plots.append(bottom_plot)
         legend = plt.subplot(gs[0, :])
         plots.append(legend)
-
         top_plot.spines["bottom"].set_linestyle("dotted")
         top_plot.locator_params(axis="y", tight=True, nbins=5)
         bottom_plot.spines["top"].set_linestyle("dotted")
@@ -208,7 +213,7 @@ def fill_empty_values(correction_period, correct_smooth, rel_times, content):
     return rel_times, content
 
 
-def main(file_list, live, output_name, correction_period, correct_zero, time_scale, plot_style, x_limits):
+def main(file_list, live, output_name, correction_period, correct_zero, time_scale, plot_style, x_limits, smooth):
     plot_dict = get_plot_dict(plot_style)
 
     # get log files and sort entries, result is a tuple
@@ -251,6 +256,12 @@ def main(file_list, live, output_name, correction_period, correct_zero, time_sca
                             # print("Missing information: %s %s" %
                             #       (timestamps[i_entry], datetime.fromtimestamp(float(timestamps[i_entry]))))
         i_entry += 1
+
+    if smooth:
+        average_order = len(rel_times) / 500
+        rel_times = rel_times[:-(average_order - 1)]
+        for data in quantities:
+            quantities[data] = moving_average(quantities[data], n=average_order)
 
     # build up quantities (stack them)
     jobs_idle = np.add(quantities[Data.condor_idle], quantities[Data.condor_running])
@@ -323,12 +334,14 @@ if __name__ == "__main__":
                         help="time in seconds for periods without log entries to be ignored, "
                              "0 disables correction (default: %(default)s)")
     parser.add_argument("--correct-zero", action="store_false", default=True,
-                        help="Add 0 values when correcting/smoothing values. Only used in conjunction with non-zero"
-                             "values of --correction-period. (default: %(default))")
+                        help="Add 0 values when correcting/smoothing longer periods. "
+                             "Option disables it. (default: %(default)s)")
     parser.add_argument("-t", "--time-scale", type=str, default="m",
                         help="time scale of plot: s(econd), m(inute), h(our), d(ay) (default: %(default)s)")
     parser.add_argument("-s", "--plot_style", type=str, default="screen",
                         help="output style (screen or print for presentations/poster) (default: %(default)s)")
     parser.add_argument("-x", "--x-limits", type=float, default=None, nargs=2,
                         help="x-axis limit (lower, upper) (default: %(default)s)")
+    parser.add_argument("--smooth", action="store_true", default=False,
+                        help="Smooth the plot by creating a moving average (default: %(default)s)")
     main(**vars(parser.parse_args()))
