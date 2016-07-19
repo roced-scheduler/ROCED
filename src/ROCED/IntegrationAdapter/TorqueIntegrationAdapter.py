@@ -83,7 +83,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
                             logging.info("node %s not offline yet" % nodeName)
                     else:
                         logging.error("no state information contained for node %s" % nodeName)
-            except:
+            except BaseException:
                 logging.error("could not parse %s" % xmlRes)
 
         """

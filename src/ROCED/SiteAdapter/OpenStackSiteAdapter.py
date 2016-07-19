@@ -325,7 +325,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             nova.servers.find(id=self.mr.machines[mid.id][self.reg_site_server_id]).delete()
             # remove from machine registry
             self.mr.removeMachine(mid)
-        except:
+        except BaseException:
             pass
 
     def __openstackStopMachine(self, mid):
@@ -346,7 +346,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             nova = self.__getNovaApi()
             # send the stop command for shutting down
             nova.servers.find(id=self.mr.machines[mid][self.reg_site_server_id]).stop()
-        except:
+        except BaseException:
             pass
 
     def __openstackTimeDepStopMachine(self):
@@ -599,7 +599,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # get list of servers
         try:
             nova_results = [(x.id, x.name, x.status) for x in nova.servers.list()]
-            # except:
+            # except BaseException:
             #    pass
 
             nova_machines = {}
