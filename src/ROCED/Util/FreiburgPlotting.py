@@ -26,9 +26,10 @@ from __future__ import print_function, unicode_literals, division
 
 import argparse
 import json
-import numpy as np
 from collections import OrderedDict
 from os import path
+
+import numpy as np
 # import datetime
 import matplotlib
 import matplotlib.pyplot as plt
