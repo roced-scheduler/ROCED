@@ -64,7 +64,7 @@ class FakeSiteAdapter(SiteAdapterBase):
             self.mr.removeMachine(mid)
 
     def spawnMachines(self, machineType, count):
-        for i in range(0, count):
+        for i in range(count):
             mid = self.mr.newMachine()
 
             self.runningMachines[mid] = {}
@@ -76,7 +76,7 @@ class FakeSiteAdapter(SiteAdapterBase):
         return count
 
     def terminateMachines(self, machineType, count):
-        workingMachines = self.mr.getMachines(status=self.mr.statusWorking, machineType=machineType)
+        workingMachines = self.getSiteMachines(status=self.mr.statusWorking, machineType=machineType)
 
         toRemove = []
 
@@ -88,6 +88,8 @@ class FakeSiteAdapter(SiteAdapterBase):
         number = len(toRemove)
         if number >= count:
             number = count
+        elif number == 0:
+            self.logger.warning("No idle machine(s) found when trying to terminate %d machines." % count)
         else:
             self.logger.warning("Can only shutdown %d machines, rest is still working." % number)
 

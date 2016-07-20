@@ -49,23 +49,23 @@ class FakeIntegrationAdapter(IntegrationAdapterBase):
     def init(self):
         super(FakeIntegrationAdapter, self).init()
         self.logger = logging.getLogger(self.getConfig("logger_name"))
+        self.siteName = self.getConfig(self.configSiteName)
 
     def manage(self):
         [self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated) for mid
-         in self.mr.getMachines(site=self.getConfig(self.configSiteName), status=self.mr.statusDisintegrating)
+         in self.mr.getMachines(site=self.siteName, status=self.mr.statusDisintegrating)
          if self.mr.calcLastStateChange(mid) > random.randint(2, 6)]
 
         # In our test cases, this is done by site adapter & requirement adapter
         # [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration) for mid
         #  in self.mr.getMachines(status=self.mr.statusWorking)
         #  if self.mr.calcLastStateChange(mid) > random.randint(2, 6)]
-
         [self.mr.updateMachineStatus(mid, self.mr.statusWorking) for mid
-         in self.mr.getMachines(status=self.mr.statusIntegrating)]
+         in self.mr.getMachines(site=self.siteName, status=self.mr.statusIntegrating)]
 
     def onEvent(self, evt):
         if (isinstance(evt, MachineRegistry.StatusChangedEvent) and
-                    self.mr.machines[evt.id].get(self.mr.regSite) == self.getConfig(self.configSiteName)):
+                    self.mr.machines[evt.id].get(self.mr.regSite) == self.siteName):
             if evt.newStatus == self.mr.statusUp:
                 self.logger.info("Integrating machine with ip %s" % self.mr.machines[evt.id].get(self.mr.regHostname))
                 # ha, new machine to integrate
