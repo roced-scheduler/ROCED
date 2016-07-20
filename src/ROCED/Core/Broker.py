@@ -93,22 +93,22 @@ class StupidBroker(SiteBrokerBase):
         # TODO: Input not yet complete. Broker has to know where each machine is running. FIX!!!
         machinesToSpawn = dict()
 
-        for (mname, mreq) in machineTypes.items():
+        for (mName, mReq) in machineTypes.items():
             # don't request new machines in case of failure
-            if mreq.required is not None:
-                delta = mreq.required - mreq.actual
+            if mReq.required is not None:
+                delta = mReq.required - mReq.actual
             else:
                 delta = 0
-            delta = min(self._maxInstances - mreq.actual, delta)
+                mReq.required = 0
+            delta = min(self._maxInstances - mReq.actual, delta)
 
             self.logger.info("Machine type '%s': %d running, %d needed. Spawning/removing %d." %
-                             (mname, mreq.actual, mreq.required, delta))
+                             (mName, mReq.actual, mReq.required, delta))
 
-            # if delta > 0:
-            if mname in machinesToSpawn:
-                machinesToSpawn[mname] += delta
+            if mName in machinesToSpawn:
+                machinesToSpawn[mName] += delta
             else:
-                machinesToSpawn[mname] = delta
+                machinesToSpawn[mName] = delta
 
         # machinesToSpawn contains a wishlist of machines. Distribute this to the cloud.
         # Spawn cheap sites first.
@@ -119,32 +119,32 @@ class StupidBroker(SiteBrokerBase):
         siteOrders = dict()
 
         # spawn
-        for mname, tospawn in machinesToSpawn.items():
+        for mName, toSpawn in machinesToSpawn.items():
             for site in cheapFirst:
-                if tospawn > 0:
-                    if mname in site.supportedMachineTypes:
-                        self.modSiteOrders(siteOrders, site.siteName, mname, tospawn)
+                if toSpawn > 0:
+                    if mName in site.supportedMachineTypes:
+                        self.modSiteOrders(siteOrders, site.siteName, mName, toSpawn)
 
                         # TODO implement max quota [Siteinfo.maxMachines]
-                        tospawn = 0
+                        toSpawn = 0
 
         # shutdown
-        for mname, tospawn in machinesToSpawn.items():
+        for mName, toSpawn in machinesToSpawn.items():
             for site in expensiveFirst:
-                if tospawn < 0:
-                    if mname in site.supportedMachineTypes:
+                if toSpawn < 0:
+                    if mName in site.supportedMachineTypes:
                         if self.delayedShutdownTime is not None:
                             if ((datetime.now() - self.delayedShutdownTime).total_seconds() >
                                     self.shutdownDelay):
-                                self.modSiteOrders(siteOrders, site.siteName, mname, tospawn)
+                                self.modSiteOrders(siteOrders, site.siteName, mName, toSpawn)
                                 self.delayedShutdownTime = None
                         else:
                             if self.shutdownDelay == 0:
                                 # remove without delay
-                                self.modSiteOrders(siteOrders, site.siteName, mname, tospawn)
+                                self.modSiteOrders(siteOrders, site.siteName, mName, toSpawn)
                             else:
                                 self.delayedShutdownTime = datetime.now()
 
-                        tospawn = 0
+                        toSpawn = 0
 
         return siteOrders

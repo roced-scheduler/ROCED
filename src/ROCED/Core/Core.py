@@ -27,9 +27,8 @@ Cloud utilization.
 """
 
 import importlib
-import json
 import logging
-import shutil
+
 from datetime import datetime
 from threading import Timer
 
@@ -39,7 +38,7 @@ from . import MachineRegistry
 from IntegrationAdapter.Integration import IntegrationBox
 from RequirementAdapter.Requirement import RequirementBox
 from SiteAdapter.Site import SiteBox
-from Util.Logging import JsonLog
+from Util.Logging import JsonLog, MachineRegistryLogger
 from Util.PythonTools import summarize_dicts
 
 logger = logging.getLogger("Core")
@@ -111,67 +110,13 @@ class ScaleCore(object):
 
         self.intBox.addAdapterList(intAdapterList)
 
-    def toJson(self, python_object):
-        """function to write not serializable objects in a json file.
-        set default=toJson in json.dump()
-        must be adapted for other types!
-        """
-
-        if isinstance(python_object, datetime) is True:
-            return {"__class__": "datetime.datetime",
-                    "__value__": python_object.strftime("%Y-%m-%d %H:%M:%S:%f")}
-        elif isinstance(python_object, bytes) is True:
-            return python_object.decode()
-        raise TypeError("%s is not JSON serializable" % repr(python_object))
-
-    def fromJson(self, json_object):
-        """function to read not serializable objects from a json file.
-        set object_hook=fromJson in json.load()
-        must be adapted for other types!
-        """
-
-        if "__class__" in json_object:
-            if json_object["__class__"] == "datetime.datetime":
-                return datetime.strptime(json_object["__value__"], "%Y-%m-%d %H:%M:%S:%f")
-        return json_object
-
-    def dumpState(self):
-        """dumps the current machine registry to a json file.
-        called in Core.startManage()
-        """
-
-        try:
-            shutil.move("log/machine_registry.json", "log/old_machine_registry.json")
-        except IOError:
-            logger.warning("Json file could not be moved!")
-
-        try:
-            with open("log/machine_registry.json", "w") as file_:
-                json.dump(self.mr.machines, file_, default=self.toJson)
-        except IOError:
-            logger.error("json file could not be opened for dumping state!")
-
-    def loadState(self):
-        """loads the last state from the json file in the machine registry.
-        called in Core.init()
-        """
-
-        try:
-            with open("log/machine_registry.json", "r") as file_:
-                state = json.load(file_, object_hook=self.fromJson)
-            self.mr.machines = state
-        except IOError:
-            logger.error("json file could not be opened for loading state!")
-
-        logger.info("Previous state loaded!")
-
     def startManagementTimer(self):
         t = Timer(self.manageInterval, self.startManage)
         t.start()
 
     def init(self):
         # self.exportMethod(self.setMachineTypeMaxInstances, "setMachineTypeMaxInstances")
-        self.loadState()
+        self.mr.machines = MachineRegistryLogger.load()
 
     def startManage(self):
         logger.info("----------------------------------")
@@ -184,8 +129,8 @@ class ScaleCore(object):
         self.intBox.manage()
 
         # scaling
-        req = self.reqBox.getMachineTypeRequirement()
-        logger.info("Current requirement: %s" % req)
+        mReq = self.reqBox.getMachineTypeRequirement()
+        logger.info("Current requirement: %s" % mReq)
 
         siteInfo = self.siteBox.siteInformation
         runningBySite = self.siteBox.runningMachinesCount
@@ -194,12 +139,12 @@ class ScaleCore(object):
         runningOverall = summarize_dicts(list(runningBySite.values()))
 
         machStat = dict()
-        for (k, v) in runningOverall.items():
-            machStat[k] = MachineStatus(req.get(k, 0), v)
+        for (key_, value_) in runningOverall.items():
+            machStat[key_] = MachineStatus(mReq.get(key_, 0), value_)
 
-        for k in req:
-            if not k in machStat:
-                machStat[k] = MachineStatus(req.get(k, 0), 0)
+        for key_ in mReq:
+            if not key_ in machStat:
+                machStat[key_] = MachineStatus(mReq.get(key_, 0), 0)
 
         decision = self.broker.decide(machStat, siteInfo.values())
 
@@ -218,7 +163,7 @@ class ScaleCore(object):
 
         logger.info(self.mr.getMachineOverview())
 
-        self.dumpState()
+        MachineRegistryLogger.dump(self.mr.machines)
 
         log = JsonLog()
         log.writeLog()

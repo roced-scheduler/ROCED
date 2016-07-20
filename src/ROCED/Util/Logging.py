@@ -1,6 +1,6 @@
 # ===============================================================================
 #
-# Copyright (c) 2010, 2011, 2015, 2016
+# Copyright (c) 2010-2016
 # by Frank Fischer, Georg Fleig, Thomas Hauth and Stephan Riedel
 #
 # This file is part of ROCED.
@@ -19,12 +19,13 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import print_function, unicode_literals
+from __future__ import print_function, unicode_literals, absolute_import
 
 import csv
 import json
 import logging
 import os
+import shutil
 import sys
 import time
 from datetime import datetime
@@ -41,6 +42,61 @@ PY3 = sys.version_info > (3,)
 
 
 # TODO: Use config file "logfolder"
+
+class MachineRegistryLogger(object):
+    """Save/load machine registry to JSON file"""
+    __logger = logging.getLogger("Core")
+    __filename = "log/machine_registry.json"
+    __backup_file = "log/old_machine_registry.json"
+
+    @staticmethod
+    def __toJson(python_object):
+        """Handler to write non-serializable objects in a json file."""
+
+        if isinstance(python_object, datetime) is True:
+            return {"__class__": "datetime.datetime",
+                    "__value__": python_object.strftime("%Y-%m-%d %H:%M:%S:%f")}
+        elif isinstance(python_object, bytes) is True:
+            return python_object.decode()
+        raise TypeError("%s is not JSON serializable" % repr(python_object))
+
+    @staticmethod
+    def __fromJson(json_object):
+        """Handler to read non-serializable objects from a json file."""
+        if "__class__" in json_object:
+            if json_object["__class__"] == "datetime.datetime":
+                return datetime.strptime(json_object["__value__"], "%Y-%m-%d %H:%M:%S:%f")
+            else:
+                raise ValueError("Unknown class type %s can not be serialized" % json_object["__class__"])
+        return json_object
+
+    @classmethod
+    def dump(cls, machineRegistry):
+        # type: (dict) -> None
+        """Dump machine registry to JSON file."""
+        try:
+            shutil.move(cls.__filename, cls.__backup_file)
+        except IOError:
+            cls.__logger.warning("Json file could not be moved!")
+
+        try:
+            with open(cls.__filename, "w") as file_:
+                json.dump(machineRegistry, file_, default=cls.__toJson)
+        except IOError:
+            cls.__logger.error("Json file could not be opened for dumping state!")
+
+    @classmethod
+    def load(cls):
+        # type: () -> dict
+        """Load machine registry from JSON file"""
+        try:
+            with open(cls.__filename, "r") as file_:
+                state = json.load(file_, object_hook=cls.__fromJson)
+                cls.__logger.info("Previous state loaded!")
+                return state
+        except IOError:
+            cls.__logger.error("Json file could not be opened for loading state!")
+
 
 class JsonLog(object):
     # use class variables to share log among instances
