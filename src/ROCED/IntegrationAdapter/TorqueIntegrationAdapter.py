@@ -21,7 +21,24 @@
 from __future__ import unicode_literals, absolute_import
 
 import logging
-from lxml import etree
+
+try:
+    from lxml import etree
+except ImportError:
+    try:
+        # Python 2.5
+        import xml.etree.cElementTree as etree
+    except ImportError:
+        try:
+            # Python 2.5
+            import xml.etree.ElementTree as etree
+        except ImportError:
+            try:
+                # normal cElementTree install
+                import cElementTree as etree
+            except ImportError:
+                # normal ElementTree install
+                import elementtree.ElementTree as etree
 
 from Core import MachineRegistry
 from IntegrationAdapter.Integration import IntegrationAdapterBase
@@ -83,7 +100,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
                             logging.info("node %s not offline yet" % nodeName)
                     else:
                         logging.error("no state information contained for node %s" % nodeName)
-            except BaseException:
+            except Exception:
                 logging.error("could not parse %s" % xmlRes)
 
         """

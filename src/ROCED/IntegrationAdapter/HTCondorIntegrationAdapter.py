@@ -196,7 +196,8 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             if condor_machines is None or len(self.mr.getMachines(self.siteName)) == 0:
                 raise ValueError
         except ValueError as err:
-            self.logger.warning(err.message)
+            if str(err) != "":
+                self.logger.warning(err)
             self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
             return None
 

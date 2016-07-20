@@ -184,8 +184,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             client = OneAndOneService(self.getConfig(self.configApiToken))
         # If initializing failed return nothing
         except Exception as e:
-            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR: %s"
-                                % e.message)
+            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR: %s" % e)
             return
 
         return client
@@ -202,8 +201,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             tmp = client.list_servers()
         # if it fails raise exception and return nothing
         except Exception as e:
-            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR: %s"
-                                % e.message)
+            self.logger.warning("Could not establish connection to 1&1 Cloud Site. ERROR: %s" % e)
             return
 
         # build a dictionary containing the machines
@@ -318,8 +316,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                 vm = client.create_server(server=server, hdds=hdds)
             # if it failes raise exception and continue with next machine
             except Exception as e:
-                self.logger.warning("Could not start server on OneAndOne Cloud Service. %s"
-                                    % e.message)
+                self.logger.warning("Could not start server on OneAndOne Cloud Service. %s" % e)
                 continue
 
             # create new machine in machine registry
@@ -360,9 +357,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                     action=action,
                     method=method)
             except Exception as e:
-                self.logger.info("Machine %s already shutting down."
-                                 % self.mr.machines[mid][self.reg_site_server_name])
-                self.logger.warning(e.message)
+                self.logger.info("Machine %s already shutting down." % self.mr.machines[mid][self.reg_site_server_name])
+                self.logger.warning(e)
         # check if machine should be deleted
         if action == self.oao_delete:
             # if so, try to delete the machine on 1and1 Cloud Site
@@ -371,10 +367,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             # else raise exception
             # this could happen, if machine is arleady deleted
             except Exception as e:
-                self.logger.info("Machine %s already deleted."
-                                 % self.mr.machines[mid][self.reg_site_server_name])
+                self.logger.info("Machine %s already deleted." % self.mr.machines[mid][self.reg_site_server_name])
                 # self.logger.warning("Could not establish connection to 1&1 Cloud Site")
-                self.logger.warning(e.message)
+                self.logger.warning(e)
 
         # wait 1 second with the next action due to 1and1's firewall policies (1 request/second)
         time.sleep(1)

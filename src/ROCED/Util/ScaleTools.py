@@ -67,7 +67,7 @@ class ChangeNotifier(object):
                 n = pynotify.Notification(title, body)
                 n.show()
                 n.set_timeout(5)
-        except BaseException:
+        except Exception:
             # is ok
             pass
 

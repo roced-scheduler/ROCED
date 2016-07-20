@@ -170,7 +170,7 @@ class Caching(dict):
         try:
             ret = self.__function(*key)
             self.__lastQueryTime = time.time()
-        except BaseException as e:
+        except Exception as e:
             logging.warning("%s raised exception '%s' when querying for new values." % (self.__function.__str__(), e))
             ret = None
         return ret

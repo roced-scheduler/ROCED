@@ -28,7 +28,7 @@ try:
     from novaclient.client import Client
     from novaclient.v1_1.hypervisors import HypervisorManager
 except ImportError as e:
-    print(e.message)
+    print(e)
 
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase
@@ -303,8 +303,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # if spawning fails, do nothing
         except Exception as e:
-            print(e.message)
-            self.logger.warning("Spawning machines failed...")
+            self.logger.warning("Spawning machines failed. Exception: %s" % e)
 
     def __openstackTerminateMachines(self, mid):
         """Terminate machines in OpenStack
@@ -325,7 +324,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             nova.servers.find(id=self.mr.machines[mid.id][self.reg_site_server_id]).delete()
             # remove from machine registry
             self.mr.removeMachine(mid)
-        except BaseException:
+        except Exception:
             pass
 
     def __openstackStopMachine(self, mid):
@@ -346,7 +345,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             nova = self.__getNovaApi()
             # send the stop command for shutting down
             nova.servers.find(id=self.mr.machines[mid][self.reg_site_server_id]).stop()
-        except BaseException:
+        except Exception:
             pass
 
     def __openstackTimeDepStopMachine(self):
@@ -599,7 +598,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # get list of servers
         try:
             nova_results = [(x.id, x.name, x.status) for x in nova.servers.list()]
-            # except BaseException:
+            # except Exception:
             #    pass
 
             nova_machines = {}
@@ -614,5 +613,5 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             return nova_machines
 
         except Exception as e:
-            logging.warning(e.message)
+            logging.warning(e)
             return {}
