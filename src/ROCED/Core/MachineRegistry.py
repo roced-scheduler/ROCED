@@ -103,8 +103,6 @@ class MachineRegistry(Event.EventPublisher, Singleton):
 
         if mid in self.machines and len(self.machines[mid][self.statusChangeHistory]) > 0:
             with CsvStats() as csv_stats:
-                if self.regSite not in self.machines[mid]:
-                    self.machines[mid][self.regSite] = self.regSite
                 csv_stats.add_item(site=self.machines[mid][self.regSite], mid=mid,
                                    old_status=self.machines[mid][self.statusChangeHistory][-1]["old_status"],
                                    new_status=self.machines[mid][self.statusChangeHistory][-1]["new_status"],
@@ -116,12 +114,11 @@ class MachineRegistry(Event.EventPublisher, Singleton):
         self.publishEvent(StatusChangedEvent(mid, oldStatus, newStatus))
 
     def calcLastStateChange(self, mid):
+        # type: (str) -> int
         """Calculate time passed since last machine state change (in seconds)
 
         :param mid:
-
         :return: seconds
-        :type: int
         """
         diff = datetime.now() - self.machines[mid].get(self.regStatusLastUpdate, datetime.now())
         return diff.total_seconds()
@@ -140,16 +137,20 @@ class MachineRegistry(Event.EventPublisher, Singleton):
             mid = str(uuid.uuid4())
         self.logger.debug("Adding machine with id %s." % mid)
         self.machines[mid] = dict()
+        self.machines[mid][self.regSite] = None
         self.machines[mid][self.statusChangeHistory] = []
         self.publishEvent(NewMachineEvent(mid))
         return mid
 
     def removeMachine(self, mid):
-        # type: UUID -> None
+        # type: str -> None
         """Remove a machine entry and publish "MachineRemovedEvent" event to all listeners."""
         self.logger.debug("Removing machine with id %s." % mid)
+        # Also publish machine information for possible cleanups, since it's already removed when the event occurs.
+        machine = self.machines[mid]
         self.machines.pop(mid)
-        self.publishEvent(MachineRemovedEvent(mid))
+        event = MachineRemovedEvent(mid, machine)
+        self.publishEvent(event)
 
     def clear(self):
         """ Clear machine registry (without raising any events). Should only be used in unit tests."""
@@ -171,8 +172,11 @@ class NewMachineEvent(MachineEvent):
 
 
 class MachineRemovedEvent(MachineEvent):
-    def __init__(self, mid):
+    def __init__(self, mid, machine):
+        # type: (str, dict) -> None
+        """Event "Machine was removed from MachineRegistry", published to every registered listener."""
         super(MachineRemovedEvent, self).__init__(mid)
+        self.machine = machine
 
 
 class StatusChangedEvent(MachineEvent):
