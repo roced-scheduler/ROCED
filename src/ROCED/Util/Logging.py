@@ -67,7 +67,7 @@ class MachineRegistryLogger(object):
             if json_object["__class__"] == "datetime.datetime":
                 return datetime.strptime(json_object["__value__"], "%Y-%m-%d %H:%M:%S:%f")
             else:
-                raise ValueError("Unknown class type %s can not be serialized" % json_object["__class__"])
+                raise NotImplementedError("Unknown class type %s can not be serialized" % json_object["__class__"])
         return json_object
 
     @classmethod
@@ -96,6 +96,7 @@ class MachineRegistryLogger(object):
                 return state
         except IOError:
             cls.__logger.error("Json file could not be opened for loading state!")
+            return dict()
 
 
 class JsonLog(object):
