@@ -105,8 +105,8 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
             n_slots = 0
             n_jobs_idle = 0
             n_jobs_running = 0
-            if any(condor_jobs[0]):
-                for job in condor_jobs:
+            for job in condor_jobs:
+                if any(condor_jobs[0]):
                     status = int(job[0])
                     cpus = int(job[1])
                     n_slots += cpus
