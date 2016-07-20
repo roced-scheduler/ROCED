@@ -24,7 +24,7 @@ import getpass
 import logging
 import re
 from collections import defaultdict
-from datetime import datetime
+from time import time
 
 from Core import MachineRegistry, Config
 from IntegrationAdapter.Integration import IntegrationAdapterBase
@@ -127,7 +127,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             if machine[cls.reg_site_condor_status][slot][0] in cls.condorStatusClaimed:
                 cores_claimed += 1
                 # set a timestamp on this event
-                machine[cls.reg_status_last_update] = datetime.now()
+                machine[cls.reg_status_last_update] = int(time())
                 # update machine load in machine object
                 machineLoad = cores_claimed / len(machine[cls.reg_site_condor_status])
                 machine[cls.mr.regMachineLoad] = machineLoad
