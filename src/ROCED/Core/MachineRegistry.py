@@ -137,7 +137,7 @@ class MachineRegistry(Event.EventPublisher, Singleton):
             mid = str(uuid.uuid4())
         self.logger.debug("Adding machine with id %s." % mid)
         self.machines[mid] = dict()
-        self.machines[mid][self.regSite] = None
+        self.machines[mid][self.regSite] = self.regSite
         self.machines[mid][self.statusChangeHistory] = []
         self.publishEvent(NewMachineEvent(mid))
         return mid

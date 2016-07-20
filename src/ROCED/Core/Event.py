@@ -38,8 +38,7 @@ class EventPublisher(object):
 
     def __init__(self):
         """(Abstract) Event manager. Registers listeners and publishes events."""
-        if not hasattr(self, "__listener"):
-            self.__listener = []
+        pass
 
     def init(self):
         self.__listener = []
