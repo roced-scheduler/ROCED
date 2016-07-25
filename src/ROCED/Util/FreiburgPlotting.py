@@ -26,14 +26,13 @@ from __future__ import print_function, unicode_literals, division
 
 import argparse
 import json
+import numpy as np
 from collections import OrderedDict
 from os import path
 
-import numpy as np
-# import datetime
 import matplotlib
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 
 font = {"family": "sans", "size": 20}
 matplotlib.rc("font", **font)
@@ -175,46 +174,52 @@ def fill_empty_values(correction_period, correct_smooth, rel_times, content):
 
     # get indices of timestamps with time difference > correction_period
     rel_time_diffs = np.diff(rel_times)
-    indices = np.nonzero(rel_time_diffs > correction_period)
-    print("Ignoring %i periods with no log entries for over %s seconds:" % (len(indices[0]), correction_period))
+    if correct_smooth is True:
+        indices = np.nonzero(rel_time_diffs > correction_period)
+        print("Ignoring %i periods with no log entries for over %s seconds:" % (len(indices[0]), correction_period))
+    else:
+        indices = []
 
     index_offset = 0
-    for index in indices[0]:
-        print("Begin: %ss, End: %ss, Diff: %ss"
-              % (rel_times[index + index_offset], rel_times[index + index_offset + 1],
-                 rel_times[index + index_offset + 1] - rel_times[index + index_offset]))
+    try:
+        for index in indices[0]:
+            print("Begin: %ss, End: %ss, Diff: %ss"
+                  % (rel_times[index + index_offset], rel_times[index + index_offset + 1],
+                     rel_times[index + index_offset + 1] - rel_times[index + index_offset]))
 
-        # add two entries to x  axis (time)
-        rel_times = np.insert(rel_times, index + index_offset + 1, rel_times[index + index_offset] + 1)
-        rel_times = np.insert(rel_times, index + index_offset + 2, rel_times[index + index_offset + 2] - 1)
+            # add two entries to x  axis (time)
+            rel_times = np.insert(rel_times, index + index_offset + 1, rel_times[index + index_offset] + 1)
+            rel_times = np.insert(rel_times, index + index_offset + 2, rel_times[index + index_offset + 2] - 1)
 
-        # add two entries to y axis, if one value == 0: 0, else: average
-        prev = content[index + index_offset - 1]
-        next_ = content[index + index_offset + 1]
-        new = {}
-        try:
-            if correct_smooth is True:
-                for key in set.intersection(set(prev), set(next_)):
-                    new[key] = {}
-                    for value_key in set.intersection(set(prev[key]), set(next_[key])):
-                        if prev[key][value_key] == 0 or next_[key][value_key] == 0:
-                            new[key][value_key] = 0
-                        else:
-                            new[key][value_key] = int((prev[key][value_key] + next_[key][value_key]) / 2)
-            else:
-                raise ValueError
-        except (ValueError, KeyError):
-            new = {None: {None}}
-        print("%d & %d: %s" % (index + index_offset, index + index_offset + 1, new))
-        content.insert(index + index_offset, new)
-        content.insert(index + index_offset + 1, new)
-        # print(index + index_offset, index + index_offset + 1)
-        index_offset += 2
-
+            # add two entries to y axis, if one value == 0: 0, else: average
+            prev = content[index + index_offset - 1]
+            next_ = content[index + index_offset + 1]
+            new = {}
+            try:
+                if correct_smooth is True:
+                    for key in set.intersection(set(prev), set(next_)):
+                        new[key] = {}
+                        for value_key in set.intersection(set(prev[key]), set(next_[key])):
+                            if prev[key][value_key] == 0 or next_[key][value_key] == 0:
+                                new[key][value_key] = 0
+                            else:
+                                new[key][value_key] = int((prev[key][value_key] + next_[key][value_key]) / 2)
+                else:
+                    raise ValueError
+            except (ValueError, KeyError):
+                new = {None: {None}}
+            print("%d & %d: %s" % (index + index_offset, index + index_offset + 1, new))
+            content.insert(index + index_offset, new)
+            content.insert(index + index_offset + 1, new)
+            # print(index + index_offset, index + index_offset + 1)
+            index_offset += 2
+    except IndexError:
+        pass
     return rel_times, content
 
 
-def main(file_list, live, output_name, correction_period, correct_zero, time_scale, plot_style, x_limits, smooth):
+def main(file_list, live, output_name, correction_period, correct_zero, time_scale, plot_style, x_limits,
+         smooth, cores):
     plot_dict = get_plot_dict(plot_style)
 
     # get log files and sort entries, result is a tuple
@@ -268,10 +273,10 @@ def main(file_list, live, output_name, correction_period, correct_zero, time_sca
     jobs_idle = np.add(quantities[Data.condor_idle], quantities[Data.condor_running])
     jobs_running = quantities[Data.condor_running]
 
-    machines_requested = 4 * np.add(quantities[Data.vm_requested],
-                                    np.add(quantities[Data.vm_running], quantities[Data.vm_draining]))
-    condor_nodes = 4 * np.add(quantities[Data.vm_running], quantities[Data.vm_draining])
-    condor_nodes_draining = 4 * quantities[Data.vm_draining]
+    machines_requested = cores * np.add(quantities[Data.vm_requested],
+                                        np.add(quantities[Data.vm_running], quantities[Data.vm_draining]))
+    condor_nodes = cores * np.add(quantities[Data.vm_running], quantities[Data.vm_draining])
+    condor_nodes_draining = cores * quantities[Data.vm_draining]
 
     # Setup plots
     plots = init_plots(style=plot_style, split=int(np.max(machines_requested)),
@@ -307,7 +312,7 @@ def main(file_list, live, output_name, correction_period, correct_zero, time_sca
         kwargs = dict(bbox_to_anchor=(0, 0, 1, 1), mode="expand", loc="lower left")
     else:
         kwargs = dict(loc="best")
-    if plot_style == "fr-slide":
+    if plot_style == "slide":
         kwargs["fontsize"] = 30
 
     plots[-1].legend(by_label.values(), by_label.keys(), ncol=2, **kwargs)
@@ -337,6 +342,8 @@ if __name__ == "__main__":
     parser.add_argument("--correct-zero", action="store_false", default=True,
                         help="Add 0 values when correcting/smoothing longer periods. "
                              "Option disables it. (default: %(default)s)")
+    parser.add_argument("--cores", type=int, default="4",
+                        help="Cores per VM. (default: %(default)s)")
     parser.add_argument("-t", "--time-scale", type=str, default="m",
                         help="time scale of plot: s(econd), m(inute), h(our), d(ay) (default: %(default)s)")
     parser.add_argument("-s", "--plot_style", type=str, default="screen",
