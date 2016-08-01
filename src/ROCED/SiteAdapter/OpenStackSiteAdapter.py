@@ -72,6 +72,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     configFlavor = "openstack_flavor_id"
     configKeypair = "openstack_keypair_id"
     configNetwork = "openstack_network_id"
+    configUserData = "user_data"
 
     # name, id and status of VMs at OpenStack
     reg_site_server_name = "reg_site_server_name"
@@ -153,6 +154,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                                      description="Defines the network to be selected")
         self.addOptionalConfigKeys(self.configKeypair, Config.ConfigTypeString,
                                    description="Defines the keypair that shoud be used",
+                                   default=None)
+        self.addOptionalConfigKeys(self.configUserData, Config.ConfigTypeString,
+                                   description="Defines the storage path of user data scripts for cloud-init",
                                    default=None)
 
     def init(self):
@@ -236,7 +240,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             img = self.getConfig(self.configImage)  # nova.images.find(name=self.getConfig(self.configImage))
             key = self.getConfig(self.configKeypair)  # nova.keypairs.list()
             name_prefix = str(self.siteName + "-")
-
+            print self.getConfig(self.configUserData)
+            user_data = open(self.getConfig(self.configUserData), "r")
+            print user_data
             daytime = datetime.datetime.strptime(self.getConfig(self.configDay), "%H:%M")
             nighttime = datetime.datetime.strptime(self.getConfig(self.configNight), "%H:%M")
 
@@ -276,10 +282,10 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.newMachine(mid)
                 # spawn machine at site
                 if not key is None:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}],
+                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}],userdata=user_data,
                                              key_name=key)
                 else:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}])
+                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}],userdata=user_data)
 
                 # set some machine information in machine registry
                 self.mr.machines[mid][self.mr.regSite] = self.siteName
