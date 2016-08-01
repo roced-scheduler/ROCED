@@ -62,11 +62,13 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
     configRam = "ram"
     configPassword = "password"
     configPrivateNetworkID = "private_network_id"
+    configDatacenterID = "datacenter_id"
     configSquid = "squid"
     configTimeStart = "time_start"
     configTimeEnd = "time_end"
 
     # site settings
+    configMaxMachinesPerCycle = "max_machines_per_cycle"
     configMaxMachines = "max_machines"
 
     # keywords for machine registry
@@ -140,6 +142,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configPrivateNetworkID, Config.ConfigTypeString,
                                    description="Private network",
                                    default=None)
+        self.addOptionalConfigKeys(self.configDatacenterID, Config.ConfigTypeString,
+                                   description="Datacenter",
+                                   default=None)
         self.addOptionalConfigKeys(self.configPassword, Config.ConfigTypeString,
                                    description="Password for virtual machines",
                                    default=None)
@@ -154,12 +159,17 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                                    default=None)
 
         # site settings
+        self.addOptionalConfigKeys(self.configMaxMachinesPerCycle, Config.ConfigTypeInt,
+                                   description="Number of machines booted per cycle", default=10)
         self.addOptionalConfigKeys(self.configMaxMachines, Config.ConfigTypeInt,
                                    description="limit amount of machines",
                                    default=None)
 
         # set name of Site Adapter for ROCED output
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
+
+        # set datacenter selector index
+        self.datacenter_selector = 0
 
     def init(self):
         super(OneAndOneSiteAdapter, self).init()
@@ -290,6 +300,15 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # if now < start_time and now > end_time:
         #     return
 
+        # check if request is higher than the max number of allowed machines per cycle
+        if requested > self.getConfig(self.configMaxMachinesPerCycle):
+            self.logger.info("Request exceeds maximum number of allowed machines per cycle on this site (%d>%d)!" %
+                            (requested, self.getConfig(self.configMaxMachinesPerCycle)))
+            # set requested equals the number of machines per cycle
+            requested = self.getConfig(self.configMaxMachinesPerCycle)
+            self.logger.info("Will spawn %d machines." % requested)
+
+
         # find all unused indices to spawn machines
         index = self.getIndex(servers, requested)
         # loop over all requested machines
@@ -298,7 +317,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             vm_name = "roced-" + "{0:0>3}".format(index.pop(0))  # str(index.pop(0))
             # create machine with all required information
             server = Server(name=vm_name,
-                            appliance_id=self.getConfig(self.configApplianceID),
+                            appliance_id=self.getConfig(self.configApplianceID).split(",")[self.datacenter_selector],
+                            datacenter_id=self.getConfig(self.configDatacenterID).split(",")[self.datacenter_selector],
                             vcore=self.getConfig(self.configVcores),
                             cores_per_processor=self.getConfig(self.configCoresPerProcessor),
                             ram=self.getConfig(self.configRam),
@@ -310,10 +330,12 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             # create HDD with requested size
             hdd = Hdd(size=self.getConfig(self.configHddSize), is_main=True)
             hdds = [hdd]
-
             # try booting up the machine
             try:
                 vm = client.create_server(server=server, hdds=hdds)
+                # if there is more than one data center to select from, change the selected data center
+                if len(self.getConfig(self.configDatacenterID).split(",")) >= 2:
+                    self.datacenter_selector = (self.datacenter_selector + 1) % len(self.getConfig(self.configDatacenterID).split(","))
             # if it failes raise exception and continue with next machine
             except Exception as e:
                 self.logger.warning("Could not start server on OneAndOne Cloud Service. %s" % e)
@@ -332,6 +354,9 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
 
             # update machine status
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
+
+#            if len(self.getConfig(self.configDatacenterID).split(",")) >= 2:
+#                self.datacenter_selector = 1 - self.datacenter_selector
 
         # all machines booted
         return
@@ -490,8 +515,11 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             if machine_[self.mr.regStatus] == self.mr.statusBooting:
                 # machines that are powered off have to be assigned to a private network
                 if oao_state == self.oao_state_powered_off:
+                    datacenter = oao_machines[machine_[self.reg_site_server_id]]["datacenter"]["id"]
+                    datacenter_index = self.getConfig(self.configDatacenterID).split(",").index(datacenter)
+                    print self.getConfig(self.configPrivateNetworkID).split(",")[datacenter_index]
                     # assign the network
-                    self.assignPrivateNetwork(mid, self.getConfig(self.configPrivateNetworkID))
+                    self.assignPrivateNetwork(mid, self.getConfig(self.configPrivateNetworkID).split(",")[datacenter_index])
                     # boot up the machine afterwards
                     self.modifyMachineStatus(mid, self.oao_state_power_on)
                 # check if machine status on 1and1 Cloud Site is already powered on
@@ -503,7 +531,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                     self.mr.machines[mid][self.reg_site_server_status] = (
                         oao_machines[machine_[self.reg_site_server_id]][self.oao_status])
                 # remove from 1and1 machine list
-                del oao_machines[machine_[mid][self.reg_site_server_id]]
+                del oao_machines[machine_[self.reg_site_server_id]]
 
             # disintegrating
             # check if machine is in status disintegrating
@@ -541,7 +569,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = self.oao  # machineType
             self.mr.machines[mid][self.reg_site_server_name] = oao_machines[vm][self.oao_name]
-            self.mr.machines[mid][self.reg_site_server_id] = oao_machines[vm][self.oao_id]
+            self.mr.machines[mid][self.reg_site_server_id] = vm # oao_machines[vm][self.oao_id]
             self.mr.machines[mid][self.reg_site_server_status] = (
                 oao_machines[vm][self.oao_status][self.oao_state])
 
@@ -550,7 +578,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # add current amounts of machines to Json log file
         self.logger.info("Current machines running at %s: %d"
                          % (self.siteName, self.runningMachinesCount[
-            self.getConfig(self.configMachines).keys()[0]]))  # ["vm-default"]))
+            list(self.getConfig(self.configMachines).keys())[0]]))  # ["vm-default"]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, "machines_requested",
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
