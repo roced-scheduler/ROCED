@@ -129,6 +129,8 @@ class AdapterBase(object):
                     val = configuration.getboolean(section, config_key)
                 elif config_type == Config.ConfigTypeDictionary:
                     val = json.loads(configuration.get(section, config_key))
+                elif config_type == Config.ConfigTypeList:
+                    val = json.loads(configuration.get(section, config_key))
                 else:
                     print("Config data type %s not supported." % config_type)
                     exit(0)
