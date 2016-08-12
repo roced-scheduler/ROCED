@@ -285,10 +285,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.debug("Status Change Event: %s (%s->%s)" % (evt.id, evt.oldStatus, evt.newStatus))
             if evt.newStatus == self.mr.statusDisintegrated:
                 # Disintegrated information comes from integration adapter. Skipping state only happens with time out.
-                if (self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs and
-                            evt.oldStatus != self.mr.statusDisintegrating):
-                    self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
-                        self.regMachineJobId)])
+                try:
+                    if (self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs and
+                                evt.oldStatus != self.mr.statusDisintegrating):
+                        self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(self.regMachineJobId)])
+                except Exception as err:
+                    self.logger.warning("Canceling machine failed with exception %s" % err)
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
     def manage(self):
@@ -315,6 +317,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 raise ValueError
         except ValueError:
             frJobsCompleted = {}
+        try:
+            frJobsIdle = self.__idleJobs
+            if frJobsIdle is None:
+                raise ValueError
+        except ValueError:
+            frJobsIdle = {}
 
         mr = self.getSiteMachines()
         for mid in mr:
@@ -359,6 +367,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 if batchJobId in frJobsRunning:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                     frJobsRunning.pop(batchJobId)
+                # Machine disappeared. If the machine later appears again, it will be added automatically.
+                elif batchJobId not in frJobsIdle and batchJobId not in frJobsCompleted:
+                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
 
         # All remaining unaccounted batch jobs
         for batchJobId in frJobsRunning:
