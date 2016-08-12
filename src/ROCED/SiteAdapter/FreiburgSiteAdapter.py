@@ -464,19 +464,22 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         frResult = self.__execCmdInFreiburg(cmd)
 
         if frResult[0] == 0:
-            # returns a list containing all running batch jobs in Freiburg
+            # returns a list containing all running batch jobs
+            # see http://docs.adaptivecomputing.com/maui/commands/showq.php#activeexample
             frJobsRunning = {jobid: {"cores": cores, "walltime": time_limit}
                              for jobid, cores, time_limit
                              in re.findall("""
-                                    ^                  # Line start
-                                    (\d+)              # batch job id (digits) = result 1
-                                    \s+                # whitespace(s)
-                                    R                  # Job = Running
-                                    \s+.+\s            # waste between whitespaces and next regex
-                                    (\d)               # cores = result 2
-                                    \s+                # whitespace(s)
-                                    ((?:\d{1,2}:?){3,4}) # time limit: 3-4 digit pairs = res3
-                                    \s+.+              # more waste
+                                    ^                   # Line start
+                                    (\d+)               # batch job id (digits) = result 1
+                                    \s+                 # whitespace(s)
+                                    R                   # Job = Running
+                                    \s+                 # whitespace(s)
+                                    (?:[\S]+\s+){7}     # 7 entries [stuff + spaces]
+                                    (\d)                # cores = result 2
+                                    \s+                 # whitespace(s)
+                                    ((?:\d{1,2}:?){3,4})# time limit: 3-4 digit pairs = res3
+                                    \s+.+               # more waste
+                                    $                   # line end
                                     """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsRunning = {}
@@ -530,11 +533,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                re.findall("""
                                ^             # Match at the beginning of lines
                                (\d+)         # batch job id (digits) = result 1
+                               (?:\(\d+\))?  # Array job
                                \s+           # whitespace/tab
                                [RCV]         # job state: completed, vacated, removed
                                \s+           # whitespace/tab
                                ([-A-Z0-9]+)  # Return-code = result 2: +/- int or CNCLD
-                               \s+.+         # useless rest
+                               \s+.+$        # useless rest
                                """, frResult[1], re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             frJobsCompleted = {}
