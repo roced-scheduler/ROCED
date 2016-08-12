@@ -20,10 +20,9 @@
 # ===============================================================================
 from __future__ import unicode_literals, absolute_import
 
-# see http://docs.pythonboto.org/
-import boto
-
 try:
+    import boto
+    # see http://docs.pythonboto.org/
     from euca2ools import Euca2ool
 except ImportError:
     pass

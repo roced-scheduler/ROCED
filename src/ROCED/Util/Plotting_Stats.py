@@ -24,10 +24,10 @@ from __future__ import print_function, unicode_literals
 import argparse
 import csv
 import datetime
+import numpy as np
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 # keywords
 old_status = "old_status"

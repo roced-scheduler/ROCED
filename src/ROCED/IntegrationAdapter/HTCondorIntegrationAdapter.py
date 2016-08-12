@@ -45,7 +45,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
     # list of the different slot states for each machine, e.g. [slot1,slot2,...]
     reg_site_condor_status = "condor_slot_status"
-    reg_status_last_update = "status_last_update"
+    reg_status_last_update = MachineRegistry.MachineRegistry.regStatusLastUpdate
     # possible slot state
     condorStatusClaimed = "Claimed"
     # Both states show an empty/idling machine. "Owner" means that there are some job requirements

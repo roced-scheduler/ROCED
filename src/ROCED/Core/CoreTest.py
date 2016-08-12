@@ -121,9 +121,7 @@ class ScaleCoreTest(ScaleCoreTestBase):
 
         logging.debug("=======Testing Core=======")
 
-        fact = ScaleCoreFactory()
-
-        core = fact.getCore(config)
+        core = ScaleCoreFactory.getCore(config)
         self.assertFalse(core is None)
         self.assertFalse(core.broker is None)
 

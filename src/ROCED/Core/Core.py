@@ -212,18 +212,19 @@ class ObjectFactory(object):
 
 
 class ScaleCoreFactory(object):
-    def getCore(self, configuration, maximumInterval=None):
+    @classmethod
+    def getCore(cls, configuration, maximumInterval=None):
 
         interval = 60  # one minute is default
 
         if configuration.has_option(Config.GeneralSection, Config.GeneralManagementInterval):
             interval = configuration.getint(Config.GeneralSection, Config.GeneralManagementInterval)
 
-        sc = ScaleCore(self.getBroker(configuration),
+        sc = ScaleCore(cls._getBroker(configuration),
                        None,
-                       self.getReqAdapterList(configuration),
-                       self.getSiteAdapterList(configuration),
-                       self.getIntAdapterList(configuration),
+                       cls._getReqAdapterList(configuration),
+                       cls._getSiteAdapterList(configuration),
+                       cls._getIntAdapterList(configuration),
                        autoRun=True,
                        maximumManageIterations=maximumInterval)
 
@@ -231,36 +232,36 @@ class ScaleCoreFactory(object):
 
         return sc
 
-    def getBroker(self, configuration):
-
-        # get the broker name
+    @classmethod
+    def _getBroker(cls, configuration):
         broker_name = configuration.get(Config.GeneralSection, Config.GeneralBroker)
-
-        # get broker type 
         broker_type = configuration.get(broker_name, Config.ConfigObjectType)
 
         # TODO: Get rid of hard-coded StupidBroker
         if broker_type == "Broker.StupidBroker":
-            return Broker.StupidBroker()
+            return Broker.StupidBroker(max_instances=4000)
         else:
-            raise Exception("Broker type %s not supported" % broker_type)
+            raise NotImplementedError("Broker type %s not supported." % broker_type)
 
-    def getReqAdapterList(self, configuration):
-        return self.getAdapterList(Config.GeneralReqAdapters, configuration)
+    @classmethod
+    def _getReqAdapterList(cls, configuration):
+        return cls._getAdapterList(Config.GeneralReqAdapters, configuration)
 
-    def getSiteAdapterList(self, configuration):
-        return self.getAdapterList(Config.GeneralSiteAdapters, configuration)
+    @classmethod
+    def _getSiteAdapterList(cls, configuration):
+        return cls._getAdapterList(Config.GeneralSiteAdapters, configuration)
 
-    def getIntAdapterList(self, configuration):
-        return self.getAdapterList(Config.GeneralIntAdapters, configuration)
+    @classmethod
+    def _getIntAdapterList(cls, configuration):
+        return cls._getAdapterList(Config.GeneralIntAdapters, configuration)
 
-    def getAdapterList(self, adapter_type, configuration):
-
+    @classmethod
+    def _getAdapterList(cls, adapter_type, configuration):
         adapters = []
 
         for adapter in configuration.get(Config.GeneralSection, adapter_type).split():
             if adapter == "None":
-                break
+                continue
             site_type = configuration.get(adapter, Config.ConfigObjectType)
             try:
                 obj = ObjectFactory.getObject(className=site_type, adapterType=adapter_type)
@@ -270,10 +271,10 @@ class ScaleCoreFactory(object):
                 raise Exception("Adapter type %s not found" % site_type)
 
             # transfer compulsory config
-            obj.loadConfigValue(obj.getCompulsoryConfigKeys(), configuration, False, adapter, obj)
+            obj.loadConfigValue(obj.compulsoryConfigKeys, configuration, False, adapter, obj)
             # transfer optional config
-            obj.loadConfigValue(obj.getOptionalConfigKeys(), configuration, True, adapter, obj)
+            obj.loadConfigValue(obj.optionalConfigKeys, configuration, True, adapter, obj)
 
-            adapters += [obj]
+            adapters.append(obj)
 
         return adapters

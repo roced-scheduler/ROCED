@@ -156,9 +156,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regSiteType] = self.siteType
                 self.mr.updateMachineStatus(mid, self.mr.statusBooting)
             else:
-                self.logger.warning("A (connection) problem occurred while requesting VMs. "
-                                    "Stopping requesting new machines for now. "
-                                    "RC %d: stdout: %s, stderr: %s" % (result[0], result[1], result[2]))
+                self.logger.warning("A problem occurred while requesting VMs. Stopping for now."
+                                    "RC: %d; stdout: %s; stderr: %s" % (result[0], result[1], result[2]))
                 break
 
     def terminateMachines(self, machineType, count):
@@ -283,11 +282,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             return
 
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
-            self.logger.debug("Status Change Event: %s (%s->%s)"
-                              % (evt.id, evt.oldStatus, evt.newStatus))
+            self.logger.debug("Status Change Event: %s (%s->%s)" % (evt.id, evt.oldStatus, evt.newStatus))
             if evt.newStatus == self.mr.statusDisintegrated:
-                # Disintegrated information comes from integration adapter. Skipping a status only happens when a
-                # machine timed out -> cancel VM batch job.
+                # Disintegrated information comes from integration adapter. Skipping state only happens with time out.
                 if (self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs and
                             evt.oldStatus != self.mr.statusDisintegrating):
                     self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(
@@ -357,8 +354,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     self.__cancelFreiburgMachines(batchJobId)
                 continue
 
-            # batch job running: machine -> up
-            if mr[mid][self.mr.regStatus] is self.mr.statusBooting:
+            if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
+                # batch job running: machine -> up
                 if batchJobId in frJobsRunning:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                     frJobsRunning.pop(batchJobId)
@@ -381,10 +378,11 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                             len(self.getSiteMachines(status=self.mr.statusWorking)))
             jsonLog.addItem(self.siteName, "condor_nodes_draining",
                             len([mid for mid in self.getSiteMachines(status=self.mr.statusPendingDisintegration)
-                                 if HTCondor.calcDrainStatus(mid)[1] == True]))
+                                 if HTCondor.calcDrainStatus(mid)[1] is True]))
             jsonLog.addItem(self.siteName, "machines_requested",
                             len(self.getSiteMachines(status=self.mr.statusBooting)) +
-                            len(self.getSiteMachines(status=self.mr.statusUp)))
+                            len(self.getSiteMachines(status=self.mr.statusUp)) +
+                            len(self.getSiteMachines(status=self.mr.statusIntegrating)))
 
     def __execCmdInFreiburg(self, cmd):
         """Execute command on Freiburg login node via SSH.
@@ -429,9 +427,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.logger.warning("Removed invalid machines (%d): %s"
                                     % (len(idsInvalidated), ", ".join(idsInvalidated)))
             if (len(idsRemoved) + len(idsInvalidated)) == 0:
-                self.logger.warning("A problem occurred while canceling VMs (RC %d):\n%s" % (result[0], result[2]))
+                self.logger.warning("A problem occurred while canceling VMs (RC: %d)\n%s" % (result[0], result[2]))
         else:
-            self.logger.warning("A problem occurred while canceling VMs (RC %d):\n%s" % (result[0], result[2]))
+            self.logger.warning("A problem occurred while canceling VMs (RC: %d)\n%s" % (result[0], result[2]))
         return idsRemoved, idsInvalidated
 
     @classmethod

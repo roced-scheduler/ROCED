@@ -130,7 +130,7 @@ class Caching(dict):
             self.__validity = None
 
     def __call__(self, function):
-        # type: Callable[..., ...] -> Callable[..., ...]
+        # type: (Callable[..., ...]) -> Callable[..., ...]
         """Since __init__ has import arguments, __call__ is only called once and receives the function!"""
         self.__function = function
 
@@ -154,10 +154,10 @@ class Caching(dict):
                     if self.__redundancy is None:
                         return result
                     elif self.__redundancy is True and args in self:
-                        logging.warning("%s did't return values. Using cached values." % self.__function.__str__())
+                        logging.info("%s did't return values. Using cached values." % self.__function.__name__)
                         return self[args]
                     elif time.time() < self.__lastQueryTime + self.__redundancy and args in self:
-                        logging.warning("%s did't return values. Using cached values." % self.__function.__str__())
+                        logging.info("%s did't return values. Using cached values." % self.__function.__name__)
                         return self[args]
                     else:
                         # This includes passing the timeout or not having a value stored at all

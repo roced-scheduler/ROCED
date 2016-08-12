@@ -131,8 +131,7 @@ class ScaleMain(object):
 
         self.setupLogger(config=config, debug=debug)
 
-        core_factory = ScaleCoreFactory()
-        scaleCore = core_factory.getCore(config, maximumInterval=iterations)
+        scaleCore = ScaleCoreFactory.getCore(config, maximumInterval=iterations)
 
         scaleCore.init()
         scaleCore.startManage()
@@ -177,14 +176,15 @@ if __name__ == "__main__":
 
     args = vars(parser.parse_args())
 
-    if not "cmd" in args:
+    command = args.get("cmd")
+    if command is None:
         logging.error("Please supply a command type!")
         exit(1)
-    elif args["cmd"] == "test":
+    elif command == "test":
         sm = ScaleMain()
         sm.test()
         exit(0)
-    elif args["cmd"] == "standalone":
+    elif command == "standalone":
         sm = ScaleMain()
         sm.run(args["config"][0], args["debug"], args["iterations"])
         exit(0)
@@ -192,11 +192,11 @@ if __name__ == "__main__":
     daemon = MyDaemon("/tmp/daemon-scale.pid")
     daemon.configfile = args["config"][0]
 
-    if args["cmd"] == "start":
+    if command == "start":
         daemon.start()
-    elif args["cmd"] == "status":
+    elif command == "status":
         daemon.status()
-    elif args["cmd"] == "stop":
+    elif command == "stop":
         daemon.stop()
-    elif args["cmd"] == "restart":
+    elif command == "restart":
         daemon.restart()

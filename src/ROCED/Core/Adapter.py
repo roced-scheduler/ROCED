@@ -41,10 +41,12 @@ class AdapterBase(object):
     """
     __metaclass__ = abc.ABCMeta
 
-    def getOptionalConfigKeys(self):
+    @property
+    def optionalConfigKeys(self):
         return self.configKeysToLoadOptional
 
-    def getCompulsoryConfigKeys(self):
+    @property
+    def compulsoryConfigKeys(self):
         return self.configKeysToLoad
 
     def addOptionalConfigKeys(self, key, datatype, description=NoDefaultSet(),

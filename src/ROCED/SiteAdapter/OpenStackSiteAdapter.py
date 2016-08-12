@@ -282,10 +282,10 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.newMachine(mid)
                 # spawn machine at site
                 if not key is None:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}],userdata=user_data,
+                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}], userdata=user_data,
                                              key_name=key)
                 else:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}],userdata=user_data)
+                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}], userdata=user_data)
 
                 # set some machine information in machine registry
                 self.mr.machines[mid][self.mr.regSite] = self.siteName

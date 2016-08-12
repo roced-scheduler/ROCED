@@ -253,7 +253,7 @@ class OneSiteAdapter(SiteAdapterBase):
                                 if vpn.makeCertificate(myMachines[mid]["vpn_cert"]) == 0:
                                     myMachines[mid]["vpn_cert_is_valid"] = True
 
-                            if myMachines[mid]["vpn_cert_is_valid"] == True and \
+                            if myMachines[mid]["vpn_cert_is_valid"] is True and \
                                             myMachines[mid]["vpn_ip"] is None:
                                 if (vpn.copyCertificate(myMachines[mid]["vpn_cert"],
                                                         myMachines[mid]) == 0):
@@ -267,10 +267,10 @@ class OneSiteAdapter(SiteAdapterBase):
                                         else:
                                             logging.debug("getting VPN IP failed!!")
 
-                            if (myMachines[mid]["vpn_cert_is_valid"] == True and myMachines[mid][
+                            if (myMachines[mid]["vpn_cert_is_valid"] is True and myMachines[mid][
                                 "vpn_ip"] is not None):
                                 # if( vpn.revokeCertificate(myMachines[k]["vpn_cert"]) == 0):
-                                #    myMachines[k]["vpn_cert_is_valid"] == False
+                                #    myMachines[k]["vpn_cert_is_valid"] = False
                                 self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
                             logging.debug(myMachines[mid]["vpn_ip"])

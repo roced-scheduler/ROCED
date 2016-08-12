@@ -242,8 +242,8 @@ class Ssh(object):
                              stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
         return (p.returncode,
-                stdout.decode(encoding="utf-8"),
-                stderr.decode(encoding="utf-8"))
+                stdout.decode(encoding="utf-8").strip(),
+                stderr.decode(encoding="utf-8").strip())
 
     @staticmethod
     def debugOutput(logger, scope, result):

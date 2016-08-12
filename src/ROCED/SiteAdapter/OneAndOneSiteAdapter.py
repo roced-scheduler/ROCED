@@ -303,11 +303,10 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
         # check if request is higher than the max number of allowed machines per cycle
         if requested > self.getConfig(self.configMaxMachinesPerCycle):
             self.logger.info("Request exceeds maximum number of allowed machines per cycle on this site (%d>%d)!" %
-                            (requested, self.getConfig(self.configMaxMachinesPerCycle)))
+                             (requested, self.getConfig(self.configMaxMachinesPerCycle)))
             # set requested equals the number of machines per cycle
             requested = self.getConfig(self.configMaxMachinesPerCycle)
             self.logger.info("Will spawn %d machines." % requested)
-
 
         # find all unused indices to spawn machines
         index = self.getIndex(servers, requested)
@@ -335,7 +334,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                 vm = client.create_server(server=server, hdds=hdds)
                 # if there is more than one data center to select from, change the selected data center
                 if len(self.getConfig(self.configDatacenterID).split(",")) >= 2:
-                    self.datacenter_selector = (self.datacenter_selector + 1) % len(self.getConfig(self.configDatacenterID).split(","))
+                    self.datacenter_selector = (self.datacenter_selector + 1) % len(
+                        self.getConfig(self.configDatacenterID).split(","))
             # if it failes raise exception and continue with next machine
             except Exception as e:
                 self.logger.warning("Could not start server on OneAndOne Cloud Service. %s" % e)
@@ -519,7 +519,8 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
                     datacenter_index = self.getConfig(self.configDatacenterID).split(",").index(datacenter)
                     print self.getConfig(self.configPrivateNetworkID).split(",")[datacenter_index]
                     # assign the network
-                    self.assignPrivateNetwork(mid, self.getConfig(self.configPrivateNetworkID).split(",")[datacenter_index])
+                    self.assignPrivateNetwork(mid,
+                                              self.getConfig(self.configPrivateNetworkID).split(",")[datacenter_index])
                     # boot up the machine afterwards
                     self.modifyMachineStatus(mid, self.oao_state_power_on)
                 # check if machine status on 1and1 Cloud Site is already powered on
@@ -569,7 +570,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = self.oao  # machineType
             self.mr.machines[mid][self.reg_site_server_name] = oao_machines[vm][self.oao_name]
-            self.mr.machines[mid][self.reg_site_server_id] = vm # oao_machines[vm][self.oao_id]
+            self.mr.machines[mid][self.reg_site_server_id] = vm  # oao_machines[vm][self.oao_id]
             self.mr.machines[mid][self.reg_site_server_status] = (
                 oao_machines[vm][self.oao_status][self.oao_state])
 

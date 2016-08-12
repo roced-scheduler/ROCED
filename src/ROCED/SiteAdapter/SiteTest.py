@@ -20,12 +20,11 @@
 # ===============================================================================
 from __future__ import unicode_literals, absolute_import
 
-# from SiteAdapter.Ec2SiteAdapter import EucaSiteAdapter
 from Core import ScaleTest
 
 
 # import EucaUtil
-
+# from SiteAdapter.Ec2SiteAdapter import EucaSiteAdapter
 
 # TODO: disabled until properly fixed
 class EucaSiteAdapterTest:  # (ScaleTest.ScaleTestBase):

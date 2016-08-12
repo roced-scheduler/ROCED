@@ -93,8 +93,8 @@ class AdapterBaseTest(ScaleTest.ScaleTestBase):
                                       Config.ConfigTypeInt,
                                       description=config2_def_desc, default=config2_def_val)
 
-        adapter.loadConfigValue(adapter.getOptionalConfigKeys(), config, True, "fake_site", adapter)
+        adapter.loadConfigValue(adapter.optionalConfigKeys, config, True, "fake_site", adapter)
 
-        self.assertTrue(len(adapter.getOptionalConfigKeys()) == 2)
+        self.assertTrue(len(adapter.optionalConfigKeys) == 2)
         self.assertEqual(adapter.getConfig(SiteAdapterBase.ConfigMachineBootTimeout), 20)
         self.assertEqual(adapter.getConfig(config1_key), config1_def_val)

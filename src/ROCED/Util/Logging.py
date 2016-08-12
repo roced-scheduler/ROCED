@@ -32,16 +32,9 @@ from datetime import datetime
 
 PY3 = sys.version_info > (3,)
 
-"""
-    JSON Log handling
-
-    stores the following to a json file
-    ::logs:    how much machines are needed/used/requested
-    ::stats:   time statistics for each machine
-"""
-
 
 # TODO: Use config file "logfolder"
+
 
 class MachineRegistryLogger(object):
     """Save/load machine registry to JSON file"""
@@ -100,15 +93,14 @@ class MachineRegistryLogger(object):
 
 
 class JsonLog(object):
+    # TODO: Make this class a singleton, returning a different instance for each output file.
     # use class variables to share log among instances
     __jsonLog = {}
     __fileName = ""
 
     @classmethod
     def __init__(cls, dir_="log", prefix="monitoring", suffix=""):
-        """
-        Initialize log folder and log file
-        """
+        """Generic JSON Logger."""
         # Existence check for log folder [log file creation requires existing folder]
         if os.path.isdir(dir_) is False:
             try:
@@ -138,9 +130,7 @@ class JsonLog(object):
 
     @classmethod
     def writeLog(cls):
-        """
-        Write current log into JSON file.
-        """
+        """Write current log into JSON file."""
         oldLog = {}
         if os.path.isfile(cls.__fileName):
             try:
@@ -153,9 +143,9 @@ class JsonLog(object):
                         oldLog = {int(time.time()): cls.__jsonLog}
             except IOError:
                 logging.error("JSON file could not be opened for logging!")
-
         else:
             oldLog = {int(time.time()): cls.__jsonLog}
+
         try:
             with open(cls.__fileName, "w") as jsonFile:
                 json.dump(oldLog, jsonFile, indent=2)
@@ -174,79 +164,81 @@ class JsonLog(object):
         print("%s: %s" % (int(time.time()), cls.__jsonLog))
 
 
-class JsonStats(object):
-    __jsonStats = {}
-    __fileName = ""
-
-    @classmethod
-    def __init__(cls, dir_="log", prefix="stats", suffix=""):
-        """
-        Initialize log folder and log file
-        """
-        # Existence check for log folder [log file creation requires existing folder]
-        if os.path.isdir(dir_) is False:
-            try:
-                os.makedirs("%s/" % dir_)
-            except OSError:
-                logging.error("Error when creating %s folder" % dir_)
-        # Build log file name
-        if not cls.__fileName:
-            cls.__fileName = ("%s/%s_%s%s.json"
-                              % (dir_, prefix, datetime.today().strftime("%Y-%m-%d"), suffix))
-
-    @classmethod
-    def add_item(cls, site, mid, value):
-        if site not in cls.__jsonStats:
-            cls.__jsonStats[site] = {}
-        if mid not in cls.__jsonStats[site]:
-            cls.__jsonStats[site][str(mid)] = {}
-        cls.__jsonStats[site][str(mid)] = value
-
-    @classmethod
-    def write_stats(cls):
-        oldStats = {}
-        if os.path.isfile(cls.__fileName):
-            try:
-                with open(cls.__fileName, "r") as jsonFile:
-                    try:
-                        oldStats = json.load(jsonFile)
-                        for site in cls.__jsonStats:
-                            if site not in oldStats:
-                                oldStats[site] = {}
-                            for mid in cls.__jsonStats[site]:
-                                if mid not in oldStats[site]:
-                                    oldStats[site][mid] = []
-                                if cls.__jsonStats[site][mid] not in oldStats[site][mid]:
-                                    oldStats[site][mid].append(cls.__jsonStats[site][mid])
-                    except ValueError:
-                        logging.error("Could not parse JSON log!")
-                        for site in cls.__jsonStats:
-                            oldStats = {site: {mid: cls.__jsonStats[mid]}
-                                        for mid in cls.__jsonStats[site]}
-
-            except IOError:
-                logging.error("JSON file could not be opened for logging!")
-        else:
-            oldStats = {
-                cls.__jsonStats.keys()[-1]: {
-                    cls.__jsonStats[cls.__jsonStats.keys()[-1]].keys()[-1]:
-                        [cls.__jsonStats[cls.__jsonStats.keys()[-1]].values()[-1]]
-                }
-            }
-        try:
-            with open(cls.__fileName, "w") as jsonFile:
-                json.dump(oldStats, jsonFile, sort_keys=True, indent=2)
-        except IOError:
-            logging.error("JSON file could not be opened for logging!")
-
-    @classmethod
-    def printStats(cls):
-        [print("%s: %s" % (mid, cls.__jsonStats[mid])) for mid in cls.__jsonStats]
+# Obsolete: Too inefficient once the JSON file becomes too big.
+# class JsonStats(object):
+#     __jsonStats = {}
+#     __fileName = ""
+#
+#     @classmethod
+#     def __init__(cls, dir_="log", prefix="stats", suffix=""):
+#         """
+#         Initialize log folder and log file
+#         """
+#         # Existence check for log folder [log file creation requires existing folder]
+#         if os.path.isdir(dir_) is False:
+#             try:
+#                 os.makedirs("%s/" % dir_)
+#             except OSError:
+#                 logging.error("Error when creating %s folder" % dir_)
+#         # Build log file name
+#         if not cls.__fileName:
+#             cls.__fileName = ("%s/%s_%s%s.json"
+#                               % (dir_, prefix, datetime.today().strftime("%Y-%m-%d"), suffix))
+#
+#     @classmethod
+#     def add_item(cls, site, mid, value):
+#         if site not in cls.__jsonStats:
+#             cls.__jsonStats[site] = {}
+#         if mid not in cls.__jsonStats[site]:
+#             cls.__jsonStats[site][str(mid)] = {}
+#         cls.__jsonStats[site][str(mid)] = value
+#
+#     @classmethod
+#     def write_stats(cls):
+#         oldStats = {}
+#         if os.path.isfile(cls.__fileName):
+#             try:
+#                 with open(cls.__fileName, "r") as jsonFile:
+#                     try:
+#                         oldStats = json.load(jsonFile)
+#                         for site in cls.__jsonStats:
+#                             if site not in oldStats:
+#                                 oldStats[site] = {}
+#                             for mid in cls.__jsonStats[site]:
+#                                 if mid not in oldStats[site]:
+#                                     oldStats[site][mid] = []
+#                                 if cls.__jsonStats[site][mid] not in oldStats[site][mid]:
+#                                     oldStats[site][mid].append(cls.__jsonStats[site][mid])
+#                     except ValueError:
+#                         logging.error("Could not parse JSON log!")
+#                         for site in cls.__jsonStats:
+#                             oldStats = {site: {mid: cls.__jsonStats[mid]}
+#                                         for mid in cls.__jsonStats[site]}
+#
+#             except IOError:
+#                 logging.error("JSON file could not be opened for logging!")
+#         else:
+#             oldStats = {
+#                 cls.__jsonStats.keys()[-1]: {
+#                     cls.__jsonStats[cls.__jsonStats.keys()[-1]].keys()[-1]:
+#                         [cls.__jsonStats[cls.__jsonStats.keys()[-1]].values()[-1]]
+#                 }
+#             }
+#         try:
+#             with open(cls.__fileName, "w") as jsonFile:
+#                 json.dump(oldStats, jsonFile, sort_keys=True, indent=2)
+#         except IOError:
+#             logging.error("JSON file could not be opened for logging!")
+#
+#     @classmethod
+#     def printStats(cls):
+#         [print("%s: %s" % (mid, cls.__jsonStats[mid])) for mid in cls.__jsonStats]
 
 
 class UnicodeWriter(object):
     def __init__(self, filename, fieldnames, dialect=csv.excel,
                  encoding="utf-8", **kw):
+        """Unicode helper class for CSV logging."""
         self.filename = filename
         self.fieldnames = fieldnames
         self.dialect = dialect
@@ -289,6 +281,7 @@ class CsvStats(object):
 
     @classmethod
     def __init__(cls, dir_="log", prefix="stats", suffix=""):
+        """CSV statistics, logging Machine Registry timing information."""
         # Existence check for log folder [log file creation requires existing folder]
         if os.path.isdir(dir_) is False:
             try:

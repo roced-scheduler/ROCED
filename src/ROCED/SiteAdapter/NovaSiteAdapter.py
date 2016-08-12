@@ -20,13 +20,18 @@
 # ===============================================================================
 from __future__ import unicode_literals, absolute_import
 
-# from EucaUtil import EucaUtil
-# from EucaUtil import Ec2Util
 import datetime
 import logging
 
-# see http://docs.pythonboto.org/
-import boto.exception
+try:
+    # TODO: These seem to be here for self.getApiUtil...
+    # from EucaUtil import EucaUtil
+    # from EucaUtil import Ec2Util
+    # see http://docs.pythonboto.org/
+    import boto.exception
+except ImportError:
+    pass
+
 from .Site import SiteAdapterBase
 from Core import MachineRegistry
 from Util import ScaleTools
