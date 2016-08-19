@@ -130,15 +130,21 @@ class ScaleMain(object):
         config.readfp(open(config_file_name))
 
         self.setupLogger(config=config, debug=debug)
-
         scaleCore = ScaleCoreFactory.getCore(config, maximumInterval=iterations)
+        self.logger.info("----------------------------------")
+        try:
+            with open("roced_logo.txt", mode="r") as file_:
+                [self.logger.info(line.rstrip()) for line in file_]
+            self.logger.info("----------------------------------")
+        except IOError:
+            pass
+        finally:
+            self.logger.info("%s running" % scaleCore.description)
+            self.logger.info("----------------------------------")
 
         scaleCore.init()
-        scaleCore.startManage()
-
         # Run the server's main loop
-        self.logger.info("----------------------------------")
-        self.logger.info("%s running" % scaleCore.description)
+        scaleCore.startManage()
 
 
 class MyDaemon(DaemonBase):

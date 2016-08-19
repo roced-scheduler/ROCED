@@ -179,7 +179,7 @@ class ScaleCore(object):
 
     @property
     def description(self):
-        return "Scale Core 0.2"
+        return "Scale Core 0.7"
 
 
 class ObjectFactory(object):
