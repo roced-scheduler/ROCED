@@ -43,12 +43,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
     reg_site_server_condor_name = HTCondor.reg_site_server_condor_name
     regMachineJobId = "batch_job_id"
+
+    __Jobname = "ROCED_VM"
     __vmStartScript = "startVM.py"
     """Python script to be executed in Freiburg. This starts the VM with the corresponding image.
     This python script has to be adapted on the server with user name, OpenStack Dashboard PW,
     image GUID, etc.
     """
-    __condorNamePrefix = "moab-vm-"
+    __hostNamePrefix = "moab-vm-"
     """VM machine name. This is also used as machine name in condor by us."""
 
     def __init__(self):
@@ -84,46 +86,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
         super(FreiburgSiteAdapter, self).init()
 
-        # TODO: This information is lost, when loading the previous machine registry.
-        ###
-        # Try to add "booting" machines (submitted batch jobs) to machine registry.
-        ###
-        try:
-            idleJobs = self.__idleJobs
-            runningJobs = self.__runningJobs
-            completedJobs = self.__completedJobs
-        except ValueError:
-            if idleJobs is None:
-                idleJobs = []
-            if runningJobs is None:
-                runningJobs = {}
-            if completedJobs is None:
-                completedJobs = {}
-
         # Machines that are found running get this type by default
         self.__default_machine = list(self.getConfig(self.ConfigMachines).keys())[0]
-
-        for mid, machine_ in self.getSiteMachines(status=self.mr.statusBooting).items():
-            try:
-                idleJobs.remove(machine_[self.regMachineJobId])
-            except ValueError:
-                if machine_[self.regMachineJobId] in runningJobs:
-                    self.mr.updateMachineStatus(mid, self.mr.statusUp)
-                elif machine_[self.regMachineJobId] in completedJobs:
-                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
-                else:
-                    self.logger.debug("Couldn't assign machine %s." % machine_[self.regMachineJobId])
-        if idleJobs is not None:
-            for jobId in idleJobs:
-                mid = self.mr.newMachine()
-                self.mr.machines[mid][self.mr.regSite] = self.siteName
-                self.mr.machines[mid][self.mr.regSiteType] = self.siteType
-                self.mr.machines[mid][self.mr.regMachineType] = self.__default_machine
-                self.mr.machines[mid][self.regMachineJobId] = jobId
-                self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
-                    jobId)
-                self.mr.updateMachineStatus(mid, self.mr.statusBooting)
-        self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
 
     def spawnMachines(self, machineType, count):
         """Request machines via MOAB batch job (which executes startVM script).
@@ -144,21 +108,20 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                           # Submit a job array with size "count"
                                           "-t %s[1-%d] %s"
                                           % (machineSettings["walltime"], machineSettings["memory"],
-                                             machineSettings["cores"], self.__vmStartScript,
+                                             machineSettings["cores"], self.__Jobname,
                                              count, self.__vmStartScript))
         if result[0] != 0:
             self.logger.warning("A problem occurred while requesting VMs. RC: %d; stdout: %s; stderr: %s"
                                 % (result[0], result[1], result[2]))
             return
 
-        for x in range(1, count):
+        for job_id in self.__resolveJobArray(result[1].strip(), count):
             mid = self.mr.newMachine()
-            # StdOut from submit = JobId. In qstat, etc. [size] is added, in hostname it's joined directly.
-            job_id = "%s%s" % (result[1].strip(), x)
             self.mr.machines[mid][self.mr.regSite] = self.siteName
             self.mr.machines[mid][self.mr.regMachineType] = machineType
             self.mr.machines[mid][self.regMachineJobId] = job_id
-            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(job_id)
+            self.mr.machines[mid]["cluster_size"] = count
+            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getVmHostName(job_id)
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
@@ -371,7 +334,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = self.__default_machine
             self.mr.machines[mid][self.regMachineJobId] = batchJobId
-            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(batchJobId)
+            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getVmHostName(batchJobId)
             self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
         self.logger.info("Machines using resources (Freiburg): %d" % self.cloudOccupyingMachinesCount)
@@ -435,13 +398,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return idsRemoved, idsInvalidated
 
     @classmethod
-    def __getCondorName(cls, batchJobId):
+    def __getVmHostName(cls, batchJobId):
         # type: (str) -> str
         """Build VM host name for communication with Integration Adapter.
 
         Name is built from static prefix and batch job id."""
         # Get rid of [] via translate "deletechars"
         # TODO: This is not compatible between python versions
+        return cls.__hostNamePrefix + batchJobId.translate(None, b"[]")
 
     @property
     def __userString(self):
@@ -456,31 +420,29 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             res = "-w group=%s" % frGroup
 
         return res
+
     @property
     @Caching(validityPeriod=30, redundancyPeriod=300)
-    def __getJobs(self):
-        cmd = "qstat -u %s" % self.getConfig(self.configFreiburgUser)
+    def __Jobs(self):
+        # type: () -> dict
+        """Get list of running and recently completed batch jobs (current user)."""
+        cmd = "qstat -r -l -t -u %s" % self.getConfig(self.configFreiburgUser)
         frResult = self.__execCmdInFreiburg(cmd)
 
         if frResult[0] == 0:
             frJobs = {jobid: {"status": status, "cores": cores, "memory": memory, "wall_time": wall_time}
                       for jobid, cores, memory, wall_time, status
-                      in re.findall("""^
-                                       (\d+(\[\d+\])?)
-                                       .+
-                                       (?:ka_cw8854)
-                                       .+
-                                       (?:startVM.py\s+)
-                                       (?:\S+\s+){2}
-                                       (\d+)
-                                       \s+
-                                       (\d+)gb
-                                       \s+
-                                       ((?:\d{1,2}:?){3,4})
-                                       \s+
-                                       (\w)
-                                       .+$
-                                    """, frResult[1], re.IGNORECASE | re.MULTILINE | re.VERBOSE)}
+                      in re.findall("""^                        # Line start; \s+ or .+ denotes separators/trash
+                                       (\d+(\[\d+\])?).+        # JobId + Array
+                                       (?:%s).+                 # Username (non-capturing group)
+                                       (?:%s)\s+                # Job Name (non-capturing group)
+                                       (?:\S+\s+){2}            # 2 x trash + separator/stuff (non-capturing group)
+                                       (\d+)\s+                 # Number of CPU cores
+                                       (\d+)gb\s+               # Memory
+                                       ((?:\d{1,2}:?){3,4})\s+  # Wall Time; 3-4 groups of 00:
+                                       ([CEHQRTWS]).+$          # Job status (single char) // trash, line end
+                                    """ % (self.getConfig(self.configFreiburgUser), self.__vmStartScript),
+                                    frResult[1], re.IGNORECASE | re.MULTILINE | re.VERBOSE)}
         elif frResult[0] == 255:
             self.logger.warning("SSH connection (%s) could not be established." % cmd)
             raise ValueError("SSH connection (%s) could not be established." % cmd)
@@ -491,101 +453,70 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.logger.debug("Running:\n%s" % frJobs.keys())
         return frJobs
 
-    # @property
-    # @Caching(validityPeriod=-1, redundancyPeriod=300)
-    # def __runningJobs(self):
-    #     # type: () -> dict
-    #     """Get list of running batch jobs, filtered by user ID."""
-    #     # TODO: Switch to qstat
-    #     cmd = "showq -r %s" % self.__userString
-    #
-    #     frResult = self.__execCmdInFreiburg(cmd)
-    #
-    #     if frResult[0] == 0:
-    #         # returns a list containing all running batch jobs
-    #         # see http://docs.adaptivecomputing.com/maui/commands/showq.php#activeexample
-    #         frJobsRunning = {jobid: {"cores": cores, "walltime": time_limit}
-    #                          for jobid, cores, time_limit
-    #                          in re.findall("""
-    #                                 ^                   # Line start
-    #                                 (\d+)               # batch job id (digits) = result 1
-    #                                 \s+                 # whitespace(s)
-    #                                 R                   # Job = Running
-    #                                 \s+                 # whitespace(s)
-    #                                 (?:[\S]+\s+){7}     # 7 entries [stuff + spaces]
-    #                                 (\d)                # cores = result 2
-    #                                 \s+                 # whitespace(s)
-    #                                 ((?:\d{1,2}:?){3,4})# time limit: 3-4 digit pairs = res3
-    #                                 \s+.+               # more waste
-    #                                 $                   # line end
-    #                                 """, frResult[1], re.MULTILINE | re.VERBOSE)}
-    #     elif frResult[0] == 255:
-    #         frJobsRunning = {}
-    #         self.logger.warning("SSH connection (showq -r) could not be established.")
-    #         raise ValueError("SSH connection (showq -r) could not be established.")
-    #     else:
-    #         frJobsRunning = {}
-    #         self.logger.warning("Problem running remote command (showq -r) (RC %d):\n%s" % (frResult[0], frResult[2]))
-    #         raise ValueError("Problem running remote command (showq -r) (RC %d):\n%s" % (frResult[0], frResult[2]))
-    #
-    #     self.logger.debug("Running:\n%s" % frJobsRunning)
-    #     return frJobsRunning
-
     @property
     @Caching(validityPeriod=-1, redundancyPeriod=300)
     def __idleJobs(self):
         # type: () -> list
         """Get a list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
-        cmd = "showq -i %s" % self.__userString
+        result = []
+        # 1. Non-blocking Query
+        # 2. Last 4 lines show totals
+        cmd = "showq -i --noblock %s | head -n -4" % self.__userString
 
         frResult = self.__execCmdInFreiburg(cmd)
 
         if frResult[0] == 0:
-            # returns a list containing all running batch jobs in Freiburg
-            # Negative lookahead for "eligible", otherwise he catches "0 eligible jobs".
-            frJobsIdle = re.findall("^(\d+)\s+(?!eligible)", frResult[1], re.MULTILINE)
+            result.extend(self.__resolveJobArray(jobid, size) for jobid, size in
+                          re.findall("^(\d+)\[(\d+)\]", frResult[1], re.MULTILINE))
         elif frResult[0] == 255:
-            frJobsIdle = []
             self.logger.warning("SSH connection (showq -i) could not be established.")
             raise ValueError("SSH connection (showq -i) could not be established.")
         else:
-            frJobsIdle = []
             self.logger.warning("Problem running remote command (showq -i) (RC %d):\n%s" % (frResult[0], frResult[2]))
             raise ValueError("Problem running remote command (showq -i) (RC %d):\n%s" % (frResult[0], frResult[2]))
 
-        self.logger.debug("Idle:\n%s" % frJobsIdle)
-        return frJobsIdle
+        cmd = "checkjob all"
+        frResult = self.__execCmdInFreiburg(cmd)
 
-    # @property
-    # @Caching(validityPeriod=-1, redundancyPeriod=300)
-    # def __completedJobs(self):
-    #     # type: () -> dict
-    #     """Get list of completed batch jobs, filtered by user ID."""
-    #     cmd = "showq -c %s" % self.__userString
-    #
-    #     frResult = self.__execCmdInFreiburg(cmd)
-    #
-    #     if frResult[0] == 0:
-    #         # returns a dict: {batch job id: return code/status, ..}
-    #         frJobsCompleted = {jobid: rc for jobid, rc in
-    #                            re.findall("""
-    #                            ^             # Match at the beginning of lines
-    #                            (\d+)         # batch job id (digits) = result 1
-    #                            (?:\(\d+\))?  # Array job
-    #                            \s+           # whitespace/tab
-    #                            [RCV]         # job state: completed, vacated, removed
-    #                            \s+           # whitespace/tab
-    #                            ([-A-Z0-9]+)  # Return-code = result 2: +/- int or CNCLD
-    #                            \s+.+$        # useless rest
-    #                            """, frResult[1], re.MULTILINE | re.VERBOSE)}
-    #     elif frResult[0] == 255:
-    #         frJobsCompleted = {}
-    #         self.logger.warning("SSH connection (showq -c) could not be established.")
-    #         raise ValueError("SSH connection (showq -c) could not be established.")
-    #     else:
-    #         frJobsCompleted = {}
-    #         self.logger.warning("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
-    #         raise ValueError("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
-    #
-    #     self.logger.debug("Completed:\n%s" % frJobsCompleted)
-    #     return frJobsCompleted
+        self.logger.debug("Idle:\n%s" % result)
+        return result
+
+    @staticmethod
+    def __resolveJobArray(job_id, size=1):
+        # type (str, str) -> list
+        """Resolve Freiburg job_id and array size to a list of job numbers"""
+        return ["%s[%s]" % (job_id, x) for x in range(1, int(size))]
+
+        # @property
+        # @Caching(validityPeriod=-1, redundancyPeriod=300)
+        # def __completedJobs(self):
+        #     # type: () -> dict
+        #     """Get list of completed batch jobs, filtered by user ID."""
+        #     cmd = "showq -c %s" % self.__userString
+        #
+        #     frResult = self.__execCmdInFreiburg(cmd)
+        #
+        #     if frResult[0] == 0:
+        #         # returns a dict: {batch job id: return code/status, ..}
+        #         frJobsCompleted = {jobid: rc for jobid, rc in
+        #                            re.findall("""
+        #                            ^             # Match at the beginning of lines
+        #                            (\d+)         # batch job id (digits) = result 1
+        #                            (?:\(\d+\))?  # Array job
+        #                            \s+           # whitespace/tab
+        #                            [RCV]         # job state: completed, vacated, removed
+        #                            \s+           # whitespace/tab
+        #                            ([-A-Z0-9]+)  # Return-code = result 2: +/- int or CNCLD
+        #                            \s+.+$        # useless rest
+        #                            """, frResult[1], re.MULTILINE | re.VERBOSE)}
+        #     elif frResult[0] == 255:
+        #         frJobsCompleted = {}
+        #         self.logger.warning("SSH connection (showq -c) could not be established.")
+        #         raise ValueError("SSH connection (showq -c) could not be established.")
+        #     else:
+        #         frJobsCompleted = {}
+        #         self.logger.warning("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
+        #         raise ValueError("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
+        #
+        #     self.logger.debug("Completed:\n%s" % frJobsCompleted)
+        #     return frJobsCompleted
