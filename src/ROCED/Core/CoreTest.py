@@ -47,7 +47,7 @@ class SiteAdapterTest(SiteAdapterBase):
     def spawnMachines(self, machineType, count):
         return
 
-    def manage(self):
+    def manage(self, cleanup=False):
         pass
 
     @property

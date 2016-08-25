@@ -505,7 +505,7 @@ class OneAndOneSiteAdapter(SiteAdapterBase):
     def terminateMachines(self, machineType, count):
         pass
 
-    def manage(self):
+    def manage(self, cleanup=False):
         """
         managing machine states that change dependant of the state changes on 1and1 cloud site run once per cycle
         :return:

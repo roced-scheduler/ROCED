@@ -69,7 +69,7 @@ class TorqueIntegrationAdapter(IntegrationAdapterBase):
         super(TorqueIntegrationAdapter, self).init()
         self.mr.registerListener(self)
 
-    def manage(self):
+    def manage(self, cleanup=False):
 
         disint = self.mr.getMachines(status=self.mr.statusDisintegrating)
 

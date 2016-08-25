@@ -54,7 +54,7 @@ class FakeSiteAdapter(SiteAdapterBase):
                 # ha, machine to kill
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
-    def manage(self):
+    def manage(self, cleanup=False):
         for machineType in self.runningMachines:
             [self.mr.updateMachineStatus(mid, self.mr.statusUp) for mid in self.runningMachines[machineType]
              if self.mr.machines[mid][self.mr.regStatus] == self.mr.statusBooting and

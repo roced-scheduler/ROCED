@@ -51,7 +51,7 @@ class FakeIntegrationAdapter(IntegrationAdapterBase):
         self.logger = logging.getLogger(self.getConfig("logger_name"))
         self.siteName = self.getConfig(self.configSiteName)
 
-    def manage(self):
+    def manage(self, cleanup=False):
         [self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated) for mid
          in self.mr.getMachines(site=self.siteName, status=self.mr.statusDisintegrating)
          if self.mr.calcLastStateChange(mid) > random.randint(2, 6)]

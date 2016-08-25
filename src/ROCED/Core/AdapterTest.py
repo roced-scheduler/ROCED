@@ -41,7 +41,7 @@ class IntegrationAdapterTest(Integration.IntegrationAdapterBase):
     def init(self):
         super(IntegrationAdapterTest, self).init()
 
-    def manage(self):
+    def manage(self, cleanup):
         pass
 
     @property

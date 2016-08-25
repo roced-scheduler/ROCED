@@ -104,7 +104,7 @@ class NovaSiteAdapter(SiteAdapterBase):
                 logging.warning("Machine %s did not boot in time. Shutting down." % mid)
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
-    def manage(self):
+    def manage(self, cleanup=False):
         # check for machine status
         ut = self.getApiUtil()
         logging.info("Querying Nova Server for running instances...")

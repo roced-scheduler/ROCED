@@ -300,7 +300,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     self.logger.warning("Canceling machine failed with exception %s" % err)
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
-    def manage(self):
+    def manage(self, cleanup=False):
         # type: () -> None
         """Manages status changes of machines by checking  jobs in Freiburg.
 

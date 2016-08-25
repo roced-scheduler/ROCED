@@ -45,7 +45,7 @@ class IntegrationAdapterBase(Adapter.AdapterBase):
         pass
 
     @abc.abstractmethod
-    def manage(self):
+    def manage(self, cleanup=False):
         """Periodically called manage function responsible for initiating status changes.
 
         This method has to handle the following (machine registry) machine status transitions:

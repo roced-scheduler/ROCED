@@ -47,7 +47,7 @@ class GridEngineIntegrationAdapter(IntegrationAdapterBase):
         super(GridEngineIntegrationAdapter, self).init()
         self.mr.registerListener(self)
 
-    def manage(self):
+    def manage(self, cleanup=False):
         """called every manage cycle"""
 
         # only nodes which are set to drain/delete are in this list

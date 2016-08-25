@@ -124,9 +124,14 @@ class ScaleCore(object):
         logger.info("Time: %s" % datetime.today().strftime("%Y-%m-%d %H:%M:%S"))
 
         # regular management
+        if self.manageIterations % 10 == 0:
+            kwargs = dict(cleanup=True)
+        else:
+            kwargs = dict()
+
         self.reqBox.manage()
-        self.siteBox.manage()
-        self.intBox.manage()
+        self.siteBox.manage(**kwargs)
+        self.intBox.manage(**kwargs)
 
         # scaling
         mReq = self.reqBox.getMachineTypeRequirement()

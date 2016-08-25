@@ -215,7 +215,7 @@ class OneSiteAdapter(SiteAdapterBase):
                 logging.warning("Machine %s did not boot in time. Shutting down." % mid)
                 self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
-    def manage(self):
+    def manage(self, cleanup=False):
         """manage method is called every manage cycle.
         this is the right place to survey the booting status and set it to StatusUp if machine is up"""
 

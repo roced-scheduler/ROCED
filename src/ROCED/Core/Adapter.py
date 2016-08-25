@@ -182,5 +182,9 @@ class AdapterBoxBase(object):
         # type: (List(AdapterBase)) -> None
         self._adapterList += alist
 
-    def manage(self):
-        [adapter.manage() for adapter in self._adapterList]
+    def manage(self, cleanup=False):
+        # type: (bool) -> None
+        """ Call contained adapters' (periodic) manage function.
+
+        Every tenth call is considered a "big" cleanup management, appropriate for more time consuming operations."""
+        [adapter.manage(cleanup) for adapter in self._adapterList]

@@ -82,7 +82,7 @@ class SiteAdapterBase(AdapterBase):
         self.logger = logging.getLogger("Site")
 
     @abc.abstractmethod
-    def manage(self):
+    def manage(self, cleanup=False):
         """Periodically called manage function responsible for initiating site specific status changes.
 
         This method has to handle the following (machine registry) machine status transitions:

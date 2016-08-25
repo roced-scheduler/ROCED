@@ -240,9 +240,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             img = self.getConfig(self.configImage)  # nova.images.find(name=self.getConfig(self.configImage))
             key = self.getConfig(self.configKeypair)  # nova.keypairs.list()
             name_prefix = str(self.siteName + "-")
-            print self.getConfig(self.configUserData)
+            print(self.getConfig(self.configUserData))
             user_data = open(self.getConfig(self.configUserData), "r")
-            print user_data
+            print(user_data)
             daytime = datetime.datetime.strptime(self.getConfig(self.configDay), "%H:%M")
             nighttime = datetime.datetime.strptime(self.getConfig(self.configNight), "%H:%M")
 
@@ -416,7 +416,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                     # set machine to disintegrating, which means they will be shut down immediately
                     self.mr.updateMachineStatus(to_terminate, self.mr.statusDisintegrating)
 
-    def manage(self):
+    def manage(self, cleanup=False):
         """Managing machine states, run once per cycle
 
         This function takes care of the machine status and manages state changes:
