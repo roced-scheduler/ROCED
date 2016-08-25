@@ -179,7 +179,7 @@ class AdapterBoxBase(object):
         self._adapterList.append(a)
 
     def addAdapterList(self, alist):
-        # type: (List(AdapterBase)) -> None
+        # type: (List[AdapterBase]) -> None
         self._adapterList += alist
 
     def manage(self, cleanup=False):

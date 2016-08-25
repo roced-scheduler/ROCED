@@ -32,8 +32,6 @@ from Util.ScaleTools import Ssh
 
 
 class FreiburgSiteAdapter(SiteAdapterBase):
-    """Site Adapter for Freiburg bwForCluster ENM OpenStack setup."""
-
     configSiteLogger = "logger_name"
     configFreiburgUser = "freiburg_user"
     configFreiburgUserGroup = "freiburg_user_group"
@@ -54,6 +52,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     """VM machine name. This is also used as machine name in condor by us."""
 
     def __init__(self):
+        """Site Adapter for Freiburg bwForCluster ENM OpenStack setup."""
         super(FreiburgSiteAdapter, self).__init__()
 
         self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
@@ -127,14 +126,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
 
     def spawnMachines(self, machineType, count):
-        """Request machines in Freiburg via batch job containing startVM script.
+        """Request machines via MOAB batch job (which executes startVM script).
 
-        Batch job configuration is done via config file.
-        All OpenStack parameters (user login, image name, ..) are set in startVM script.
-
-        :param machineType:
-        :param count:
-        :return:
+        Batch job configuration is done via ROCED config file.
+        OpenStack parameters (user login, image name, ..) are set in startVM script on Freiburg login node..
         """
         super(FreiburgSiteAdapter, self).spawnMachines(machineType, count)
 
@@ -168,15 +163,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
     def terminateMachines(self, machineType, count):
-        """Terminate machines in Freiburg.
-
-        Working machines are untouched by default, but they may get put into drain mode if
-        the configuration is set accordingly.
-
-        :param machineType:
-        :param count:
-        :return:
-        """
+        """Terminate machines. Only **queued** jobs/machines are killed. Running machines may be drained."""
         # booting machines, sorted by request time (newest first).
         bootingMachines = self.getSiteMachines(self.mr.statusBooting, machineType)
         try:
@@ -214,12 +201,11 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         for mid, machine in machinesToRemove:
             if machine[self.mr.regStatus] == self.mr.statusBooting:
-                # booting machines can be terminated immediately
                 idsToTerminate.append(machine[self.regMachineJobId])
             elif self.getConfig(self.configDrainWorkingMachines):
+                # TODO: Remove hard HTCondor dependency
                 if HTCondor.calcDrainStatus(mid)[1] is True:
                     continue
-                # working machines should be set to drain mode
                 idsToDrain.append(machine[self.regMachineJobId])
 
         self.logger.debug("Machines to terminate (%d): %s" % (len(idsToTerminate), ", ".join(idsToTerminate)))
@@ -232,24 +218,19 @@ class FreiburgSiteAdapter(SiteAdapterBase):
              if machine[self.regMachineJobId] in idsToDrain]
 
         if len(idsRemoved + idsInvalidated) > 0:
-            # update status
-            [self.mr.updateMachineStatus(mid, self.mr.statusDown) for mid, machine
-             in self.getSiteMachines().items()
+            [self.mr.updateMachineStatus(mid, self.mr.statusDown) for mid, machine in self.getSiteMachines().items()
              if machine[self.regMachineJobId] in idsRemoved + idsInvalidated]
 
     @property
     def runningMachinesCount(self):
-        """Return dictionary with number of machines running at Freiburg. Depending on config file
-        this may account for draining slots (claimed|retiring = working vs. claimed|idle = offline).
+        """
+        Return number of machines running, possibly accounting for draining slots (claimed|retiring vs. drained|idle).
 
-        The number of running machines needs to be recalculated when accounting for draining slots.
-        Claimed but retiring slots are still being counted as working slots and thus contributing
-        to the number of running machines -> remove idle draining slots from running machines
-        and recalculate the actual number of running machines.
+        Claimed but retiring slots are counted as working slots ( = running machine(s))
+         -> Recalculate running machines without *idle* drained slots
 
         :return {machine_type: integer, ...}:
         """
-        # fall back to base method if required
         if self.getConfig(self.configIgnoreDrainingMachines) is True:
             return super(FreiburgSiteAdapter, self).runningMachinesCount
         else:
@@ -260,11 +241,11 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 nDrainedSlots = 0
 
                 for mid in runningMachines[machineType]:
+                    # TODO: Get rid of hard dependency to run Condor in VMs // more generic approach
                     nDrainedSlots += HTCondor.calcDrainStatus(mid)[0]
                 nCores = self.getConfig(self.ConfigMachines)[machineType]["cores"]
                 nMachines = len(runningMachines[machineType])
-                # Calculate the number of available slots
-                # Little trick: floor division with negative values: -9//4 = -3
+                # Number of available slots: floor division with negative values: -9//4 = -3
                 nDrainedSlots = -nDrainedSlots
                 runningMachinesCount[machineType] = nMachines + nDrainedSlots // nCores
                 if nDrainedSlots != 0:
@@ -278,9 +259,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         # type: (MachineRegistry.MachineEvent) -> None
         """Event handler: Handles machine status changes.
 
-        Freiburg has some special logic here, since machines shutdown themselves after a 5 minute
-        delay. This means we only have to cancel jobs, if we change to "Disintegrated" outside the
-        regular execution.
+        - Machines (should) disintegrate automatically, if they are idle for a certain amount of time.
+        - After disintegrating, the machines (should) shut down automatically.
+
+        -> Only cancel jobs, if a machines changes to "Disintegrated" _outside_ the regular order.
         """
         try:
             if self.mr.machines[evt.id].get(self.mr.regSite, None) != self.siteName:
@@ -291,26 +273,29 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         if isinstance(evt, MachineRegistry.StatusChangedEvent):
             self.logger.debug("Status Change Event: %s (%s->%s)" % (evt.id, evt.oldStatus, evt.newStatus))
             if evt.newStatus == self.mr.statusDisintegrated:
-                # Disintegrated information comes from integration adapter. Skipping state only happens with time out.
                 try:
-                    if (self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs and
-                                evt.oldStatus != self.mr.statusDisintegrating):
-                        self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(self.regMachineJobId)])
+                    if evt.oldStatus != self.mr.statusDisintegrating:
+                        if self.mr.machines[evt.id].get(self.regMachineJobId) in self.__runningJobs:
+                            self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(self.regMachineJobId)])
                 except Exception as err:
                     self.logger.warning("Canceling machine failed with exception %s" % err)
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
     def manage(self, cleanup=False):
-        # type: () -> None
-        """Manages status changes of machines by checking  jobs in Freiburg.
+        # type: (bool) -> None
+        """Manages machine state changes by checking Freiburg MOAB job states.
 
-        Booting = Freiburg batch job for machine was submitted
-        Up      = Freiburg batch job is running, VM is Booting,
-                  HTCondorIntegrationAdapter switches this to "integrating" and "working".
-        Disintegrated & Down
+        Booting       = Batch job for machine was submitted
+        Up            = Batch job is running, VM is Booting.
 
-        HTCondorIntegrationAdapter is responsible for handling Integrating, Working,
-        PendingDisintegration, Disintegrating
+        IntegrationAdapter handles Integrating, Working, PendingDisintegration, Disintegrating
+
+        Disintegrated = Option 1: Condor shut down regularly because system passed idle threshold.
+                                  VM will shut down shortly after.
+                        Option 2: VM job crashed/was canceled completely.
+        Down          = Job is in status completed.
+                        **Caution**: Job update interval may be slower than OpenStack (Machine is shut down,
+                                     but job keeps running for up to 30 seconds).
         """
         try:
             frJobsRunning = self.__runningJobs
@@ -346,7 +331,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     # KeyError: batchJobId not in frJobsRunning
                     pass
             # Machines which failed to boot/died/got canceled (return code != 0) -> down
-            # A machine MAY fail to boot with return code 0 or we just missed some states -> regular shutdown
+            # A machine MAY fail to boot with return code 0 or we missed some states -> regular shutdown
             if mr[mid][self.mr.regStatus] != self.mr.statusDown:
                 if batchJobId in frJobsCompleted:
                     if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
@@ -374,7 +359,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 if batchJobId in frJobsRunning:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                     frJobsRunning.pop(batchJobId)
-                # Machine disappeared. If the machine later appears again, it will be added automatically.
+                # Machine "disappeared". If the machine later appears again, it will be added automatically.
                 elif batchJobId not in frJobsIdle and batchJobId not in frJobsCompleted:
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
 
@@ -392,8 +377,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.logger.info("Machines using resources (Freiburg): %d" % self.cloudOccupyingMachinesCount)
 
         with JsonLog() as jsonLog:
-            jsonLog.addItem(self.siteName, "condor_nodes",
-                            len(self.getSiteMachines(status=self.mr.statusWorking)))
+            jsonLog.addItem(self.siteName, "condor_nodes", len(self.getSiteMachines(status=self.mr.statusWorking)))
             jsonLog.addItem(self.siteName, "condor_nodes_draining",
                             len([mid for mid in self.getSiteMachines(status=self.mr.statusPendingDisintegration)
                                  if HTCondor.calcDrainStatus(mid)[1] is True]))
@@ -403,9 +387,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                             len(self.getSiteMachines(status=self.mr.statusIntegrating)))
 
     def __execCmdInFreiburg(self, cmd):
+        # type: (str) -> Tuple[int, str, str]
         """Execute command on Freiburg login node via SSH.
 
-        :param cmd:
         :return: Tuple: (return_code, std_out, std_err)
         """
         frSsh = Ssh(host=self.getConfig(self.configFreiburgServer),
@@ -414,7 +398,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return frSsh.handleSshCall(call=cmd, quiet=True)
 
     def __cancelFreiburgMachines(self, batchJobIds):
-        """Cancel batch job (VM) in Freiburg.
+        """Cancel MOAB batch job (VM).
 
         :param batchJobIds:
         :type batchJobIds: list
@@ -452,16 +436,17 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
     @classmethod
     def __getCondorName(cls, batchJobId):
-        """Build condor name for communication with HTCondorIntegrationAdapter.
+        # type: (str) -> str
+        """Build VM host name for communication with Integration Adapter.
 
-        Machine registry value "reg_site_server_condor_name" is used to communicate with
-        HTCondorIntegrationAdapter. In Freiburg this name is built from the batch job id."""
-        return cls.__condorNamePrefix + batchJobId
+        Name is built from static prefix and batch job id."""
+        # Get rid of [] via translate "deletechars"
+        # TODO: This is not compatible between python versions
 
     @property
     def __userString(self):
         # type: () -> str
-        """User string for Freiburg SSH query """
+        """User string for Freiburg SSH queries."""
         frUser = self.getConfig(self.configFreiburgUser)
         frGroup = self.getConfig(self.configFreiburgUserGroup)
 
@@ -550,7 +535,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     @Caching(validityPeriod=-1, redundancyPeriod=300)
     def __idleJobs(self):
         # type: () -> list
-        """Get list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
+        """Get a list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
         cmd = "showq -i %s" % self.__userString
 
         frResult = self.__execCmdInFreiburg(cmd)
