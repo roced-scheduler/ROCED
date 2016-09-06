@@ -5,13 +5,16 @@ It monitors demand of computing resources in the batch system(s) and dynamically
 ## Design
 
 ROCED periodically runs a management cycle, where it performs three steps:
-* Monitor a batch system's queue and determine demand for machines
+* Monitor batch system's queue and determine demand for machines
 * Boot machines
 * Integrate booted machines into batch system
 
 ![Visualisation of management cycle][workflow]
 
-ROCED consists of five components; everything except the core has a modular structure, in order to offer a maximum of flexibility. Users can freely combine different adapters to fulfill their requirement or even write their own. ROCED needs at least one of each component to be in any way useful and we advice to use *Requirement Adapter* and *Integration Adapter* for the same batch system.
+ROCED consists of five components; everything except the core has a modular structure, in order to offer a maximum of flexibility.  
+Users can freely combine different adapters to fulfill their requirement or even write their own.  
+
+ROCED needs at least one of each component to be in any way useful and we advice to use _Requirement Adapter_ and _Integration Adapter_ for the same batch system.
 * **Core**
 * **Requirement Adapters**  
   Monitor batch system(s) to determine the demand for machines.
@@ -19,22 +22,22 @@ ROCED consists of five components; everything except the core has a modular stru
 Request machines at cloud site(s)
 * **Integration Adapters**  
 (Dis-)Integrate running machines from/into batch system(s)
- * **Broker**  
+* **Broker**  
 Balance demand across different cloud sites, depending on different metrics (e.g.: cost)
 
 ![Visualisation of modular components][design]
 
 ## Requirements/Installation
 * Python 2.7 or 3.5
-    * Python 2 *requires* the [future](http://python-future.org/) package
+    * Python 2 _requires_ the [future](http://python-future.org/) package
     * Various adapters have system/site dependant packages.  
-We follow the [PEP 8](https://www.python.org/dev/peps/pep-0008/#imports) guideline when listing module imports, that way you can easily identify the needed modules for each adapter.  
-E.g. *novaclient* is required to interface with OpenStack.
+We follow the [PEP 8](https://www.python.org/dev/peps/pep-0008/#imports) guideline when listing module imports, so you you can easily identify the needed modules for each adapter.  
+E.g. _novaclient_ is required to interface with _OpenStack_.
 * Batch system
 
 # Contributors
-ROCED was developed at the *Institut für Experimentelle Kernphysik* at the *Karlsruhe Institute of Technology*.  
-Further information can be found in the documentation folder.
+ROCED was developed at the _Institut für Experimentelle Kernphysik_ at the _Karlsruhe Institute of Technology_.  
+Further information can be found in the `doc` folder.
 # License
     ROCED is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
