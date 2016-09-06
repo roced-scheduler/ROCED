@@ -6,4 +6,4 @@ install:
   - "pip install future"
 script:
   - ./src/ROCED/scale.py test
-  - ./src/ROCED/scale.py --iterations 10 --config src/ROCED/roced_fake.config standalone
+  - ./src/ROCED/scale.py --debug --iterations 10 --config src/ROCED/roced_fake.config standalone
