@@ -140,7 +140,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
-            result = self.__execCmdInFreiburg("msub -l walltime=%s,mem=%s,nodes=1:ppn=%d %s"
+            result = self.__execCmdInFreiburg("msub -m p -l walltime=%s,mem=%s,nodes=1:ppn=%d %s"
                                               % (machineSettings["walltime"],
                                                  machineSettings["memory"],
                                                  machineSettings["cores"], self.__vmStartScript))
