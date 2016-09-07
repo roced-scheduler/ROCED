@@ -358,7 +358,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             elif batchJobId in frJobsRunning:
                 # ROCED machine down, but job still running
                 frJobsRunning.pop(batchJobId)
-                if self.mr.calcLastStateChange(mid) > 60:
+                if self.mr.calcLastStateChange(mid) > 5*60:
                     self.__cancelFreiburgMachines(batchJobId)
                 continue
 
