@@ -35,7 +35,7 @@ from Util.PythonTools import Caching
 class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     configIntLogger = "logger_name"
     configCondorName = "site_name"
-    configCondorRequirement = "condor_requirement"
+    configCondorConstraint = "condor_constraint"
     configCondorUser = "condor_user"
     configCondorKey = "condor_key"
     configCondorServer = "condor_server"
@@ -71,8 +71,9 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         self.addOptionalConfigKeys(self.configIntLogger, Config.ConfigTypeString,
                                    description="logger name",
                                    default="HTC_Int")
-        self.addCompulsoryConfigKeys(self.configCondorRequirement, Config.ConfigTypeString,
-                                     description="Requirement string for condor")
+        self.addOptionalConfigKeys(self.configCondorConstraint, Config.ConfigTypeString,
+                                   description="ClassAd constraint to filter machines in condor_status",
+                                   default="True")
         self.addOptionalConfigKeys(key=self.configCondorUser, datatype=Config.ConfigTypeString,
                                    description="Login name for condor collector server.",
                                    default=getpass.getuser())
@@ -84,8 +85,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         self.addOptionalConfigKeys(key=self.configCondorKey, datatype=Config.ConfigTypeString,
                                    description="Path to SSH key for remote login. Not necessary with server localhost.",
                                    default="~/")
-        self.addCompulsoryConfigKeys(self.configCondorName, Config.ConfigTypeString,
-                                     description="Site name")
+        self.addCompulsoryConfigKeys(self.configCondorName, Config.ConfigTypeString, description="Site name")
         self.addOptionalConfigKeys(self.configCondorWaitPD, Config.ConfigTypeInt,
                                    description="Wait for x minutes before changing to disintegrating.",
                                    default=0)
@@ -94,8 +94,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                                    default=0)
         self.addCompulsoryConfigKeys(self.configCondorDeadline, Config.ConfigTypeInt,
                                      description="Timeout (in minutes) before a machine stuck in "
-                                                 "status integrating/disintegrating is considered "
-                                                 "lost.")
+                                                 "status integrating/disintegrating is considered lost.")
 
         self.logger = logging.getLogger(self.getConfig(self.configIntLogger))
 
@@ -299,10 +298,10 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         condor_server = self.getConfig(self.configCondorServer)
         condor_user = self.getConfig(self.configCondorUser)
         condor_key = self.getConfig(self.configCondorKey)
-        condor_requirement = self.getConfig(self.configCondorRequirement)
+        condor_constraint = self.getConfig(self.configCondorConstraint)
         condor_ssh = ScaleTools.Ssh(condor_server, condor_user, condor_key)
 
-        cmd = ("condor_status -constraint '%s' -autoformat: Machine State Activity" % condor_requirement)
+        cmd = ("condor_status -constraint '%s' -autoformat: Machine State Activity" % condor_constraint)
 
         # get a list of the condor machines (SSH)
         condor_result = condor_ssh.handleSshCall(call=cmd, quiet=True)

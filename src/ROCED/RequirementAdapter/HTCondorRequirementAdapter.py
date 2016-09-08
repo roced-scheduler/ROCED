@@ -36,6 +36,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
     configCondorKey = "condor_key"
     configCondorServer = "condor_server"
     configCondorRequirement = "condor_requirement"
+    configCondorConstraint = "condor_constraint"
 
     # See https://htcondor-wiki.cs.wisc.edu/index.cgi/wiki?p=MagicNumbers
     condorStatusIdle = 1
@@ -51,6 +52,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
     _schedd_error_string = "-- Failed to fetch ads from:"
 
     def __init__(self):
+        """Requirement adapter, connecting to an HTCondor batch system."""
         super(HTCondorRequirementAdapter, self).__init__()
 
         self.setConfig(self.configMachines, dict())
@@ -64,9 +66,14 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                                                "because we query with \"global\".",
                                    default="localhost")
         self.addOptionalConfigKeys(key=self.configCondorKey, datatype=Config.ConfigTypeString,
-                                   description="Path to SSH key for remote login. Not necessary with server localhost.",
+                                   description="Path to SSH key for remote login (not necessary with localhost).",
                                    default="~/")
-        self.addCompulsoryConfigKeys(self.configCondorRequirement, Config.ConfigTypeString)
+        self.addOptionalConfigKeys(key=self.configCondorRequirement, datatype=Config.ConfigTypeString,
+                                   description="Grep filter string on ClassAd Requirement expression",
+                                   default="")
+        self.addOptionalConfigKeys(key=self.configCondorConstraint, datatype=Config.ConfigTypeString,
+                                   description="ClassAd constraint in condor_q expression",
+                                   default="True")
 
         self.logger = logging.getLogger("HTCondorReq")
         self.__str__ = self.description
@@ -85,22 +92,29 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                              username=self.getConfig(self.configCondorUser),
                              key=self.getConfig(self.configCondorKey))
 
-        # Requirements can't be filtered with -constraints since you compare the whole string.
-        cmd = ("condor_q -global -constraint '%s' %s | grep -i '%s' | awk -F %s" %
-               (self._query_constraints, self._query_format_string,
-                self.getConfig(self.configCondorRequirement), self._query_processing))
-
-        result = ssh.handleSshCall(call=cmd, quiet=True)
-
-        # get number of idle jobs with requirements that allow them to run on a specific site (using -slotads)
+        # Target.Requirements can't be filtered with -constraints since it would require ClassAd based regex matching.
+        # -> Filter requirement via "grep", if input it's supplied.
+        # TODO: Find a more generic way to match resources/requirements (condor_q -slotads ??)
         # cmd_idle = "condor_q -constraint 'JobStatus == 1' -slotads slotads_bwforcluster " \
         #            "-analyze:summary,reverse | tail -n1 | awk -F ' ' " \
         #            "'{print $3 "\n" $4}'| sort -n | head -n1"
+        if len(self.getConfig(self.configCondorRequirement)) > 0:
+            grep_requirement_filter = "| grep -i '%s'" % self.getConfig(self.configCondorRequirement)
+        else:
+            grep_requirement_filter = ""
 
-        # if we're querying "-global", we have to manually parse for failed schedd queries.
+        constraint = "( %s ) && ( %s )" % (self._query_constraints, self.getConfig(self.configCondorConstraint))
+
+        cmd = ("condor_q -global -constraint '%s' %s %s | awk -F %s" %
+               (constraint, self._query_format_string, grep_requirement_filter, self._query_processing))
+
+        result = ssh.handleSshCall(call=cmd, quiet=True)
+
+        # Parse for failed schedd queries ["-global" doesn't set return code]
         if result[0] == 0 and re.search(self._schedd_error_string, result[1]) is None:
-            # result has format "2,1\n2,1\n1,1\n...\n" (JobStatus,RequestCpus)
+            # result format: "2,1\n2,1\n1,1\n...\n" (JobStatus,RequestCpus)
             # -> split lines into single list elements into 2 elements
+            # TODO: Generator expression(s)
             condor_jobs = [job.split(",") for job in str(result[1]).splitlines()]
             n_slots = 0
             n_jobs_idle = 0
