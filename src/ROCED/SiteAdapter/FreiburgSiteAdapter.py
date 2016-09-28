@@ -78,6 +78,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                    description="Should ROCED set working machines to drain mode, "
                                                "if it has to terminate machines?", default=False)
 
+        self.__default_machine = "vm-default"
+
     def init(self):
         self.mr.registerListener(self)
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
@@ -99,6 +101,9 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             if completedJobs is None:
                 completedJobs = {}
 
+        # Machines that are found running get this type by default
+        self.__default_machine = list(self.getConfig(self.ConfigMachines).keys())[0]
+
         for mid, machine_ in self.getSiteMachines(status=self.mr.statusBooting).items():
             try:
                 idleJobs.remove(machine_[self.regMachineJobId])
@@ -109,15 +114,16 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
                 else:
                     self.logger.debug("Couldn't assign machine %s." % machine_[self.regMachineJobId])
-        for jobId in idleJobs:
-            mid = self.mr.newMachine()
-            self.mr.machines[mid][self.mr.regSite] = self.siteName
-            self.mr.machines[mid][self.mr.regSiteType] = self.siteType
-            self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
-            self.mr.machines[mid][self.regMachineJobId] = jobId
-            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
-                jobId)
-            self.mr.updateMachineStatus(mid, self.mr.statusBooting)
+        if idleJobs is not None:
+            for jobId in idleJobs:
+                mid = self.mr.newMachine()
+                self.mr.machines[mid][self.mr.regSite] = self.siteName
+                self.mr.machines[mid][self.mr.regSiteType] = self.siteType
+                self.mr.machines[mid][self.mr.regMachineType] = self.__default_machine
+                self.mr.machines[mid][self.regMachineJobId] = jobId
+                self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
+                    jobId)
+                self.mr.updateMachineStatus(mid, self.mr.statusBooting)
         self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
 
     def spawnMachines(self, machineType, count):
@@ -377,7 +383,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             # TODO: try to identify machine type, using cores & wall-time
             self.mr.machines[mid][self.mr.regSite] = self.siteName
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
-            self.mr.machines[mid][self.mr.regMachineType] = "fr-default"
+            self.mr.machines[mid][self.mr.regMachineType] = self.__default_machine
             self.mr.machines[mid][self.regMachineJobId] = batchJobId
             self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(batchJobId)
             self.mr.updateMachineStatus(mid, self.mr.statusUp)
