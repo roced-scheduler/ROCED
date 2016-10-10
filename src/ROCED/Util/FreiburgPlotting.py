@@ -19,27 +19,22 @@
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
 # ===============================================================================
-from __future__ import print_function, unicode_literals, division
+from __future__ import print_function, division
 
 import argparse
 import json
 import matplotlib
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.gridspec as mgridspec
+import matplotlib.pyplot as mplt
+import matplotlib.ticker as mticker
 from collections import OrderedDict
+from datetime import datetime
 from os import path
 
 import numpy as np
 
-font = {"family": "sans", "size": 20}
-
-matplotlib.rc("font", **font)
-matplotlib.rcParams["figure.figsize"] = 18, 8
-
-time_scales = {"s": ("seconds", 1.0),
-               "m": ("minutes", 60.0),
-               "h": ("hours", 60.0 * 60.0),
-               "d": ("days", 60.0 * 60.0 * 24.0)}
+from Rrd import Rrd
 
 
 class Data(object):
@@ -54,8 +49,8 @@ class Data(object):
     condor_running = "jobs_running"
     condor_idle = "jobs_idle"
     vm_requested = "machines_requested"
-    vm_running = "condor_nodes"
-    vm_draining = "condor_nodes_draining"
+    vm_running = "nodes_running"
+    vm_draining = "nodes_draining"
 
 
 class FrPlotting(object):
@@ -63,65 +58,48 @@ class FrPlotting(object):
     Plots useful information from HTCondorRequirementAdapter and FreiburgSiteAdapter JSON outputs.
     """
 
-    # def interval(a):
-    #     """Build array with time range to average"""
-    #     for x in range(len(a)):
-    #         # len(a)/50 seconds seems reasonable for +/- timeframe
-    #         min = a[x] - 5
-    #         max = a[x] + 5
-    #         # TODO: further reduce the "a" search interval [use slicing, mind the borders].
-    #         # https://stackoverflow.com/questions/9560207/how-to-count-values-in-a-certain-range-in-a-numpy-array
-    #         res = a[np.where(((min <= a) & (a <= max)))]
-    #         yield res
-
     @staticmethod
-    def _moving_average(a, n=3):
-        ret = np.cumsum(a, dtype=float)
-        ret[n:] = ret[n:] - ret[:-n]
-        return ret[n - 1:] / n
-
-    @staticmethod
-    def _init_plots(style=None, split=None, max_=None, time_scale=None):
+    def _init_plots(style=None, split=None, max_=None):
         """Split the plot into 2 subplots + 1 "legend" plot.
 
         Bottom plot has the main information, top plot shows rough numbers of idle total jobs.
         Legend plot is just an invisible placeholder to reserve place for the legend.
         """
-        plots = []
         split_value = (split / 100 + 1) * 100
         if split_value > max_:
             # If we only have a few jobs, all that stuff is unnecessary.
-            fig = plt.figure()
+            fig = mplt.figure()
             bottom_plot = fig.add_subplot(111)
-            plt.hold(True)
-            plots.append(bottom_plot)
+            mplt.hold(True)
+            plots = [bottom_plot]
         else:
             l = 1
             n = 3
             m = 8
             ratio = n / m
-            gs = gridspec.GridSpec(3, 1, height_ratios=[l, n, m])
-            plt.figure()
-            top_plot = plt.subplot(gs[1, :])
-            plots.append(top_plot)
-            bottom_plot = plt.subplot(gs[2, :], sharex=top_plot)
-            plots.append(bottom_plot)
-            legend = plt.subplot(gs[0, :])
-            plots.append(legend)
+            gs = mgridspec.GridSpec(3, 1, height_ratios=[l, n, m])
+            mplt.figure()
+
+            top_plot = mplt.subplot(gs[1, :])
+            bottom_plot = mplt.subplot(gs[2, :], sharex=top_plot)
+            legend = mplt.subplot(gs[0, :])
+            plots = [top_plot, bottom_plot, legend]
+
             top_plot.spines["bottom"].set_linestyle("dotted")
             top_plot.locator_params(axis="y", tight=True, nbins=5)
             bottom_plot.spines["top"].set_linestyle("dotted")
             legend.set_frame_on(False)
             legend.get_xaxis().set_visible(False)
             legend.get_yaxis().set_visible(False)
-            plt.subplots_adjust(hspace=0.1)
+            mplt.subplots_adjust(hspace=0.1)
 
-            top_plot.tick_params(axis="x", bottom="off", labelbottom="off")
-            bottom_plot.tick_params(axis="x", top="off", labeltop="off")
+            top_plot.tick_params(axis="x", which="both", bottom="off", labelbottom="off")
+            bottom_plot.tick_params(axis="x", which="both", top="off", labeltop="off")
+            mplt.setp(bottom_plot.axes.get_xticklabels(), rotation=60)
 
             # zoom in specific areas of the plot
-            top_plot.set_ylim(split_value, max_)
             bottom_plot.set_ylim(0, split_value)
+            top_plot.set_ylim(split_value, max_)
 
             # Diagonal splitting lines to show plot separation/different y-scales.
             length = .01
@@ -133,8 +111,7 @@ class FrPlotting(object):
             bottom_plot.plot((1 - length, 1 + length), (1 - length * ratio, 1 + length * ratio), **kwargs)  # top-right
 
         for figure in plots:
-            figure.tick_params(axis="x", pad=15)
-            figure.tick_params(axis="y", pad=15)
+            figure.tick_params(axis="both", which="both", pad=15, width=1, length=4)
 
         if style == "screen":
             kwargs = dict()
@@ -143,11 +120,12 @@ class FrPlotting(object):
             kwargs = dict(size=36.0)
             kwargs2 = dict(y=0.71, labelpad=45.0, size=30.0)
             for figure in plots:
-                figure.tick_params(axis="x", labelsize=34, pad=10., length=10)
-                figure.tick_params(axis="y", labelsize=34, length=10)
+                figure.tick_params(axis="both", labelsize=34, length=10)
+                figure.tick_params(axis="x", pad=10.)
         else:
             raise ValueError("Plotting style unknown!")
-        bottom_plot.set_xlabel(r"Time [%s]" % time_scale, ha="right", x=1, **kwargs)
+
+        bottom_plot.set_xlabel(r"Time", ha="right", x=1, **kwargs)
         bottom_plot.set_ylabel(r"Jobs|Slots", va="top", **kwargs2)
 
         return plots
@@ -155,15 +133,19 @@ class FrPlotting(object):
     @staticmethod
     def __get_plot_dict(plot_style):
         """Define plot styles."""
-        # set dictionary for labels and colors, depending on style setting
         plot_dict = {
             Data.condor_running: ("Jobs running", "#b8c9ec"),  # light blue
-            Data.condor_idle: ("Jobs waiting", "#fdbe81"),  # light orange
+            Data.condor_idle: ("Jobs available", "#fdbe81"),  # light orange
             Data.vm_requested: ("Slots requested", "#fb8a1c"),  # orange
             Data.vm_running: ("Slots available", "#2c7bb6"),  # blue
             Data.vm_draining: ("Slots draining", "#7f69db"),  # light blue
         }
+        font = {"family": "sans", "size": 20}
+        matplotlib.rc("font", **font)
+        matplotlib.rcParams['pdf.fonttype'] = 42
+        matplotlib.rcParams['ps.fonttype'] = 42
         if plot_style == "slide":
+            matplotlib.rcParams["figure.figsize"] = 18, 8
             matplotlib.rcParams["svg.fonttype"] = "none"
             matplotlib.rcParams["path.simplify"] = True
             matplotlib.rcParams["path.simplify_threshold"] = 0.5
@@ -177,57 +159,7 @@ class FrPlotting(object):
         return plot_dict
 
     @staticmethod
-    def _fill_empty_values(correction_period, correct_zero, rel_times, content):
-        # type: (int, bool, np.ndarray, list) -> (np.ndarray, list)
-        """Fill long periods without log entries with additional entries to make the plot smoother."""
-
-        # get indices of timestamps with time difference > correction_period
-        rel_time_diffs = np.diff(rel_times)
-        if correct_zero is True:
-            indices = np.nonzero(rel_time_diffs > correction_period)
-            print("Ignoring %i periods with no log entries for over %s seconds:" % (len(indices[0]), correction_period))
-        else:
-            indices = []
-
-        index_offset = 0
-        try:
-            for index in indices[0]:
-                print("Begin: %ss, End: %ss, Diff: %ss"
-                      % (rel_times[index + index_offset], rel_times[index + index_offset + 1],
-                         rel_times[index + index_offset + 1] - rel_times[index + index_offset]))
-
-                # add two entries to x axis (time)
-                rel_times = np.insert(rel_times, index + index_offset + 1, rel_times[index + index_offset] + 1)
-                rel_times = np.insert(rel_times, index + index_offset + 2, rel_times[index + index_offset + 2] - 1)
-
-                # add two entries to y axis, if one value == 0: 0, else: average
-                prev = content[index + index_offset - 1]
-                next_ = content[index + index_offset + 1]
-                new = {}
-                try:
-                    if correct_zero is True:
-                        for key in set.intersection(set(prev), set(next_)):
-                            new[key] = {}
-                            for value_key in set.intersection(set(prev[key]), set(next_[key])):
-                                if prev[key][value_key] == 0 or next_[key][value_key] == 0:
-                                    new[key][value_key] = 0
-                                else:
-                                    new[key][value_key] = int((prev[key][value_key] + next_[key][value_key]) / 2)
-                    else:
-                        raise ValueError
-                except (ValueError, KeyError):
-                    new = {None: {None}}
-                print("%d & %d: %s" % (index + index_offset, index + index_offset + 1, new))
-                content.insert(index + index_offset, new)
-                content.insert(index + index_offset + 1, new)
-                index_offset += 2
-        except IndexError:
-            pass
-        return rel_times, content
-
-    @staticmethod
-    def main(file_list, live, output_name, correction_period, correct_zero, time_scale, plot_style, x_limits,
-             smooth, cores):
+    def main(file_list, live, output_name, plot_style, x_limits, cores, interval):
         ###
         # Preparations
         ###
@@ -236,146 +168,128 @@ class FrPlotting(object):
         # Get a list of tuples, sorted by time. Format (timestamp, dict[required machines], dict[machines per site])
         logs = {}
         for input_file in file_list:
-            if ".json" not in input_file:
+            if not path.exists(input_file):
+                print("%s does not exist" % input_file)
+                exit(1)
+            elif ".json" not in input_file:
                 print("Skipping %s (unknown format)" % input_file)
                 continue
+
             with open(input_file, "r") as json_file:
                 logs.update(json.load(json_file))
-
-        log = sorted(logs.items())
-
+        ###
+        # RRD Processing
+        ###
+        # Create RRD (overwrites existing file)
+        # Identical timestamps are not allowed; substract 1 second from start time.
+        rrd = Rrd.create(database_name="/tmp/freiburg_tmp", start=int(min(logs.keys())) - 1)
+        rrd.update_from_dict(logs)
+        # Grab processed data from rrd
+        time_range, keys, data_list = rrd.fetch(commands=("-r", interval,
+                                                          "-s", min(logs.keys()), "-e", max(logs.keys())),
+                                                function="AVERAGE")
         ###
         # Data processing
         ###
-        # separate timestamps and quantities into 2 lists
-        timestamps, content = zip(*log)
-        content = list(content)
-        # make timestamps relative (=> first entry = 0)
-        rel_times = np.array([(int(timestamp) - int(timestamps[0])) for timestamp in timestamps])
-
-        if correction_period > 0:
-            rel_times, content = FrPlotting._fill_empty_values(correction_period, correct_zero, rel_times, content)
-
-        rel_times = rel_times / time_scales.get(time_scale, "m")[1]
-
         quantities = {}
+        timestamps = np.asarray(time_range, dtype=datetime)
+        data_array = np.asarray(data_list, dtype=np.float64)
 
-        # add empty list for each quantity
-        for quantity in plot_dict:
-            quantities[quantity] = np.zeros(len(rel_times))
-
-        # add content to quantity lists, use np.NaN if no value is available
-        i_entry = 0
-        for entry in content:
-            for site in entry:
-                for quantity in plot_dict:
-                    if quantity in entry[site]:
-                        try:
-                            quantities[quantity][i_entry] = entry[site][quantity]
-                        except (KeyError, TypeError):
-                            if quantity == Data.vm_draining:
-                                quantities[quantity][i_entry] = 0
-                            else:
-                                quantities[quantity][i_entry] = np.NaN
-            i_entry += 1
-
-        if smooth:
-            average_order = len(rel_times) / 500
-            rel_times = rel_times[:-(average_order - 1)]
-            for data in quantities:
-                quantities[data] = FrPlotting._moving_average(quantities[data], n=average_order)
-
+        for counter, key in enumerate(keys):
+            quantities[key] = np.array(data_array[:, counter], dtype=np.float64)
         ###
         # Plotting
         ###
-
-        # build up quantities (stack them)
+        # stack quantities
         jobs_idle = np.add(quantities[Data.condor_idle], quantities[Data.condor_running])
         jobs_running = quantities[Data.condor_running]
-
         machines_requested = cores * np.add(quantities[Data.vm_requested],
                                             np.add(quantities[Data.vm_running], quantities[Data.vm_draining]))
         condor_nodes = cores * np.add(quantities[Data.vm_running], quantities[Data.vm_draining])
         condor_nodes_draining = cores * quantities[Data.vm_draining]
 
-        # Setup plots
-        plots = FrPlotting._init_plots(style=plot_style, split=int(np.max(machines_requested)),
-                                       max_=int(np.max(jobs_idle)),
-                                       time_scale=time_scales.get(time_scale, "m")[0])
+        plots = FrPlotting._init_plots(style=plot_style, split=int(np.nanmax(machines_requested)),
+                                       max_=int(np.nanmax(jobs_idle)))
         plot_count = len(plots)
         if plot_count == 1:
             plot_count = 2
 
         for figure in plots[0:plot_count - 1]:
-            figure.plot(rel_times, machines_requested, label=plot_dict[Data.vm_requested][0],
+            figure.plot(timestamps, machines_requested, label=plot_dict[Data.vm_requested][0],
                         color=plot_dict[Data.vm_requested][1], linestyle="-", marker="", linewidth=2.0)
-            figure.plot(rel_times, condor_nodes, label=plot_dict[Data.vm_running][0],
+            figure.plot(timestamps, condor_nodes, label=plot_dict[Data.vm_running][0],
                         color=plot_dict[Data.vm_running][1], linestyle="-", marker="", linewidth=2.0)
-            figure.plot(rel_times, condor_nodes_draining, label=plot_dict[Data.vm_draining][0],
+            figure.plot(timestamps, condor_nodes_draining, label=plot_dict[Data.vm_draining][0],
                         color=plot_dict[Data.vm_draining][1], linestyle="-", marker="", linewidth=2.0)
 
-            stack1 = figure.fill_between(rel_times, jobs_idle, facecolor=plot_dict[Data.condor_idle][1],
-                                         color=None, edgecolor=None, linewidth=0.0,
-                                         label=plot_dict[Data.condor_idle][0])
-            stack2 = figure.fill_between(rel_times, jobs_running, facecolor=plot_dict[Data.condor_running][1],
-                                         color=None, edgecolor=None, linewidth=0.0,
-                                         label=plot_dict[Data.condor_running][0])
+            stack1 = figure.fill_between(timestamps, jobs_idle, facecolor=plot_dict[Data.condor_idle][1],
+                                         linewidth=0.0, label=plot_dict[Data.condor_idle][0], interpolate=True)
+            stack2 = figure.fill_between(timestamps, jobs_running, facecolor=plot_dict[Data.condor_running][1],
+                                         linewidth=0.0, label=plot_dict[Data.condor_running][0], interpolate=True)
             for entry in stack1, stack2:
                 figure.plot([], [], color=entry.get_facecolor()[0], linewidth=10, label=entry.get_label())
 
             if x_limits:
                 figure.set_xlim(x_limits[0], x_limits[1])
+            else:
+                figure.set_xlim(timestamps.min(), timestamps.max())
 
+        FrPlotting._adjust_plot_labels(plot_style, plots)
+
+        ###
+        # Output
+        ###
+        if live:
+            mplt.show()
+        else:
+            if not output_name:
+                output_name = path.splitext(file_list[0])[0]
+            mplt.savefig(output_name + ".png", bbox_inches="tight")
+            mplt.savefig(output_name + ".pdf", bbox_inches="tight")
+            mplt.savefig(output_name + ".svg", bbox_inches="tight")
+            print("Output written to: %s" % output_name)
+
+    @staticmethod
+    def _adjust_plot_labels(plot_style, plots):
+        """Plot labels can only be changed after the data has been plotted."""
         # We add multiple instances of line descriptions - get rid of them via OrderedDict
         handles, labels = plots[0].get_legend_handles_labels()
         by_label = OrderedDict(zip(labels, handles))
         if plots[0] is not plots[-1]:
             # If we have subplots, add legend to a separate subplot.
+            main_plot = plots[1]
             kwargs = dict(bbox_to_anchor=(0, 0, 1, 1), mode="expand", loc="lower left")
         else:
+            main_plot = plots[0]
             kwargs = dict(loc="best")
         if plot_style == "slide":
             kwargs["fontsize"] = 30
-
         plots[-1].legend(by_label.values(), by_label.keys(), ncol=2, **kwargs)
 
-        ###
-        # Output
-        ###
+        major_locator = mdates.AutoDateLocator(minticks=3, maxticks=6)
+        formatter = mdates.AutoDateFormatter(major_locator)
+        formatter.scaled = {mdates.DAYS_PER_YEAR: '%Y', mdates.DAYS_PER_MONTH: '%b', mdates.DAYS_PER_WEEK: 'CW %V',
+                            1.0: '%m-%d', 1. / mdates.HOURS_PER_DAY: '%H:%M:%S',
+                            1. / mdates.MINUTES_PER_DAY: '%H:%M:%S.%f'}
 
-        if live:
-            plt.show()
-        else:
-            if not output_name:
-                output_name = path.splitext(file_list[0])[0]
-            plt.savefig(output_name + ".png", bbox_inches="tight")
-            plt.savefig(output_name + ".pdf", bbox_inches="tight")
-            plt.savefig(output_name + ".svg", bbox_inches="tight")
-            print("Output written to: %s" % output_name)
-
+        main_plot.xaxis.set_major_locator(major_locator)
+        main_plot.xaxis.set_minor_locator(mticker.AutoMinorLocator(n=mdates.DAYS_PER_WEEK))
+        main_plot.xaxis.set_major_formatter(formatter)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plotting tool for ROCED status logs.")
     parser.add_argument("file_list", type=str, nargs="+",
                         help="input file list")
+    parser.add_argument("-i", "--interval", type=str, default="4h",
+                        help="Averaging interval (default: %(default)s)")
     parser.add_argument("-l", "--live", action="store_true",
                         help="plot to screen (default: %(default)s)")
     parser.add_argument("-o", "--output_name", type=str,
                         help="output file (extension will be added automatically) (default: same name as input file)")
-    parser.add_argument("--correction-period", type=int, default=600,
-                        help="time in seconds for periods without log entries to be ignored, "
-                             "0 disables correction (default: %(default)s)")
-    parser.add_argument("--correct-zero", action="store_false", default=True,
-                        help="Add 0 values when correcting/smoothing longer periods. "
-                             "Option disables it. (default: %(default)s)")
     parser.add_argument("--cores", type=int, default="4",
                         help="Cores per VM. (default: %(default)s)")
-    parser.add_argument("-t", "--time-scale", type=str, default="m",
-                        help="time scale of plot: s(econd), m(inute), h(our), d(ay) (default: %(default)s)")
     parser.add_argument("-s", "--plot_style", type=str, default="screen",
                         help="output style (screen or print for presentations/poster) (default: %(default)s)")
     parser.add_argument("-x", "--x-limits", type=float, default=None, nargs=2,
                         help="x-axis limit (lower, upper) (default: %(default)s)")
-    parser.add_argument("--smooth", action="store_true", default=False,
-                        help="Smooth the plot by creating a moving average (default: %(default)s)")
     FrPlotting.main(**vars(parser.parse_args()))
