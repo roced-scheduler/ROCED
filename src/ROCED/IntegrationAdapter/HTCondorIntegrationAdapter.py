@@ -60,8 +60,11 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     # condor machine name saved in machine registry - communication to site adapter(s)
     reg_site_server_condor_name = "reg_site_server_condor_name"
 
+    regex_queue_parser = re.compile("([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)", re.MULTILINE)
+    collector_error_string = "Failed to end classad message"
+
     def __init__(self):
-        """Init function
+        """HT Condor specific integration adapter. Monitors collector via condor_status and updates machine states.
 
         Load config keys from config file
 
@@ -195,7 +198,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             if condor_machines is None or len(self.mr.getMachines(self.siteName)) == 0:
                 raise ValueError
         except ValueError as err:
-            if str(err) != "":
+            if str(err):
                 self.logger.warning(err)
             self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
             return None
@@ -309,9 +312,11 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
         if condor_result[0] != 0:
             raise ValueError("SSH connection to HTCondor collector could not be established.")
+        elif self.collector_error_string in condor_result[1]:
+            raise ValueError("Collector(s) didn't answer.")
 
         # prepare list of condor machines
-        tmp_condor_machines = re.findall("([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)", condor_result[1], re.MULTILINE)
+        tmp_condor_machines = self.regex_queue_parser.findall(condor_result[1])
 
         # transform list into dictionary with one list per slot
         # {machine name : [[state, activity], [state, activity], ..]}

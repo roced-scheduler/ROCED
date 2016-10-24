@@ -45,11 +45,11 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
     # class constants for condor_q query:
     _query_constraints = "RoutedToJobId =?= undefined && ( JobStatus == %d || JobStatus == %d )" % \
                          (condorStatusIdle, condorStatusRunning)
-    # autoformat string: raw output, separated by comma
+    # auto-format string: raw output, separated by comma
     _query_format_string = "-autoformat:r, JobStatus RequestCpus Requirements"
     # gawk processing: ", " as separator, only output the first 2 strings, not the Requirements
     _query_processing = "', ' '{print $1\", \"$2}'"
-    _schedd_error_string = "-- Failed to fetch ads from:"
+    _schedd_error_string = "Failed to fetch ads from:"
 
     def __init__(self):
         """Requirement adapter, connecting to an HTCondor batch system."""
@@ -110,8 +110,8 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
 
         result = ssh.handleSshCall(call=cmd, quiet=True)
 
-        # Parse for failed schedd queries ["-global" doesn't set return code]
-        if result[0] == 0 and re.search(self._schedd_error_string, result[1]) is None:
+        # Parse for failed Schedd queries ["-global" doesn't set return code]
+        if result[0] == 0 and self._schedd_error_string not in result[1]:
             # result format: "2,1\n2,1\n1,1\n...\n" (JobStatus,RequestCpus)
             # -> split lines into single list elements into 2 elements
             # TODO: Generator expression(s)
