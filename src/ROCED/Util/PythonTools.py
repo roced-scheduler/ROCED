@@ -73,8 +73,8 @@ class Singleton(object):
 
 
 class Caching(dict):
-    def __init__(self, validityPeriod=-1, redundancyPeriod=0):
-        # type: (int, int)
+    def __init__(self, validityPeriod=-1, redundancyPeriod=0, default=None):
+        # type: (int, int, Any)
         """ Decorator class to cache a method's/function's return value. Handles maximum age and errors.
 
         As long as data is "valid", the currently stored data will be returned. If none exists so far, it will be
@@ -83,6 +83,11 @@ class Caching(dict):
         During the redundancy period, the function module will try to catch errors [return value "None"] by returning
         the previous result, if present. After the redundancy period, it will directly return the function's
         values/error.
+
+        "Default" defines the return value in case of errors and/or if the redundancy period is passed.
+        E.g.: Return an empty list instead of returning None, if no information could be retrieved.
+        This is necessary, because all other data types (except None) don't give a clear indication, if the execution
+        did finish.
 
         validityPeriod=0:               Read once, return forever
         validityPeriod>0:               As long as timeout is not reached, return value from cache.
@@ -100,6 +105,7 @@ class Caching(dict):
         """
         super(Caching, self).__init__()
         self.__lastQueryTime = 0
+        self.__default = default
 
         if redundancyPeriod > 0:
             self.__redundancy = redundancyPeriod
@@ -151,6 +157,7 @@ class Caching(dict):
                     self[args] = result
                     return self[args]
                 else:
+                    result = self.__default
                     if self.__redundancy is None:
                         return result
                     elif self.__redundancy is True and args in self:

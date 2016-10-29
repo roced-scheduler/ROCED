@@ -84,7 +84,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         return "HTCondorRequirementAdapter"
 
     @property
-    @Caching(validityPeriod=-1, redundancyPeriod=900)
+    @Caching(validityPeriod=-1, redundancyPeriod=900, default=0)
     def requirement(self):
         ssh = ScaleTools.Ssh(host=self.getConfig(self.configCondorServer),
                              username=self.getConfig(self.configCondorUser),

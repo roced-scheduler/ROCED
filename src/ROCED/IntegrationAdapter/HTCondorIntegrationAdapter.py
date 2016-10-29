@@ -291,7 +291,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         return "HTCondorIntegrationAdapter"
 
     @property
-    @Caching(validityPeriod=-1, redundancyPeriod=900)
+    @Caching(validityPeriod=-1, redundancyPeriod=900, default=defaultdict(list))
     def condorList(self):
         # type: () -> Defaultdict(List)
         """Return list of condor machines {machine name : [[state, activity], [state, activity], ..]}
