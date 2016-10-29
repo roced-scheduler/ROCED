@@ -47,7 +47,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
     # auto-format string: raw output, separated by comma
     _query_format_string = "-autoformat:r, JobStatus RequestCpus Requirements"
 
-    _schedd_error_string = "Failed to fetch ads from:"
+    _CLI_error_strings = frozenset(("Failed to fetch ads from", "Failed to end classad message"))
 
     def __init__(self):
         """Requirement adapter, connecting to an HTCondor batch system."""
@@ -97,12 +97,12 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         #            "'{print $3 "\n" $4}'| sort -n | head -n1"
         constraint = "( %s ) && ( %s )" % (self._query_constraints, self.getConfig(self.configCondorConstraint))
 
-        cmd = ("condor_q -global -stream-results -constraint '%s' %s" % (constraint, self._query_format_string))
+        cmd = ("condor_q -global -constraint '%s' %s" % (constraint, self._query_format_string))
         result = ssh.handleSshCall(call=cmd, quiet=True)
         if result[0] != 0:
             self.logger.warning("Could not get HTCondor queue status! %d: %s" % (result[0], result[2]))
             return None
-        elif self._schedd_error_string in result[1]:
+        elif any(error_string in result[1] for error_string in self._CLI_error_strings):
             self.logger.warning("condor_q request timed out.")
             return None
 
