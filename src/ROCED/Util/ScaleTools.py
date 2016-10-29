@@ -114,7 +114,7 @@ class Shell(object):
 
 
 class Ssh(object):
-    local_host_list = ["localhost", "127.0.0.1", "::1", "", " ", None]
+    local_host_list = frozenset(("localhost", "127.0.0.1", "::1", "", " ", None))
 
     def __init__(self, host, username, key, password=None, timeout=3, gatewayip=None,
                  gatewaykey=None, gatewayuser=None, ):
@@ -136,9 +136,16 @@ class Ssh(object):
         self.__password = password
         self.__timeout = timeout
 
+        # Fallback if only gateway address is defined: regular user
         self.__gatewayIp = gatewayip
-        self.__gatewayKey = gatewaykey
-        self.__gatewayUser = gatewayuser
+        if gatewaykey:
+            self.__gatewayKey = gatewaykey
+        else:
+            self.__gatewayKey = key
+        if gatewayuser:
+            self.__gatewayUser = gatewayuser
+        else:
+            self.__gatewayUser = username
 
     @property
     def host(self):
@@ -177,8 +184,6 @@ class Ssh(object):
             logging.debug("Redirecting SSH call to local shell.")
             # Perform "quiet", since this method will already generate output.
             res = Shell.executeCommand(command=call, quiet=True)
-            if res[0] != 0:
-                res = self._executeRemoteCommand(call)
         else:
             if self.__gatewayIp is not None:
                 # wrap SSH command in another SSH call
@@ -210,12 +215,12 @@ class Ssh(object):
         key = machine.get(MachineRegistry.MachineRegistry.regSshKey) + ".private"
 
         if machine.get(MachineRegistry.MachineRegistry.regUsesGateway, False) is True:
-            ssh = Ssh(ip, "root", key, None, 1,
-                      machine.get(MachineRegistry.MachineRegistry.regGatewayIp),
-                      machine.get(MachineRegistry.MachineRegistry.regGatewayKey),
-                      machine.get(MachineRegistry.MachineRegistry.regGatewayUser))
+            ssh = Ssh(host=ip, username="root", key=key, timeout=1,
+                      gatewayip=machine.get(MachineRegistry.MachineRegistry.regGatewayIp),
+                      gatewaykey=machine.get(MachineRegistry.MachineRegistry.regGatewayKey),
+                      gatewayuser=machine.get(MachineRegistry.MachineRegistry.regGatewayUser))
         else:
-            ssh = Ssh(ip, "root", key, None, 1)
+            ssh = Ssh(host=ip, username="root", key=key, timeout=1)
         return ssh
 
     # protected
