@@ -34,16 +34,17 @@ import configparser
 import os
 
 from Core.Core import ScaleCoreFactory
+from Core import Config
+from Util.Daemon import DaemonBase
 
 ###
-# test classes here
+# Unit tests:
 ###
-from Core import Config, EventTest, AdapterTest
+from Core import CoreTest, EventTest, AdapterTest
 from SiteAdapter import SiteTest
 from RequirementAdapter import RequirementTest
 from IntegrationAdapter import IntegrationTest
-from Core import CoreTest
-from Util.Daemon import DaemonBase
+from Util import ScaleTools
 
 # Optional modules with unit-tests
 try:
@@ -70,6 +71,7 @@ class ScaleMain(object):
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(EventTest))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(IntegrationTest))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(RequirementTest))
+        ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(ScaleTools))
         ts.addTests(unittest.defaultTestLoader.loadTestsFromModule(HTCondor))
 
         self.logger.info("Running %d tests." % ts.countTestCases())

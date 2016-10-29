@@ -25,19 +25,7 @@ import logging
 import subprocess
 
 from Core import MachineRegistry
-
-
-class StateLogger(object):
-    """ store information in a CSV file
-
-        machine requirement
-
-        site availability
-        site running instances
-
-        overall running machine types
-    """
-    pass
+from Core import ScaleTest
 
 
 class ChangeNotifier(object):
@@ -96,21 +84,22 @@ class Shell(object):
                              stderr=subprocess.PIPE,
                              env=environment)
         stdout, stderr = p.communicate()
-
+        stdout = stdout.decode(encoding="utf-8").strip()
+        stderr = stderr.decode(encoding="utf-8").strip()
         if not quiet:
             if not p.returncode == 0:
                 logging.error("Shell command (localhost) failed (RC %i)." % p.returncode)
                 logging.error("command: %s" % command)
                 logging.error("stdout: %s" % stdout)
                 logging.error("stderr: %s" % stderr)
+            elif stderr:
+                logging.info("stderr: %s" % stderr)
             else:
                 logging.info("Shell command (localhost) successful (RC %i)." % p.returncode)
                 logging.info("command: %s" % command)
                 logging.info("stdout: %s" % stdout)
-            if stderr:
-                logging.info("stderr: %s" % stderr)
 
-        return p.returncode, stdout.decode(encoding="utf-8"), stderr.decode(encoding="utf-8")
+        return p.returncode, stdout, stderr
 
 
 class Ssh(object):
@@ -436,4 +425,25 @@ class Vpn(object):
 
     def disableSsh(self):
         """disable SSH connections for public ips"""
+        raise NotImplementedError()
+
+
+class ScaleToolsTest(ScaleTest.ScaleTestBase):
+    def setUp(self):
         pass
+
+    def test_ssh(self):
+        logging.debug("=======Testing SSH=======")
+        tester = Ssh(host="localhost", username=getpass.getuser(), key="~/.ssh/id_rsa")
+        result = tester.handleSshCall("echo 'Hello World'")
+        self.assertEqual(result[0], 0)
+        self.assertEqual(result[1], "Hello World")
+
+    def test_shell(self):
+        logging.debug("=======Testing Shell=======")
+        tester = Shell.executeCommand(command="echo 'Hello World'")
+        self.assertEqual(tester[0], 0)
+        self.assertEqual(tester[1], "Hello World")
+        tester = Shell.executeCommand(command="eo'")
+        self.assertNotEqual(tester[0], 0)
+        self.assertIsNot(tester[2], "")
