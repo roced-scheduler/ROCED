@@ -104,5 +104,5 @@ class RequirementBox(AdapterBoxBase):
 
         return needDict
 
-    def manage(self):
+    def manage(self, cleanup=False):
         pass
