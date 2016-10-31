@@ -3,7 +3,7 @@ python:
   - "2.7"
   - "3.5"
 install:
-  - "pip install future"
+  - "pip install future configparser"
 script:
   - ./src/ROCED/scale.py test
   - ./src/ROCED/scale.py --debug --iterations 10 --config src/ROCED/roced_fake.config standalone
