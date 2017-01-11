@@ -110,13 +110,13 @@ class ScaleCore(object):
 
         self.intBox.addAdapterList(intAdapterList)
 
-    def startManagementTimer(self):
-        t = Timer(self.manageInterval, self.startManage)
-        t.start()
-
     def init(self):
         # self.exportMethod(self.setMachineTypeMaxInstances, "setMachineTypeMaxInstances")
         self.mr.machines = MachineRegistryLogger.load()
+
+    def startManagementTimer(self):
+        t = Timer(self.manageInterval, self.startManage)
+        t.start()
 
     def startManage(self):
         logger.info("----------------------------------")

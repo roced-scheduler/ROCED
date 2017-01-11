@@ -37,15 +37,14 @@ PY3 = sys.version_info > (3,)
 
 
 class MachineRegistryLogger(object):
-    """Save/load machine registry to JSON file"""
+    """Save/load machine registry to/from JSON file."""
     __logger = logging.getLogger("Core")
     __filename = "log/machine_registry.json"
     __backup_file = "log/old_machine_registry.json"
 
     @staticmethod
     def __toJson(python_object):
-        """Handler to write non-serializable objects in a json file."""
-
+        """Handler to write non-serializable objects to a JSON file."""
         if isinstance(python_object, datetime) is True:
             return {"__class__": "datetime.datetime",
                     "__value__": python_object.strftime("%Y-%m-%d %H:%M:%S:%f")}
@@ -55,7 +54,7 @@ class MachineRegistryLogger(object):
 
     @staticmethod
     def __fromJson(json_object):
-        """Handler to read non-serializable objects from a json file."""
+        """Handler to read non-serializable objects from a JSON file."""
         if "__class__" in json_object:
             if json_object["__class__"] == "datetime.datetime":
                 return datetime.strptime(json_object["__value__"], "%Y-%m-%d %H:%M:%S:%f")
@@ -70,26 +69,36 @@ class MachineRegistryLogger(object):
         try:
             shutil.move(cls.__filename, cls.__backup_file)
         except IOError:
-            cls.__logger.warning("Json file could not be moved!")
+            cls.__logger.warning("JSON file could not be moved!")
 
         try:
             with open(cls.__filename, "w") as file_:
                 json.dump(machineRegistry, file_, default=cls.__toJson)
         except IOError:
-            cls.__logger.error("Json file could not be opened for dumping state!")
+            cls.__logger.error("JSON file could not be opened for dumping state!")
 
     @classmethod
     def load(cls):
         # type: () -> dict
-        """Load machine registry from JSON file"""
+        """Load machine registry from JSON file.
+
+        Will fall back on backup file, if an error occurs.
+        """
         try:
             with open(cls.__filename, "r") as file_:
                 state = json.load(file_, object_hook=cls.__fromJson)
+            cls.__logger.info("Previous state loaded!")
+        except (IOError, ValueError):
+            cls.__logger.warning("JSON file could not be opened for loading state! Trying backup file.")
+            try:
+                with open(cls.__backup_file, "r") as file_:
+                    state = json.load(file_, object_hook=cls.__fromJson)
                 cls.__logger.info("Previous state loaded!")
-                return state
-        except IOError:
-            cls.__logger.error("Json file could not be opened for loading state!")
-            return dict()
+            except (IOError, ValueError):
+                state = dict()
+                cls.__logger.error("JSON file could not be opened for loading state!")
+        finally:
+            return state
 
 
 class JsonLog(object):
