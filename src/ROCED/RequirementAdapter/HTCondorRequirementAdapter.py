@@ -118,12 +118,18 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         required_cpus_total = 0
         required_cpus_idle_jobs = 0
         required_cpus_running_jobs = 0
-        for job_status, requested_cpus in filtered_line:
-            required_cpus_total += requested_cpus
-            if job_status == self.condorStatusIdle:
-                required_cpus_idle_jobs += requested_cpus
-            elif job_status == self.condorStatusRunning:
-                required_cpus_running_jobs += requested_cpus
+        try:
+            for job_status, requested_cpus in filtered_line:
+                required_cpus_total += requested_cpus
+                if job_status == self.condorStatusIdle:
+                    required_cpus_idle_jobs += requested_cpus
+                elif job_status == self.condorStatusRunning:
+                    required_cpus_running_jobs += requested_cpus
+        except ValueError:
+            # This error should only occur, if the result was empty AND CondorRequirement is initial
+            required_cpus_total = 0
+            required_cpus_idle_jobs = 0
+            required_cpus_running_jobs = 0
 
         self.logger.debug("HTCondor queue: Idle: %d; Running: %d." %
                           (required_cpus_idle_jobs, required_cpus_running_jobs))

@@ -1,6 +1,6 @@
 # ![ROCED][logo]
 **R**apid **O**n-Demand **C**loud-**e**nabled **D**eployment is a tool which can interface with different batch systems (Torque, HTCondor) and cloud sites (Eucalyptus, OpenNebula, OpenStack, Amazon EC2, etc.).
-It monitors demand of computing resources in the batch system(s) and dynamically manages VMs (starting and terminating them) on different cloud sites.
+It monitors demand of computing resources in the batch system(s) and dynamically manages **V**irtual **M**achines (starting and terminating them) on different cloud sites.
 
 ## Design
 
@@ -29,11 +29,13 @@ Balance demand across different cloud sites, depending on different metrics (e.g
 
 ## Requirements/Installation
 * Python 2.7 or 3.5
-    * Python 2 _requires_ the [future](http://python-future.org/) package
+    * Python 2 _requires_ the [future](http://python-future.org/) and the [configparser](https://pypi.python.org/pypi/configparser) package
     * Various adapters have system/site dependant packages.  
 We follow the [PEP 8](https://www.python.org/dev/peps/pep-0008/#imports) guideline when listing module imports, so you you can easily identify the needed modules for each adapter.  
-E.g. _novaclient_ is required to interface with _OpenStack_.
-* Batch system
+        * [novaclient](https://pypi.python.org/pypi/python-novaclient/) is required to interface with _OpenStack_.
+        * [HTCondor Python bindings](https://research.cs.wisc.edu/htcondor/manual/latest/6_7Python_Bindings.html) are useful to interface with _HTCondor_.
+* Correctly set up batch system
+* VM image(s) which can integrate into batch system(s) as worker node(s).
 
 # Contributors
 ROCED was developed at the _Institut für Experimentelle Kernphysik_ at the _Karlsruhe Institute of Technology_.  
