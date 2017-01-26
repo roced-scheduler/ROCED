@@ -74,8 +74,10 @@ class ChangeNotifier(object):
 
 class Shell(object):
     @staticmethod
-    def executeCommand(command, environment=None, quiet=False):
+    def executeCommand(command, environment=None, quiet=False, timeout=60):
         """Execute command in shell on localhost."""
+        if timeout:
+            command = "timeout %ds %s" % (timeout, command)
         p = subprocess.Popen(command,
                              bufsize=0, executable=None,
                              shell=True,
@@ -86,6 +88,9 @@ class Shell(object):
         stdout, stderr = p.communicate()
         stdout = stdout.decode(encoding="utf-8").strip()
         stderr = stderr.decode(encoding="utf-8").strip()
+        if p.returncode == 124:
+            stderr = "Shell command '%s' timed out" % command
+
         if not quiet:
             if not p.returncode == 0:
                 logging.error("Shell command (localhost) failed (RC %i)." % p.returncode)
@@ -158,7 +163,7 @@ class Ssh(object):
         res = p.stdout.read()
         return p.returncode, res
 
-    def handleSshCall(self, call, quiet=False):
+    def handleSshCall(self, call, quiet=False, timeout=60):
         # type: (Union[str, unicode], bool) -> Tuple[int, str, str]
         """Perform SSH command on remote server.
 
@@ -166,19 +171,20 @@ class Ssh(object):
 
         :param call:
         :param quiet:
+        :param timeout:
         :return res: SSH call result. Consists of return-code, output, error
         :rtype res: Tuple(int, str, str)
         """
         if self.__gatewayIp is None and self.__host in self.local_host_list and self.__username == getpass.getuser():
             logging.debug("Redirecting SSH call to local shell.")
             # Perform "quiet", since this method will already generate output.
-            res = Shell.executeCommand(command=call, quiet=True)
+            res = Shell.executeCommand(command=call, quiet=True, timeout=timeout)
         else:
             if self.__gatewayIp is not None:
                 # wrap SSH command in another SSH call
                 call = "ssh -i %s %s@%s '%s'" % (self.__gatewayKey, self.__gatewayUser, self.__gatewayIp, call)
             # "regular" SSH call
-            res = self._executeRemoteCommand(call)
+            res = self._executeRemoteCommand(call, timeout=timeout)
 
         if not quiet:
             if res[0] == 255:
@@ -213,16 +219,20 @@ class Ssh(object):
         return ssh
 
     # protected
-    def _executeRemoteCommand(self, command):
+    def _executeRemoteCommand(self, command, timeout=60):
         # type (str) -> Tuple(int, str, str)
         """Perform SSH command on remote server. Don't call directly. Use handleSshCall.
 
         :param command:
+        :param timeout:
         :returns:
         :rtype returncode: int
         :rtype stdout: str
         :rtype stderr: str
         """
+        initial_command = command
+        if timeout:
+            command = "timeout %ds %s" % (timeout, command)
         p = subprocess.Popen(["ssh",
                               "-o ConnectTimeout=" + str(self.__timeout),
                               "-o UserKnownHostsFile=/dev/null",
@@ -235,6 +245,8 @@ class Ssh(object):
                              bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
+        if p.returncode == 124:
+            stderr = "SSH command '%s' on host %s timed out" % (initial_command, self.__host)
         return (p.returncode,
                 stdout.decode(encoding="utf-8").strip(),
                 stderr.decode(encoding="utf-8").strip())
