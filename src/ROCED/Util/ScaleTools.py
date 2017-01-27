@@ -245,11 +245,11 @@ class Ssh(object):
                              bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
+        stdout = stdout.decode(encoding="utf-8").strip()
+        stderr = stderr.decode(encoding="utf-8").strip()
         if p.returncode == 124:
-            stderr = "SSH command '%s' on host %s timed out" % (initial_command, self.__host)
-        return (p.returncode,
-                stdout.decode(encoding="utf-8").strip(),
-                stderr.decode(encoding="utf-8").strip())
+            stderr = ("SSH command '%s' on host %s timed out" % (initial_command, self.__host))
+        return p.returncode, stdout, stderr
 
     @staticmethod
     def debugOutput(logger, scope, result):
