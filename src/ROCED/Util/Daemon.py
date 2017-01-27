@@ -37,7 +37,7 @@ class DaemonBase(object):
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, pidfile, stdin="/dev/null", stdout="/dev/null", stderr="/dev/null"):
+    def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull, stderr=os.devnull):
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -77,8 +77,8 @@ class DaemonBase(object):
         sys.stdout.flush()
         sys.stderr.flush()
         si = open(self.stdin, "r")
-        so = open(self.stdout, "a+")
-        se = open(self.stderr, "a+", 0)
+        so = open(self.stdout, "w+")
+        se = open(self.stderr, "w+")
         os.dup2(si.fileno(), sys.stdin.fileno())
         os.dup2(so.fileno(), sys.stdout.fileno())
         os.dup2(se.fileno(), sys.stderr.fileno())
