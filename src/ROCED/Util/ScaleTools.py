@@ -22,7 +22,10 @@ from __future__ import unicode_literals, absolute_import
 
 import getpass
 import logging
+import socket
 import subprocess
+
+import paramiko
 
 from Core import MachineRegistry
 from Core import ScaleTest
@@ -110,9 +113,16 @@ class Shell(object):
 class Ssh(object):
     local_host_list = frozenset(("localhost", "127.0.0.1", "::1", "", " ", None))
 
-    def __init__(self, host, username, key, password=None, timeout=3, gatewayip=None,
-                 gatewaykey=None, gatewayuser=None, ):
-        """Perform various commands via SSH (shell commands, copy, ...).
+    # def __new__(cls, *args, **kwargs):
+    #     """Redirect ssh on current_user@localhost to shell."""
+    #     instance = object.__new__(cls, *args, )
+    #     # instance = super(Ssh, cls).__new__(cls, *args, **kwargs)
+    #     # instance.handleSshCall = Shell.executeCommand
+    #     return instance
+
+    def __init__(self, host, username, key, password=None, timeout=20, gatewayip=None,
+                 gatewaykey=None, gatewayuser=None):
+        """Perform commands via SSH.
 
         :param host:
         :param username:
@@ -123,23 +133,49 @@ class Ssh(object):
         :param gatewaykey:
         :param gatewayuser:
         """
+        self.client = paramiko.SSHClient()
+        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.client.load_system_host_keys()
+
+        try:
+            self.client.connect(hostname=host, username=username, password=password, key_filename=key, timeout=timeout)
+        except (paramiko.SSHException, paramiko.AuthenticationException, socket.error) as err:
+            logging.error("SSH connection could not be established! Error: %s" % err.message)
+        except paramiko.BadHostKeyException as err:
+            logging.error(err.message)
+
         self.__host = host
         self.__username = username
         self.__key = key
-        # TODO: Allow password-login?
         self.__password = password
         self.__timeout = timeout
 
         # Fallback if only gateway address is defined: regular user
         self.__gatewayIp = gatewayip
-        if gatewaykey:
-            self.__gatewayKey = gatewaykey
-        else:
-            self.__gatewayKey = key
         if gatewayuser:
             self.__gatewayUser = gatewayuser
         else:
             self.__gatewayUser = username
+        # TODO: Use paramiko's SSH agent.
+        if gatewaykey:
+            self.__gatewayKey = gatewaykey
+        else:
+            self.__gatewayKey = key
+
+    def __enter__(self):
+        """Ssh works as Context Manager.
+
+        This assures, that the session is always closed properly.
+        Usage:
+        with Ssh(host, username, key, ...) as remote:
+            stdin, stdout, stderr = remote.handleSshCall(command)
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Close connection, then (re-)raise unhandled exceptions."""
+        self.client.close()
+        return False
 
     @property
     def host(self):
@@ -147,21 +183,20 @@ class Ssh(object):
         return self.__host
 
     def canConnect(self, quiet=True):
-        return self.handleSshCall("uname -a", quiet)[0] == 0
+        return self.client.get_transport().is_authenticated()
 
     def copyToRemote(self, localFileName, remoteFileName=""):
-        p = subprocess.Popen(["scp",
-                              "-o ConnectTimeout=" + str(self.__timeout),
-                              "-o UserKnownHostsFile=/dev/null",
-                              "-o StrictHostKeyChecking=no",
-                              "-o PasswordAuthentication=no",
-                              "-i", self.__key,
-                              localFileName,
-                              "%s@%s:%s" % (self.__username, self.__host, remoteFileName)],
-                             bufsize=0, executable=None, stdin=None, stdout=subprocess.PIPE)
-        p.wait()
-        res = p.stdout.read()
-        return p.returncode, res
+        if not remoteFileName:
+            remoteFileName = localFileName
+
+        ftp = self.client.open_sftp()
+        try:
+            file_stats = ftp.put(localFileName, "/%s" % remoteFileName)
+        except Exception:
+            logging.error("SFTP Error")
+        finally:
+            ftp.close()
+        return file_stats
 
     def handleSshCall(self, call, quiet=False, timeout=60):
         # type: (Union[str, unicode], bool) -> Tuple[int, str, str]
@@ -186,23 +221,23 @@ class Ssh(object):
             # "regular" SSH call
             res = self._executeRemoteCommand(call, timeout=timeout)
 
-        if not quiet:
-            if res[0] == 255:
-                logging.error("SSH connection could not be established!")
-                logging.error("command: %s on %s" % (call, self.__host))
-            elif not res[0] == 0:
-                logging.error("SSH command on host %s failed! Return code: %i" % (self.__host, res[0]))
-                logging.error("command: %s" % call)
-                logging.error("stdout: %s" % res[1])
-                logging.error("stderr: %s" % res[2])
-            else:
-                logging.info("SSH command successful! Return code: %i" % res[0])
+        try:
+            (rc, stdout, stderr) = self.client.exec_command(call, timeout=60)
+            rc = 0
+            if not quiet:
+                logging.info("SSH command successful! Return code: %i" % rc)
                 logging.info("command: %s on %s" % (call, self.__host))
-                logging.info("stdout: %s" % res[1])
-                if res[2]:
-                    logging.info("stderr: %s" % res[2])
-
-        return res
+                logging.info("stdout: %s" % stdout)
+                if stderr:
+                    logging.info("stderr: %s" % stderr)
+        except paramiko.SSHException:
+            rc = 126
+            if not quiet:
+                logging.error("SSH command on host %s failed!" % self.__host)
+                logging.error("command: %s" % call)
+                logging.error("stdout: %s" % stdout)
+                logging.error("stderr: %s" % stderr)
+        return rc, stdout, stderr
 
     @staticmethod
     def getSshOnMachine(machine):
