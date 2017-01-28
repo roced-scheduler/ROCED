@@ -1,5 +1,5 @@
 # ![ROCED][logo]
-**R**apid **O**n-Demand **C**loud-**e**nabled **D**eployment is a tool which can interface with different batch systems (Torque, HTCondor) and cloud sites (Eucalyptus, OpenNebula, OpenStack, Amazon EC2, etc.).
+**R**esponsive **O**n-Demand **C**loud-**e**nabled **D**eployment is a tool which can interface with different batch systems (Torque, HTCondor) and cloud sites (Eucalyptus, OpenNebula, OpenStack, Amazon EC2, etc.).
 It monitors demand of computing resources in the batch system(s) and dynamically manages **V**irtual **M**achines (starting and terminating them) on different cloud sites.
 
 ## Design
@@ -28,7 +28,7 @@ Balance demand across different cloud sites, depending on different metrics (e.g
 ![Visualisation of modular components][design]
 
 ## Requirements/Installation
-* Python 2.7 or 3.5
+* Python 2.7 or 3.3+
     * Python 2 _requires_ the [future](http://python-future.org/) and the [configparser](https://pypi.python.org/pypi/configparser) package
     * Various adapters have system/site dependant packages.  
 We follow the [PEP 8](https://www.python.org/dev/peps/pep-0008/#imports) guideline when listing module imports, so you you can easily identify the needed modules for each adapter.  
