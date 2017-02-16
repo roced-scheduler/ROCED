@@ -63,7 +63,7 @@ class HTCondorPy(object):
                                       projection=["Name", "State", "Activity"],
                                       constraint=constraint)
 
-        regex = re.compile("slot\d+@([\w-]+).+")
+        regex = re.compile("slot[\d_]+@([\w-]+).+")
 
         for slot in result:
             condor_machines[regex.search(slot["Name"]).group(1)].append([slot["State"], slot["Activity"]])
