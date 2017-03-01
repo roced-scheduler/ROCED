@@ -186,5 +186,6 @@ class AdapterBoxBase(object):
         # type: (bool) -> None
         """ Call contained adapters' (periodic) manage function.
 
-        Every tenth call is considered a "big" cleanup management, appropriate for more time consuming operations."""
+        Every tenth call is considered a "big" cleanup management, appropriate for more time consuming operations.
+        """
         [adapter.manage(cleanup) for adapter in self._adapterList]
