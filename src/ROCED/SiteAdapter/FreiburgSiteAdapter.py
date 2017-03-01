@@ -26,6 +26,7 @@ import re
 from Core import MachineRegistry, Config
 from IntegrationAdapter.HTCondorIntegrationAdapter import HTCondorIntegrationAdapter as HTCondor
 from SiteAdapter.Site import SiteAdapterBase
+from Util.Adaptive import Moab, Torque
 from Util.Logging import JsonLog
 from Util.PythonTools import Caching, merge_dicts
 from Util.ScaleTools import Ssh
@@ -41,35 +42,44 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     configIgnoreDrainingMachines = "ignore_draining_machines"
     configDrainWorkingMachines = "drain_working_machines"
 
+    # TODO: Can we safely switch to MachineRegistry.regHostname? (+ adapt HTCondor adapters; diff machine & hostname?)
     reg_site_server_condor_name = HTCondor.reg_site_server_condor_name
     regMachineJobId = "batch_job_id"
 
-    __Jobname = "ROCED_VM"
+    # Python script (running in FR) which starts the VM. Script has to be adapted with user name, PW, image GUID, etc.
     __vmStartScript = "startVM.py"
-    """Python script to be executed in Freiburg. This starts the VM with the corresponding image.
-    This python script has to be adapted on the server with user name, OpenStack Dashboard PW,
-    image GUID, etc.
-    """
+    # VM host name (defined in start script)
     __hostNamePrefix = "moab-vm-"
-    """VM machine name. This is also used as machine name in condor by us."""
+    # Moab job name
+    __Jobname = "ROCED_VM"
 
     def __init__(self):
-        """Site Adapter for Freiburg bwForCluster ENM OpenStack setup."""
+        """Site Adapter for Freiburg bwForCluster ENM OpenStack setup.
+
+        The adapter interfaces with a Moab batch system (via SSH CLI) by submitting VMs as batch jobs.
+        These batch jobs query OpenStack to boot a VM using "their" resources.
+
+        VM handling is mostly automated, in order to be fail-safe and network independent:
+            - VMs will automatically shutdown when they don't get a job for a certain time
+            - VMs will refuse jobs which run longer than their lifetime and/or switch to drain mode
+              when close to the maximum allowed lifetime.
+        -> Handling of these cases is only implemented as a fall-back.
+        """
         super(FreiburgSiteAdapter, self).__init__()
+
+        self.addCompulsoryConfigKeys(self.configFreiburgUser, Config.ConfigTypeString,
+                                     description="Account name for bwForCluster login node")
+        self.addCompulsoryConfigKeys(self.configFreiburgKey, Config.ConfigTypeString,
+                                     description="SSH Key for bwForCluster login node")
+        self.addCompulsoryConfigKeys(self.configFreiburgServer, Config.ConfigTypeString,
+                                     description="Hostname of bwForCluster login node")
+
+        self.addCompulsoryConfigKeys(self.configMaxMachinesPerCycle, Config.ConfigTypeInt,
+                                     "Maximum number of machines to boot in a management cycle")
 
         self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
                                    description="Logger name of Site Adapter", default="FRSite")
-        self.addCompulsoryConfigKeys(self.configFreiburgUser, Config.ConfigTypeString,
-                                     "User name for bwForCluster")
-        self.addOptionalConfigKeys(self.configFreiburgUserGroup, Config.ConfigTypeString,
-                                   description="User group for bwForCluster. Used when querying "
-                                               "for running/completed jobs.", default=None)
-        self.addCompulsoryConfigKeys(self.configFreiburgKey, Config.ConfigTypeString,
-                                     "SSH Key for bwForCluster")
-        self.addCompulsoryConfigKeys(self.configFreiburgServer, Config.ConfigTypeString,
-                                     "SSH Server for bwForCluster")
-        self.addCompulsoryConfigKeys(self.configMaxMachinesPerCycle, Config.ConfigTypeInt,
-                                     "Maximum number of machines to boot in a management cycle")
+
         self.addOptionalConfigKeys(self.configIgnoreDrainingMachines, Config.ConfigTypeBoolean,
                                    description="Draining (pending-disintegration) machines are "
                                                "counted as working machines (True) or are only "
@@ -82,15 +92,15 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.__default_machine = "vm-default"
 
     def init(self):
+        super(FreiburgSiteAdapter, self).init()
         self.mr.registerListener(self)
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
-        super(FreiburgSiteAdapter, self).init()
 
         # Machines that are found running get this type by default
         self.__default_machine = list(self.getConfig(self.ConfigMachines).keys())[0]
 
     def spawnMachines(self, machineType, count):
-        """Request machines via MOAB batch job (which executes startVM script).
+        """Request machines via Moab batch job (which executes startVM script).
 
         Batch job configuration is done via ROCED config file.
         OpenStack parameters (user login, image name, ..) are set in startVM script on Freiburg login node..
@@ -104,7 +114,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.info("%d machines requested, limited to %d for this cycle." % (count, maxMachinesPerCycle))
             count = maxMachinesPerCycle
 
-        result = self.__execCmdInFreiburg("msub -m p -l walltime=%s, mem=%s, nodes=1:ppn%d "
+        result = self.__execCmdInFreiburg("msub -m p -l walltime=%s, mem=%s, nodes=1:ppn=%d "
                                           # Submit a job array with size "count"
                                           "-t %s[1-%d] %s"
                                           % (machineSettings["walltime"], machineSettings["memory"],
@@ -120,40 +130,39 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.mr.regSite] = self.siteName
             self.mr.machines[mid][self.mr.regMachineType] = machineType
             self.mr.machines[mid][self.regMachineJobId] = job_id
-            self.mr.machines[mid]["cluster_size"] = count
             self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getVmHostName(job_id)
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.updateMachineStatus(mid, self.mr.statusBooting)
 
     def terminateMachines(self, machineType, count):
-        """Terminate machines. Only **queued** jobs/machines are killed. Running machines may be drained."""
-        # booting machines, sorted by request time (newest first).
-        bootingMachines = self.getSiteMachines(self.mr.statusBooting, machineType)
+        """Terminate machines. Only *queued* jobs/machines are killed. Running machines may get drained."""
         try:
+            bootingMachines = self.getSiteMachines(self.mr.statusBooting, machineType)
+            # Sort by request time (newest first)
             bootingMachines = sorted(bootingMachines.items(),
                                      key=lambda machine_: machine_[1][self.mr.regStatusLastUpdate],
                                      reverse=True)
         except KeyError:
             bootingMachines = []
 
-        # Running machines, sorted by load (idle first). These machines are put into drain mode
         if self.getConfig(self.configDrainWorkingMachines) is True:
-            workingMachines = merge_dicts(
-                self.getSiteMachines(self.mr.statusIntegrating, machineType),
-                self.getSiteMachines(self.mr.statusWorking, machineType),
-                self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
             try:
+                workingMachines = merge_dicts(
+                    self.getSiteMachines(self.mr.statusIntegrating, machineType),
+                    self.getSiteMachines(self.mr.statusWorking, machineType),
+                    self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
+                # Sort by load (idle first).
                 workingMachines = sorted(workingMachines.items(),
                                          key=lambda machine_: HTCondor.calcMachineLoad(machine_[0]),
                                          reverse=True)
             except KeyError:
                 workingMachines = []
+
             # Merge lists
             machinesToRemove = bootingMachines + workingMachines
         else:
             machinesToRemove = bootingMachines
 
-        # needed amount of machines
         machinesToRemove = machinesToRemove[0:count]
 
         # list of batch job ids to terminate/drain
@@ -177,6 +186,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         self.logger.debug("Machines to drain (%d): %s" % (len(idsToDrain), ", ".join(idsToDrain)))
         if idsToDrain:
+            # TODO: Remove hard HTCondor dependency
             [HTCondor.drainMachine(mid) for mid, machine in self.getSiteMachines().items()
              if machine[self.regMachineJobId] in idsToDrain]
 
@@ -186,11 +196,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
     @property
     def runningMachinesCount(self):
-        """
-        Return number of machines running, possibly accounting for draining slots (claimed|retiring vs. drained|idle).
+        """Number of machines running, (possibly) accounting for draining slots (claimed|retiring vs. drained|idle).
 
-        Claimed but retiring slots are counted as working slots ( = running machine(s))
-         -> Recalculate running machines without *idle* drained slots
+        This property is used by the Broker, when deciding if/where new machines should be booted.
+        Claimed | retiring slots are (correctly) counted as available resource.
+        Drained | idle slots are counted as available resource, too, although they won't accept new jobs.
+        -> Configuration allows to recalculate running machines without counting drained | idle slots.
 
         :return {machine_type: integer, ...}:
         """
@@ -200,11 +211,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             runningMachines = self.runningMachines
             runningMachinesCount = dict()
             for machineType in runningMachines:
-                # calculate number of drained slots (idle and not accepting new jobs -> not usable)
                 nDrainedSlots = 0
 
                 for mid in runningMachines[machineType]:
-                    # TODO: Get rid of hard dependency to run Condor in VMs // more generic approach
+                    # TODO: Get rid of hard dependency to run Condor // use more generic approach (cores/slots)
                     nDrainedSlots += HTCondor.calcDrainStatus(mid)[0]
                 nCores = self.getConfig(self.ConfigMachines)[machineType]["cores"]
                 nMachines = len(runningMachines[machineType])
@@ -220,7 +230,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
     def onEvent(self, evt):
         # type: (MachineRegistry.MachineEvent) -> None
-        """Event handler: Handles machine status changes.
+        """Event handler: Reacts on Machine Registry machine state changes.
 
         - Machines (should) disintegrate automatically, if they are idle for a certain amount of time.
         - After disintegrating, the machines (should) shut down automatically.
@@ -246,7 +256,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
     def manage(self, cleanup=False):
         # type: (bool) -> None
-        """Manages machine state changes by checking Freiburg MOAB job states.
+        """Manages machine state changes by checking Freiburg Moab job states.
 
         Booting       = Batch job for machine was submitted
         Up            = Batch job is running, VM is Booting.
@@ -257,84 +267,99 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                   VM will shut down shortly after.
                         Option 2: VM job crashed/was canceled completely.
         Down          = Job is in status completed.
-                        **Caution**: Job update interval may be slower than OpenStack (Machine is shut down,
+                        **Caution**: Job update interval is slower than OpenStack (Machine is shut down,
                                      but job keeps running for up to 30 seconds).
+
+        The process relies on querying Moab/Torque for information via qstat or checkjob all.
+        * Qstat is evaluated each cycle, looking at running and recently completed jobs.
+          Finished jobs are only moved to status Down.
+        * Checkjob is evaluated each cleanup cycle. It looks at idle & finished jobs and
+          cleans the Machine Registry accordingly.
         """
-        try:
-            frJobsRunning = self.__runningJobs
-            if frJobsRunning is None:
-                raise ValueError
-        except ValueError:
-            frJobsRunning = {}
-        try:
-            frJobsCompleted = self.__completedJobs
-            if frJobsCompleted is None:
-                raise ValueError
-        except ValueError:
-            frJobsCompleted = {}
-        try:
-            frJobsIdle = self.__idleJobs
-            if frJobsIdle is None:
-                raise ValueError
-        except ValueError:
-            frJobsIdle = {}
+        frJobs = self.__Jobs
 
-        mr = self.getSiteMachines()
-        for mid in mr:
-            batchJobId = mr[mid][self.regMachineJobId]
-            # Status handled by Integration Adapter
-            if mr[mid][self.mr.regStatus] in [self.mr.statusIntegrating, self.mr.statusWorking,
-                                              self.mr.statusPendingDisintegration,
-                                              self.mr.statusDisintegrating]:
-                try:
-                    frJobsRunning.pop(batchJobId)
+        if cleanup:
+            all_jobs = self.__allJobs
+        else:
+            all_jobs = None
+
+        ###
+        # Step 1: Loop known machines and handle state changes
+        # - Get (Freiburg) job id & state
+        # o Disappeared booting machines are cleaned up in cleanup cycle
+        # o All other disappeared machines are moved to down
+        # If batch job (still) exists, pop it from list of all running jobs
+        ###
+        for mid, machine in self.getSiteMachines().items():
+
+            job_id = machine[self.regMachineJobId]
+            try:
+                job_state = frJobs[job_id].get("status")
+            except KeyError:
+                job_state = None
+                if machine[self.mr.regStatus] == self.mr.statusBooting and cleanup is False:
                     continue
-                except (KeyError, AttributeError):
-                    # AttributeError: frJobsRunning is Empty
-                    # KeyError: batchJobId not in frJobsRunning
-                    pass
-            # Machines which failed to boot/died/got canceled (return code != 0) -> down
-            # A machine MAY fail to boot with return code 0 or we missed some states -> regular shutdown
-            if mr[mid][self.mr.regStatus] != self.mr.statusDown:
-                if batchJobId in frJobsCompleted:
-                    if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
-                        self.logger.info("VM (%s) failed to boot!" % batchJobId)
-                    else:
-                        if frJobsCompleted[batchJobId] != "0":
-                            self.logger.info("VM (%s) died!" % batchJobId)
-                        else:
-                            self.logger.debug("VM (%s) died with status 0!" % batchJobId)
+                elif machine[self.mr.regStatus] != self.mr.statusDown:
+                    self.logger.info("VM (%s) disappeared!" % job_id)
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
-            elif batchJobId in frJobsCompleted or self.mr.calcLastStateChange(mid) > 24 * 60 * 60:
-                # Remove machines, which are:
-                # 1. finished in ROCED & Freiburg // 2. Finished for more than 1 day [= job history purge time]
-                self.mr.removeMachine(mid)
-                continue
-            elif batchJobId in frJobsRunning:
-                # ROCED machine down, but job still running
-                frJobsRunning.pop(batchJobId)
-                if self.mr.calcLastStateChange(mid) > 5*60:
-                    self.__cancelFreiburgMachines(batchJobId)
-                continue
+                    if cleanup is False:
+                        continue
 
-            if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
-                # batch job running: machine -> up
-                if batchJobId in frJobsRunning:
+            if machine[self.mr.regStatus] in self.integration_states and job_state in Torque.all_job_running:
+                # Integration adapter(s) handle running jobs
+                frJobs.pop(job_id)
+                continue
+            elif machine[self.mr.regStatus] == self.mr.statusBooting:
+                if job_state == Torque.all_job_running:
+                    # batch job running: machine -> up
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
-                    frJobsRunning.pop(batchJobId)
-                # Machine "disappeared". If the machine later appears again, it will be added automatically.
-                elif batchJobId not in frJobsIdle and batchJobId not in frJobsCompleted:
+                    frJobs.pop(job_id)
+                elif job_state == Torque.all_job_finished:
+                    self.logger.info("VM (%s) failed to boot!" % job_id)
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
+            elif machine[self.mr.regStatus] != self.mr.statusDown:
+                if job_state in Torque.all_job_finished:
+                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
+                elif job_state in Torque.all_job_running:
+                    frJobs.pop(job_id)
 
-        # All remaining unaccounted batch jobs
-        for batchJobId in frJobsRunning:
+            ###
+            # Step 1.5: Cleanup cycle
+            ###
+            if cleanup is True:
+                if machine[self.mr.regStatus] == self.mr.statusBooting:
+                    # is batch job still submitted?
+                    if all_jobs[job_id].get("status") != "submitted":
+                        continue
+                    else:
+                        # if frJobsCompleted[batchJobId] != "0":
+                        #     self.logger.info("VM (%s) died!" % batchJobId)
+                        # else:
+                        #     self.logger.debug("VM (%s) died with status 0!" % batchJobId)
+                        # self.mr.updateMachineStatus(mid, self.mr.statusDown)
+                        pass
+                elif machine[self.mr.regStatus] != self.mr.statusDown:
+                    # timed out?
+                    pass
+                elif machine[self.mr.regStatus] == self.mr.statusDown:
+                    # cleanup:
+                    # job finished > X minutes
+                    # machine down (evaluate RC)
+                    pass
+
+        ###
+        # Step 2: Handle (yet) unaccounted batch jobs
+        ###
+        for job_id in frJobs:
+            if frJobs[job_id].get("status") not in Torque.all_job_running:
+                continue
             mid = self.mr.newMachine()
-            # TODO: try to identify machine type, using cores & wall-time
             self.mr.machines[mid][self.mr.regSite] = self.siteName
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
+            # TODO: try to identify machine type, using cores & wall-time
             self.mr.machines[mid][self.mr.regMachineType] = self.__default_machine
-            self.mr.machines[mid][self.regMachineJobId] = batchJobId
-            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getVmHostName(batchJobId)
+            self.mr.machines[mid][self.regMachineJobId] = job_id
+            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getVmHostName(job_id)
             self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
         self.logger.info("Machines using resources (Freiburg): %d" % self.cloudOccupyingMachinesCount)
@@ -350,7 +375,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                             len(self.getSiteMachines(status=self.mr.statusIntegrating)))
 
     def __execCmdInFreiburg(self, cmd):
-        # type: (str) -> Tuple[int, str, str]
+        # type: (Union[str, unicode]) -> Tuple[int, str, str]
         """Execute command on Freiburg login node via SSH.
 
         :return: Tuple: (return_code, std_out, std_err)
@@ -361,7 +386,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return frSsh.handleSshCall(call=cmd, quiet=True)
 
     def __cancelFreiburgMachines(self, batchJobIds):
-        """Cancel MOAB batch job (VM).
+        """Cancel Moab batch job (VM).
 
         :param batchJobIds:
         :type batchJobIds: list
@@ -397,52 +422,17 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.warning("A problem occurred while canceling VMs (RC: %d)\n%s" % (result[0], result[2]))
         return idsRemoved, idsInvalidated
 
-    @classmethod
-    def __getVmHostName(cls, batchJobId):
-        # type: (str) -> str
-        """Build VM host name for communication with Integration Adapter.
-
-        Name is built from static prefix and batch job id."""
-        # Get rid of [] via translate "deletechars"
-        # TODO: This is not compatible between python versions
-        return cls.__hostNamePrefix + batchJobId.translate(None, b"[]")
-
     @property
-    def __userString(self):
-        # type: () -> str
-        """User string for Freiburg SSH queries."""
-        frUser = self.getConfig(self.configFreiburgUser)
-        frGroup = self.getConfig(self.configFreiburgUserGroup)
-
-        if frGroup is None:
-            res = "-w user=%s" % frUser
-        else:
-            res = "-w group=%s" % frGroup
-
-        return res
-
-    @property
-    @Caching(validityPeriod=30, redundancyPeriod=300)
+    @Caching(validityPeriod=30, redundancyPeriod=300, default=dict())
     def __Jobs(self):
         # type: () -> dict
-        """Get list of running and recently completed batch jobs (current user)."""
-        cmd = "qstat -r -l -t -u %s" % self.getConfig(self.configFreiburgUser)
+        """List of running and recently completed batch jobs (current user)."""
+        # a/r: all/running jobs // l: long job name // t: Expand output to array // u: user filter
+        cmd = "qstat -altu %s" % self.getConfig(self.configFreiburgUser)
         frResult = self.__execCmdInFreiburg(cmd)
 
         if frResult[0] == 0:
-            frJobs = {jobid: {"status": status, "cores": cores, "memory": memory, "wall_time": wall_time}
-                      for jobid, cores, memory, wall_time, status
-                      in re.findall("""^                        # Line start; \s+ or .+ denotes separators/trash
-                                       (\d+(\[\d+\])?).+        # JobId + Array
-                                       (?:%s).+                 # Username (non-capturing group)
-                                       (?:%s)\s+                # Job Name (non-capturing group)
-                                       (?:\S+\s+){2}            # 2 x trash + separator/stuff (non-capturing group)
-                                       (\d+)\s+                 # Number of CPU cores
-                                       (\d+)gb\s+               # Memory
-                                       ((?:\d{1,2}:?){3,4})\s+  # Wall Time; 3-4 groups of 00:
-                                       ([CEHQRTWS]).+$          # Job status (single char) // trash, line end
-                                    """ % (self.getConfig(self.configFreiburgUser), self.__vmStartScript),
-                                    frResult[1], re.IGNORECASE | re.MULTILINE | re.VERBOSE)}
+            frJobs = Torque.parse_qstat(frResult)
         elif frResult[0] == 255:
             self.logger.warning("SSH connection (%s) could not be established." % cmd)
             raise ValueError("SSH connection (%s) could not be established." % cmd)
@@ -454,69 +444,25 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return frJobs
 
     @property
-    @Caching(validityPeriod=-1, redundancyPeriod=300)
-    def __idleJobs(self):
+    @Caching(validityPeriod=-1, redundancyPeriod=300, default=dict())
+    def __allJobs(self):
         # type: () -> list
-        """Get a list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
-        result = []
-        # 1. Non-blocking Query
-        # 2. Last 4 lines show totals
-        cmd = "showq -i --noblock %s | head -n -4" % self.__userString
-
-        frResult = self.__execCmdInFreiburg(cmd)
-
-        if frResult[0] == 0:
-            result.extend(self.__resolveJobArray(jobid, size) for jobid, size in
-                          re.findall("^(\d+)\[(\d+)\]", frResult[1], re.MULTILINE))
-        elif frResult[0] == 255:
-            self.logger.warning("SSH connection (showq -i) could not be established.")
-            raise ValueError("SSH connection (showq -i) could not be established.")
-        else:
-            self.logger.warning("Problem running remote command (showq -i) (RC %d):\n%s" % (frResult[0], frResult[2]))
-            raise ValueError("Problem running remote command (showq -i) (RC %d):\n%s" % (frResult[0], frResult[2]))
-
-        cmd = "checkjob all"
-        frResult = self.__execCmdInFreiburg(cmd)
-
-        self.logger.debug("Idle:\n%s" % result)
+        """Details on all batch jobs. Including resolved arrays, matchmaking, etc."""
+        frResult = self.__execCmdInFreiburg("checkjob -v all --flags=complete")
+        result = list(Moab.parse_checkjob(frResult))
         return result
+
+    @classmethod
+    def __getVmHostName(cls, batchJobId):
+        # type: (str) -> str
+        """Build VM host name for communication with Integration Adapter.
+
+        Name is built from static prefix and batch job id."""
+        # Get rid of []
+        return cls.__hostNamePrefix + batchJobId.translate({91: None, 93: None})
 
     @staticmethod
     def __resolveJobArray(job_id, size=1):
         # type (str, str) -> list
-        """Resolve Freiburg job_id and array size to a list of job numbers"""
+        """Resolve job_id and array size to a list of Moab batch job numbers"""
         return ["%s[%s]" % (job_id, x) for x in range(1, int(size))]
-
-        # @property
-        # @Caching(validityPeriod=-1, redundancyPeriod=300)
-        # def __completedJobs(self):
-        #     # type: () -> dict
-        #     """Get list of completed batch jobs, filtered by user ID."""
-        #     cmd = "showq -c %s" % self.__userString
-        #
-        #     frResult = self.__execCmdInFreiburg(cmd)
-        #
-        #     if frResult[0] == 0:
-        #         # returns a dict: {batch job id: return code/status, ..}
-        #         frJobsCompleted = {jobid: rc for jobid, rc in
-        #                            re.findall("""
-        #                            ^             # Match at the beginning of lines
-        #                            (\d+)         # batch job id (digits) = result 1
-        #                            (?:\(\d+\))?  # Array job
-        #                            \s+           # whitespace/tab
-        #                            [RCV]         # job state: completed, vacated, removed
-        #                            \s+           # whitespace/tab
-        #                            ([-A-Z0-9]+)  # Return-code = result 2: +/- int or CNCLD
-        #                            \s+.+$        # useless rest
-        #                            """, frResult[1], re.MULTILINE | re.VERBOSE)}
-        #     elif frResult[0] == 255:
-        #         frJobsCompleted = {}
-        #         self.logger.warning("SSH connection (showq -c) could not be established.")
-        #         raise ValueError("SSH connection (showq -c) could not be established.")
-        #     else:
-        #         frJobsCompleted = {}
-        #         self.logger.warning("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
-        #         raise ValueError("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
-        #
-        #     self.logger.debug("Completed:\n%s" % frJobsCompleted)
-        #     return frJobsCompleted
