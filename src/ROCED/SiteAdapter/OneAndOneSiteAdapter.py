@@ -21,11 +21,11 @@
 
 from __future__ import unicode_literals, absolute_import
 
+import datetime
 import logging
 import re
-import time
 import sys
-import datetime
+import time
 
 try:
     from oneandone.client import OneAndOneService, Server, Hdd
@@ -33,7 +33,7 @@ except ImportError as import_error:
     self.logger.warning("Could not load OneAndOne client. ERROR: %s" % import_error)
     print(import_error)
 
-from Core import Config, MachineRegistry
+from Core import Config
 from SiteAdapter.Site import SiteAdapterBase
 from Util.PythonTools import Caching
 from Util.Logging import JsonLog

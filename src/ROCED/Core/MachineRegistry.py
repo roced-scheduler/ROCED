@@ -41,9 +41,9 @@ class MachineRegistry(Event.EventPublisher, Singleton):
     # statusShutdown = "down"  # not in PBS, but still running and needing cloud resources
     statusDown = "down"
 
-    # list of all states (in consecutive order)
-    list_status = [statusBooting, statusUp, statusIntegrating, statusWorking, statusPendingDisintegration,
-                   statusDisintegrating, statusDisintegrated, statusDown]
+    # all states in consecutive order
+    list_status = (statusBooting, statusUp, statusIntegrating, statusWorking, statusPendingDisintegration,
+                   statusDisintegrating, statusDisintegrated, statusDown)
 
     statusChangeHistory = "state_change_history"
 
@@ -76,15 +76,10 @@ class MachineRegistry(Event.EventPublisher, Singleton):
 
         :return {machine_id: {a:b, c:d, e:f}, ... }
         """
-        newd = dict()
-
-        for (k, v) in self.machines.items():
-            if ((site is None or v.get(self.regSite) == site) and
-                    (status is None or v.get(self.regStatus) == status) and
-                    (machineType is None or v.get(self.regMachineType) == machineType)):
-                newd[k] = v
-
-        return newd
+        return {mid: machine for mid, machine in self.machines.items() if
+                (site is None or machine.get(self.regSite) == site) and
+                (status is None or machine.get(self.regStatus) == status) and
+                (machineType is None or machine.get(self.regMachineType) == machineType)}
 
     def updateMachineStatus(self, mid, newStatus):
         """Change Machine status"""
@@ -126,8 +121,8 @@ class MachineRegistry(Event.EventPublisher, Singleton):
     def getMachineOverview(self):
         # type: () -> str
         """Create comma-separated list of number of machines in each state."""
-        info = "MachineState: %s" % ",".join([str(len(self.getMachines(status=status_)))
-                                              for status_ in self.list_status])
+        info = "MachineState: %s" % ",".join((str(len(self.getMachines(status=status_)))
+                                              for status_ in self.list_status))
         return info
 
     def newMachine(self, mid=None):

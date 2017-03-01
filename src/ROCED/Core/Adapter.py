@@ -74,7 +74,7 @@ class AdapterBase(object):
 
     # Methods    
     def getConfig(self, key):
-        """Return a single configuration value."""
+        """Get a single configuration value."""
         return self._configDict.get(key, None)
 
     def setConfig(self, key, value):
@@ -82,6 +82,7 @@ class AdapterBase(object):
         self._configDict[key] = value
 
     def __init__(self):
+        """Abstract base adapter."""
         self._configDict = dict()
 
         # config keys whose values MUST be set before starting
@@ -92,6 +93,7 @@ class AdapterBase(object):
         self.privateConfig = []
 
     def init(self):
+        """Delayed __Init__(). Code which depends on configuration being imported."""
         pass
 
     def terminate(self):

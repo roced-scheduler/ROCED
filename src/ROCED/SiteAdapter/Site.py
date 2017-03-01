@@ -40,9 +40,6 @@ class SiteInformation(object):
 
 
 class SiteAdapterBase(AdapterBase):
-    """
-    Abstract base class for specific cloud site information.
-    """
     __metaclass__ = abc.ABCMeta
 
     ConfigSiteName = "site_name"
@@ -60,6 +57,7 @@ class SiteAdapterBase(AdapterBase):
     # Override the following for your custom cloud implementation
     @abc.abstractmethod
     def __init__(self):
+        """Abstract base class for specific cloud site information."""
         super(SiteAdapterBase, self).__init__()
 
         self.setConfig(self.ConfigSiteName, "default-site")
@@ -101,8 +99,7 @@ class SiteAdapterBase(AdapterBase):
     @abc.abstractmethod
     def spawnMachines(self, machineType, count):
         # type: (str, int) -> None
-        """
-        Spawn machines on the corresponding cloud site.
+        """Spawn machines on the corresponding cloud site.
 
         :param machineType:
         :param count:
@@ -111,8 +108,7 @@ class SiteAdapterBase(AdapterBase):
         self.logger.debug("Spawning %d machines of type %s" % (count, machineType))
 
     def terminateMachines(self, machineType, count):
-        """
-        Terminate machine(s) on the corresponding site.
+        """Terminate machine(s) on the corresponding site.
 
         This *should* be redefined but doesn't /have to/. There are other ways to handle
         termination (e.g.: automatic timeout/shutdown).
@@ -124,8 +120,7 @@ class SiteAdapterBase(AdapterBase):
 
     def modServiceMachineDecision(self, decision):
         # type: (dict) -> dict
-        """
-        Modify machine request decision to accommodate service machine requirements.
+        """Modify machine request decision to accommodate service machine requirements.
 
         Some sites have specific requirements for service machines, for example squid server, DNS server, local
         Condor schedds, ...
@@ -143,8 +138,7 @@ class SiteAdapterBase(AdapterBase):
     ###
     def getSiteMachines(self, status=None, machineType=None):
         # type: (str, str) -> dict
-        """
-        Return dictionary with machines running on this site (Machine registry).
+        """Return dictionary with machines running on this site (Machine registry).
 
         :param status: (optional) filter on machine status
         :param machineType: (optional) filter on machine type
@@ -211,7 +205,7 @@ class SiteAdapterBase(AdapterBase):
 
     @property
     def runningMachines(self):
-        """Returns a dictionary of machines running at a specific site.
+        """Dictionary of machines running at a site.
 
         :return dictionary {machine_type: [machine ID, machine ID, ...], ...} :
         """
@@ -224,7 +218,7 @@ class SiteAdapterBase(AdapterBase):
 
     @property
     def runningMachinesCount(self):
-        """Return dictionary with number of machines running at a site.
+        """Dictionary of number of machine types running at a site.
 
         :return {machine_type: integer, ...}:
         """
@@ -237,7 +231,7 @@ class SiteAdapterBase(AdapterBase):
     @property
     def cloudOccupyingMachines(self):
         # type: () -> dict
-        """Return all machines which occupy computing resources on the cloud.
+        """All machines which occupy computing resources on the cloud.
 
         Same behaviour as getRunningMachines, just with other status filtering.
 
@@ -254,7 +248,7 @@ class SiteAdapterBase(AdapterBase):
 
     @property
     def cloudOccupyingMachinesCount(self):
-        """Return total number of machines occupying computing resources on a site."""
+        """Total number of machines occupying computing resources on a site."""
         sum_ = 0
         for (machineType, midList) in self.cloudOccupyingMachines.items():
             sum_ += len(midList)
@@ -298,7 +292,7 @@ class SiteBox(AdapterBoxBase):
     @property
     def runningMachines(self):
         # type: () -> dict
-        """ Get dictionary with running machines per site.
+        """Dictionary with running machines per site.
 
         :return {siteName: {machine_type: [machine ID, machine ID, ...], ...}}:
         """
@@ -307,7 +301,7 @@ class SiteBox(AdapterBoxBase):
     @property
     def runningMachinesCount(self):
         # type: () -> dict
-        """ Get dictionary with number of running machines per site.
+        """Dictionary with number of running machines per site.
 
         :return {siteName: {machine_type: integer, ...}}:
         """
@@ -316,7 +310,7 @@ class SiteBox(AdapterBoxBase):
     @property
     def siteConfigAsDict(self):
         # type: () -> dict
-        """ Get dictionary with configuration per site.
+        """Dictionary with configuration per site.
 
         :return {siteName: {machine_type: integer, ...}}:
         """

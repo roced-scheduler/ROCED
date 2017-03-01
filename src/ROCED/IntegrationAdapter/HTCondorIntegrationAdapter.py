@@ -60,6 +60,8 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     # condor machine name saved in machine registry - communication to site adapter(s)
     reg_site_server_condor_name = "reg_site_server_condor_name"
 
+    # Output and its parsing
+    _query_format_string = "-autoformat: Machine State Activity"
     regex_queue_parser = re.compile("([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)", re.MULTILINE)
     collector_error_string = "Failed to end classad message"
 
@@ -304,7 +306,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         condor_constraint = self.getConfig(self.configCondorConstraint)
         condor_ssh = ScaleTools.Ssh(condor_server, condor_user, condor_key)
 
-        cmd = ("condor_status -constraint '%s' -autoformat: Machine State Activity" % condor_constraint)
+        cmd = ("condor_status -constraint '%s' %s" % (condor_constraint, self._query_format_string))
 
         # get a list of the condor machines (SSH)
         condor_result = condor_ssh.handleSshCall(call=cmd, quiet=True)

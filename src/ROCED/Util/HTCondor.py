@@ -43,7 +43,8 @@ class HTCondorPy(object):
     jobStatusTransferOutput = 6
     jobStatusSuspended = 7
 
-    __q_requirement_string = "RoutedToJobId =?= undefined && ( JobStatus == 1 || JobStatus == 2 )"
+    __q_requirement_string = "RoutedToJobId =?= undefined && ( JobStatus == %d || JobStatus == %d )" % (
+                              jobStatusIdle, jobStatusRunning)
 
     def __init__(self, collector=None):
         """Helper class to query HTCondor via python bindings."""
