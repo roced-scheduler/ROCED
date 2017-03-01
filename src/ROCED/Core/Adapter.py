@@ -24,6 +24,8 @@ import abc
 import json
 import logging
 
+from .MachineRegistry import MachineRegistry
+
 import xmlrpc.server
 
 from . import Config
@@ -40,6 +42,13 @@ class AdapterBase(object):
     the application borders, for example the REST API
     """
     __metaclass__ = abc.ABCMeta
+
+    # List of "responsible" machine states by adapter(s):
+    integration_states = frozenset((MachineRegistry.statusUp, MachineRegistry.statusIntegrating,
+                                    MachineRegistry.statusWorking, MachineRegistry.statusPendingDisintegration,
+                                    MachineRegistry.statusDisintegrating))
+    site_states = frozenset((MachineRegistry.statusBooting, MachineRegistry.statusDisintegrated,
+                             MachineRegistry.statusDown))
 
     @property
     def optionalConfigKeys(self):
