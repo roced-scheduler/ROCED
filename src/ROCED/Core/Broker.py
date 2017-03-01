@@ -51,6 +51,9 @@ class SiteBrokerBase(object):
                   [siteName][machineName] = -3  -> shutdown 3 machines on site
         """
 
+    def applyMaxMachinesPerCycle(self):
+        pass
+
 
 class StupidBroker(SiteBrokerBase):
     """

@@ -37,6 +37,7 @@ class SiteInformation(object):
         self.supportedMachineTypes = []
         self.cost = 0
         self.isAvailable = True
+        self.machinesPerCycle = 0
 
 
 class SiteAdapterBase(AdapterBase):
@@ -49,6 +50,7 @@ class SiteAdapterBase(AdapterBase):
     ConfigIsAvailable = "is_available"
     ConfigCost = "cost"
     ConfigMaxMachines = "max_machines"
+    ConfigMachinesPerCycle = "machines_per_cycle"
     ConfigMachineBootTimeout = "machine_boot_timeout"
     ConfigBaselineMachines = "baseline_machines"
 
@@ -75,6 +77,7 @@ class SiteAdapterBase(AdapterBase):
         self.addOptionalConfigKeys(self.ConfigIsAvailable, Config.ConfigTypeBoolean, default=True)
         self.addOptionalConfigKeys(self.ConfigMachineBootTimeout, Config.ConfigTypeInt, default=30)
         self.addOptionalConfigKeys(self.ConfigMaxMachines, Config.ConfigTypeInt, default=10)
+        self.addOptionalConfigKeys(self.ConfigMachinesPerCycle, Config.ConfigTypeInt, default=10)
 
         self.logger = logging.getLogger("Site")
 
@@ -268,6 +271,7 @@ class SiteAdapterBase(AdapterBase):
         sinfo = SiteInformation()
         sinfo.siteName = self.siteName
         sinfo.maxMachines = self.getConfig(self.ConfigMaxMachines)
+        sinfo.machinesPerCycle = self.getConfig(self.ConfigMachinesPerCycle)
         sinfo.baselineMachines = self.getConfig(self.ConfigBaselineMachines)
         sinfo.supportedMachineTypes = self.getConfig(self.ConfigMachines)
         sinfo.cost = self.getConfig(self.ConfigCost)
