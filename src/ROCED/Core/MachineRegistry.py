@@ -172,10 +172,41 @@ class MachineRemovedEvent(MachineEvent):
         """Event "Machine was removed from MachineRegistry", published to every registered listener."""
         super(MachineRemovedEvent, self).__init__(mid)
         self.machine = machine
+        try:
+            start_time = datetime.strptime(self.machine[MachineRegistry.statusChangeHistory][0]["timestamp"],
+                                           "%Y-%m-%d %H:%M:%S.%f")
+            stop_time = datetime.strptime(self.machine[MachineRegistry.statusChangeHistory][-1]["timestamp"],
+                                          "%Y-%m-%d %H:%M:%S.%f")
+            self.lifetime = (stop_time - start_time).total_seconds()
+        except (IndexError, ValueError):
+            # This should only happen, when no status was ever set
+            logging.debug("Error when parsing %s / %s" % (self.machine[MachineRegistry.statusChangeHistory][0],
+                                                          self.machine[MachineRegistry.statusChangeHistory][-1]))
+            self.lifetime = 0
 
 
 class StatusChangedEvent(MachineEvent):
+    __transitions = [(None, MachineRegistry.statusBooting),
+                     (MachineRegistry.statusBooting, MachineRegistry.statusUp),
+                     (MachineRegistry.statusUp, MachineRegistry.statusIntegrating),
+                     (MachineRegistry.statusIntegrating, MachineRegistry.statusWorking),
+                     (MachineRegistry.statusWorking, MachineRegistry.statusPendingDisintegration),
+                     (MachineRegistry.statusPendingDisintegration, MachineRegistry.statusDisintegrating),
+                     (MachineRegistry.statusDisintegrating, MachineRegistry.statusDisintegrated),
+                     (MachineRegistry.statusDisintegrated, MachineRegistry.statusDown),
+                     # This change can occur in both directions.
+                     (MachineRegistry.statusPendingDisintegration, MachineRegistry.statusWorking),
+                     # Canceling/terminating machines
+                     (MachineRegistry.statusWorking, MachineRegistry.statusDisintegrating),
+                     (MachineRegistry.statusBooting, MachineRegistry.statusDisintegrated),
+                     (MachineRegistry.statusUp, MachineRegistry.statusDisintegrated),
+                     (MachineRegistry.statusIntegrating, MachineRegistry.statusDisintegrated)]
+
     def __init__(self, mid, oldStatus, newStatus):
         super(StatusChangedEvent, self).__init__(mid)
         self.newStatus = newStatus
         self.oldStatus = oldStatus
+        if (self.oldStatus, self.newStatus) not in self.__transitions:
+            self.error = True
+        else:
+            self.error = False

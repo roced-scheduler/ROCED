@@ -293,6 +293,18 @@ class SiteAdapterBase(AdapterBase):
 
 
 class SiteBox(AdapterBoxBase):
+    def siteStats(self):
+        """Export site specific statistics/logging (to be called periodically)."""
+        # machine counts in the different states
+        # site information
+        # failing machines in polling interval
+
+        # average runtime (up -> down)
+
+        machines = {site.siteName: site.getSiteMachines() for site in self._adapterList}
+        mr = MachineRegistry.MachineRegistry()
+        info = {site.siteName: site.siteInformation for site in self._adapterList}
+
     @property
     def runningMachines(self):
         # type: () -> dict
