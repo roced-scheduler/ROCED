@@ -222,14 +222,14 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                 elif self.mr.calcLastStateChange(mid) > condor_timeout:
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
-            # "Working" machines need machine load > 0.1, otherwise they are "unclaimed".
+            # "Working" machines need machine load > 0.01, otherwise they are "unclaimed".
             # -> "pending disintegration"
             if machine_[self.mr.regStatus] == self.mr.statusWorking:
                 if machine_[self.reg_site_server_condor_name] in condor_machines:
                     # update condor slot status & calculate machine load
                     self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                         machine_[self.reg_site_server_condor_name]]
-                    if self.calcMachineLoad(mid) <= 0.1 and self.mr.calcLastStateChange(mid) > condor_wait_working:
+                    if self.calcMachineLoad(mid) <= 0.01 and self.mr.calcLastStateChange(mid) > condor_wait_working:
                         self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
                     # If slot activity/machine state indicate draining -> Pending Disintegration
                     if self.calcDrainStatus(mid)[1] is True:
@@ -249,9 +249,9 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                             machine_[self.reg_site_server_condor_name]]
                         self.calcMachineLoad(mid)
 
-                        # machine load > 0.1 -> at least one slot is claimed -> re-enable
+                        # machine load > 0.01 -> at least one slot is claimed -> re-enable
                         # TODO: Switch to an integer "cores_claimed" and compare > 0
-                        if self.mr.machines[mid][self.mr.regMachineLoad] > 0.1:
+                        if self.mr.machines[mid][self.mr.regMachineLoad] > 0.01:
                             # Only re-enable non-draining nodes
                             if self.calcDrainStatus(mid)[1] is False:
                                 self.mr.updateMachineStatus(mid, self.mr.statusWorking)

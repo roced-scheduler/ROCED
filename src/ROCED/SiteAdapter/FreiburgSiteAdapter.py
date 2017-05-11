@@ -22,6 +22,9 @@ from __future__ import unicode_literals, absolute_import
 
 import logging
 import re
+from xml.dom import minidom
+import datetime
+import time
 
 from Core import MachineRegistry, Config
 from IntegrationAdapter.HTCondorIntegrationAdapter import HTCondorIntegrationAdapter as HTCondor
@@ -42,6 +45,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     configMaxMachinesPerCycle = "max_machines_per_cycle"
     configIgnoreDrainingMachines = "ignore_draining_machines"
     configDrainWorkingMachines = "drain_working_machines"
+    configVMNamePrefix = "vm_prefix"
+
 
     reg_site_server_condor_name = HTCondor.reg_site_server_condor_name
     regMachineJobId = "batch_job_id"
@@ -50,7 +55,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     This python script has to be adapted on the server with user name, OpenStack Dashboard PW,
     image GUID, etc.
     """
-    __condorNamePrefix = "moab-vm-"
+    __vmNamePrefix = "moab-vm-"
     """VM machine name. This is also used as machine name in condor by us."""
 
     def __init__(self):
@@ -77,12 +82,16 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configDrainWorkingMachines, Config.ConfigTypeBoolean,
                                    description="Should ROCED set working machines to drain mode, "
                                                "if it has to terminate machines?", default=False)
+        self.addCompulsoryConfigKeys(self.configVMNamePrefix, Config.ConfigTypeString,
+                                     "prefix for VMs' hostname")
+
 
         self.__default_machine = "vm-default"
 
     def init(self):
         self.mr.registerListener(self)
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
+        self.__readVMNamePrefix()
         super(FreiburgSiteAdapter, self).init()
 
         # TODO: This information is lost, when loading the previous machine registry.
@@ -146,10 +155,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
-            result = self.__execCmdInFreiburg("msub -m p -l walltime=%s,mem=%s,nodes=1:ppn=%d %s"
-                                              % (machineSettings["walltime"],
-                                                 machineSettings["memory"],
-                                                 machineSettings["cores"], self.__vmStartScript))
+            result = self.__execCmdInFreiburg("msub -m p -l walltime=%s,mem=%s,nodes=1:ppn=%d %s" % (machineSettings["walltime"], machineSettings["memory"], machineSettings["cores"], self.__vmStartScript))
 
             # std_out = batch job id
             if result[0] == 0 and result[1].strip().isdigit():
@@ -449,13 +455,22 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.warning("A problem occurred while canceling VMs (RC: %d)\n%s" % (result[0], result[2]))
         return idsRemoved, idsInvalidated
 
-    @classmethod
-    def __getCondorName(cls, batchJobId):
+
+    def __readVMNamePrefix(self):
+        """Read condor VM name prefix from config file communication with
+        HTCondorIntegrationAdapter."""
+
+        self.__vmNamePrefix = self.getConfig(self.configVMNamePrefix)
+        self.logger.debug("VM Prefix: %s" % self.__vmNamePrefix)
+        return self.__vmNamePrefix
+
+    
+    def __getCondorName(self, batchJobId):
         """Build condor name for communication with HTCondorIntegrationAdapter.
 
         Machine registry value "reg_site_server_condor_name" is used to communicate with
         HTCondorIntegrationAdapter. In Freiburg this name is built from the batch job id."""
-        return cls.__condorNamePrefix + batchJobId
+        return self.__vmNamePrefix + batchJobId
 
     @property
     def __userString(self):
@@ -476,28 +491,19 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     def __runningJobs(self):
         # type: () -> dict
         """Get list of running batch jobs, filtered by user ID."""
-        cmd = "showq -r %s" % self.__userString
-
+        cmd = "showq -r --xml %s" % self.__userString
         frResult = self.__execCmdInFreiburg(cmd)
-
         if frResult[0] == 0:
             # returns a list containing all running batch jobs
             # see http://docs.adaptivecomputing.com/maui/commands/showq.php#activeexample
-            frJobsRunning = {jobid: {"cores": cores, "walltime": time_limit}
-                             for jobid, cores, time_limit
-                             in re.findall("""
-                                    ^                   # Line start
-                                    (\d+)               # batch job id (digits) = result 1
-                                    \s+                 # whitespace(s)
-                                    R                   # Job = Running
-                                    \s+                 # whitespace(s)
-                                    (?:[\S]+\s+){7}     # 7 entries [stuff + spaces]
-                                    (\d)                # cores = result 2
-                                    \s+                 # whitespace(s)
-                                    ((?:\d{1,2}:?){3,4})# time limit: 3-4 digit pairs = res3
-                                    \s+.+               # more waste
-                                    $                   # line end
-                                    """, frResult[1], re.MULTILINE | re.VERBOSE)}
+            itemlist = minidom.parseString(frResult[1]).getElementsByTagName('job')
+
+            frJobsRunning = {}
+            for line in itemlist:
+                frJobsRunning.update(
+                    {str(line.attributes['JobID'].value): {
+                        "walltime": str(datetime.timedelta(seconds=int(line.attributes['StartTime'].value)+int(line.attributes['ReqAWDuration'].value)-int(time.time()))), 
+                        "cores": int(line.attributes['ReqProcs'].value)}})
         elif frResult[0] == 255:
             frJobsRunning = {}
             self.logger.warning("SSH connection (showq -r) could not be established.")
