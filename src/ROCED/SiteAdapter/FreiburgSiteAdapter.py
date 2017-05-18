@@ -27,7 +27,6 @@ import datetime
 import time
 
 from Core import MachineRegistry, Config
-##from IntegrationAdapter.IntegrationAdapterntegrationAdapter import IntegrationAdapterntegrationAdapter as HTCondor
 from SiteAdapter.Site import SiteAdapterBase
 from Util.Logging import JsonLog
 from Util.PythonTools import Caching, merge_dicts
@@ -48,7 +47,6 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     configVMNamePrefix = "vm_prefix"
     configIntegrationAdapterType = "IntegrationAdapterType"
 
-##    reg_site_server_node_name = IntegrationAdapterreg_site_server_node_name
     regMachineJobId = "batch_job_id"
     __vmStartScript = "startVM.py"
     """Python script to be executed in Freiburg. This starts the VM with the corresponding image.
@@ -100,7 +98,6 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         ###
         # Connect IntegrationAdapter with SideAdapter
         ###
-        
         integrationAdapterType = str("IntegrationAdapter.")+self.getConfig(self.configIntegrationAdapterType)
         IntegrationAdapter = __import__(integrationAdapterType, fromlist=["IntegrationAdapter"] )
         reg_site_server_node_name = "reg_site_server_node_name" 
@@ -212,7 +209,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
             try:
                 workingMachines = sorted(workingMachines.items(),
-                                         key=lambda machine_: IntegrationAdaptercalcMachineLoad(machine_[0]),
+                                         key=lambda machine_: IntegrationAdapter.calcMachineLoad(machine_[0]),
                                          reverse=True)
             except KeyError:
                 workingMachines = []
@@ -235,7 +232,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 # booting machines can be terminated immediately
                 idsToTerminate.append(machine[self.regMachineJobId])
             elif self.getConfig(self.configDrainWorkingMachines):
-                if IntegrationAdaptercalcDrainStatus(mid)[1] is True:
+                if IntegrationAdapter.calcDrainStatus(mid)[1] is True:
                     continue
                 # working machines should be set to drain mode
                 idsToDrain.append(machine[self.regMachineJobId])
@@ -246,7 +243,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         self.logger.debug("Machines to drain (%d): %s" % (len(idsToDrain), ", ".join(idsToDrain)))
         if idsToDrain:
-            [IntegrationAdapterdrainMachine(mid) for mid, machine in self.getSiteMachines().items()
+            [IntegrationAdapter.drainMachine(mid) for mid, machine in self.getSiteMachines().items()
              if machine[self.regMachineJobId] in idsToDrain]
 
         if len(idsRemoved + idsInvalidated) > 0:
@@ -278,7 +275,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 nDrainedSlots = 0
 
                 for mid in runningMachines[machineType]:
-                    nDrainedSlots += IntegrationAdaptercalcDrainStatus(mid)[0]
+                    nDrainedSlots += IntegrationAdapter.calcDrainStatus(mid)[0]
                 nCores = self.getConfig(self.ConfigMachines)[machineType]["cores"]
                 nMachines = len(runningMachines[machineType])
                 # Calculate the number of available slots
@@ -324,7 +321,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         Booting = Freiburg batch job for machine was submitted
         Up      = Freiburg batch job is running, VM is Booting,
-                  IntegrationAdapterntegrationAdapter switches this to "integrating" and "working".
+                  IntegrationAdapter switches this to "integrating" and "working".
         Disintegrated & Down
 
         IntegrationAdapter is responsible for handling Integrating, Working,
