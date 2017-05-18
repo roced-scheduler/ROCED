@@ -58,7 +58,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     # possible slot activity
     condorActivityDrained = "Drained"
     # condor machine name saved in machine registry - communication to site adapter(s)
-    reg_site_server_condor_name = "reg_site_server_condor_name"
+    reg_site_server_node_name = "reg_site_server_node_name"
 
     # Output and its parsing
     _query_format_string = "-autoformat: Machine State Activity"
@@ -211,11 +211,11 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
             # Is an "Integrating" machine completely started up? (appears in condor) -> "Working"
             if machine_[self.mr.regStatus] == self.mr.statusIntegrating:
-                if machine_[self.reg_site_server_condor_name] in condor_machines:
+                if machine_[self.reg_site_server_node_name] in condor_machines:
                     self.mr.updateMachineStatus(mid, self.mr.statusWorking)
                     # number of cores = number of slots
                     self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
-                        machine_[self.reg_site_server_condor_name]]
+                        machine_[self.reg_site_server_node_name]]
                     self.mr.machines[mid][self.mr.regMachineCores] = len(
                         self.mr.machines[mid][self.reg_site_condor_status])
                 # Machine stuck integrating? -> Disintegrated
@@ -225,10 +225,10 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             # "Working" machines need machine load > 0.01, otherwise they are "unclaimed".
             # -> "pending disintegration"
             if machine_[self.mr.regStatus] == self.mr.statusWorking:
-                if machine_[self.reg_site_server_condor_name] in condor_machines:
+                if machine_[self.reg_site_server_node_name] in condor_machines:
                     # update condor slot status & calculate machine load
                     self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
-                        machine_[self.reg_site_server_condor_name]]
+                        machine_[self.reg_site_server_node_name]]
                     if self.calcMachineLoad(mid) <= 0.01 and self.mr.calcLastStateChange(mid) > condor_wait_working:
                         self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
                     # If slot activity/machine state indicate draining -> Pending Disintegration
@@ -242,11 +242,11 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             # (disintegrated)
             elif machine_[self.mr.regStatus] == self.mr.statusPendingDisintegration:
                 # is machine (still) listed in condor machines (search for "condor name")?
-                if self.reg_site_server_condor_name in machine_:
-                    if machine_[self.reg_site_server_condor_name] in condor_machines:
+                if self.reg_site_server_node_name in machine_:
+                    if machine_[self.reg_site_server_node_name] in condor_machines:
                         # update condor slot status & calculate machine load
                         self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
-                            machine_[self.reg_site_server_condor_name]]
+                            machine_[self.reg_site_server_node_name]]
                         self.calcMachineLoad(mid)
 
                         # machine load > 0.01 -> at least one slot is claimed -> re-enable
@@ -265,7 +265,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
             # "Disintegrating": -> Shutdown should be started (by site adapter)
             # # If it's not listed in condor, it's done shutting down -> "disintegrated"
             if machine_[self.mr.regStatus] == self.mr.statusDisintegrating:
-                if (machine_[self.reg_site_server_condor_name] not in condor_machines or
+                if (machine_[self.reg_site_server_node_name] not in condor_machines or
                             self.mr.calcLastStateChange(mid) > condor_timeout):
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
