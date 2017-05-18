@@ -79,8 +79,6 @@ class Shell(object):
     @staticmethod
     def executeCommand(command, environment=None, quiet=False, timeout=60):
         """Execute command in shell on localhost."""
-        if timeout:
-            command = "timeout %ds %s" % (timeout, command)
         p = subprocess.Popen(command,
                              bufsize=0, executable=None,
                              shell=True,
@@ -88,11 +86,18 @@ class Shell(object):
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
                              env=environment)
-        stdout, stderr = p.communicate()
-        stdout = stdout.decode(encoding="utf-8").strip()
-        stderr = stderr.decode(encoding="utf-8").strip()
-        if p.returncode == 124:
-            stderr = "Shell command '%s' timed out" % command
+        try:
+            stdout, stderr = p.communicate(timeout=timeout)
+            stdout = stdout.decode(encoding="utf-8").strip()
+            stderr = stderr.decode(encoding="utf-8").strip()
+        except subprocess.TimeoutExpired as err:
+            p.returncode = 124
+            stdout = ""
+            stderr = str(err)
+            if err.stdout:
+                stdout = err.stdout
+            if err.stderr:
+                stderr = "%s %s" % (stderr, err.stderr)
 
         if not quiet:
             if not p.returncode == 0:
