@@ -6,7 +6,7 @@ python:
   - "3.5"
   - "3.6"
 install:
-  - "pip install future configparser"
+  - "pip install future configparser paramiko"
 script:
   - ./src/ROCED/scale.py test
   - ./src/ROCED/scale.py --debug --iterations 10 --config src/ROCED/roced_fake.config standalone
