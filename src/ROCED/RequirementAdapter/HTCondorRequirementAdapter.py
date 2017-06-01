@@ -97,7 +97,7 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         #            "'{print $3 "\n" $4}'| sort -n | head -n1"
         constraint = "( %s ) && ( %s )" % (self._query_constraints, self.getConfig(self.configCondorConstraint))
 
-        cmd = ("condor_q -global -constraint '%s' %s" % (constraint, self._query_format_string))
+        cmd = ("condor_q -global -allusers -nobatch -constraint '%s' %s" % (constraint, self._query_format_string))
         result = ssh.handleSshCall(call=cmd, quiet=True)
         if result[0] != 0:
             self.logger.warning("Could not get HTCondor queue status! %d: %s" % (result[0], result[2]))

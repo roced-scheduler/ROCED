@@ -22,9 +22,11 @@ from __future__ import unicode_literals, absolute_import
 
 import logging
 import re
+from xml.dom import minidom
+import datetime
+import time
 
 from Core import MachineRegistry, Config
-from IntegrationAdapter.HTCondorIntegrationAdapter import HTCondorIntegrationAdapter as HTCondor
 from SiteAdapter.Site import SiteAdapterBase
 from Util.Logging import JsonLog
 from Util.PythonTools import Caching, merge_dicts
@@ -42,16 +44,17 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     configMaxMachinesPerCycle = "max_machines_per_cycle"
     configIgnoreDrainingMachines = "ignore_draining_machines"
     configDrainWorkingMachines = "drain_working_machines"
+    configVMNamePrefix = "vm_prefix"
+    configIntegrationAdapterType = "IntegrationAdapterType"
 
-    reg_site_server_condor_name = HTCondor.reg_site_server_condor_name
     regMachineJobId = "batch_job_id"
     __vmStartScript = "startVM.py"
     """Python script to be executed in Freiburg. This starts the VM with the corresponding image.
     This python script has to be adapted on the server with user name, OpenStack Dashboard PW,
     image GUID, etc.
     """
-    __condorNamePrefix = "moab-vm-"
-    """VM machine name. This is also used as machine name in condor by us."""
+    __vmNamePrefix = "moab-vm-"
+    """VM machine name prefix. This prefix must be the same in the batch system"""
 
     def __init__(self):
         super(FreiburgSiteAdapter, self).__init__()
@@ -77,13 +80,29 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.addOptionalConfigKeys(self.configDrainWorkingMachines, Config.ConfigTypeBoolean,
                                    description="Should ROCED set working machines to drain mode, "
                                                "if it has to terminate machines?", default=False)
+        self.addCompulsoryConfigKeys(self.configVMNamePrefix, Config.ConfigTypeString,
+                                     "prefix for VMs' hostname")
+        self.addCompulsoryConfigKeys(self.configIntegrationAdapterType, Config.ConfigTypeString,
+                                     "Type of the integration adapter")
+
 
         self.__default_machine = "vm-default"
 
     def init(self):
         self.mr.registerListener(self)
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
+        self.__readVMNamePrefix()
         super(FreiburgSiteAdapter, self).init()
+
+
+        ###
+        # Connect IntegrationAdapter with SideAdapter
+        ###
+        integrationAdapterType = str("IntegrationAdapter.")+self.getConfig(self.configIntegrationAdapterType)
+        IntegrationAdapter = __import__(integrationAdapterType, fromlist=["IntegrationAdapter"] )
+        reg_site_server_node_name = "reg_site_server_node_name" 
+
+
 
         # TODO: This information is lost, when loading the previous machine registry.
         ###
@@ -121,7 +140,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regSiteType] = self.siteType
                 self.mr.machines[mid][self.mr.regMachineType] = self.__default_machine
                 self.mr.machines[mid][self.regMachineJobId] = jobId
-                self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
+                self.mr.machines[mid][self.reg_site_server_node_name] = self.__getVMName(
                     jobId)
                 self.mr.updateMachineStatus(mid, self.mr.statusBooting)
         self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
@@ -146,10 +165,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
-            result = self.__execCmdInFreiburg("msub -m p -l walltime=%s,mem=%s,nodes=1:ppn=%d %s"
-                                              % (machineSettings["walltime"],
-                                                 machineSettings["memory"],
-                                                 machineSettings["cores"], self.__vmStartScript))
+            result = self.__execCmdInFreiburg("msub -m p -l walltime=%s,mem=%s,nodes=1:ppn=%d %s" % (machineSettings["walltime"], machineSettings["memory"], machineSettings["cores"], self.__vmStartScript))
 
             # std_out = batch job id
             if result[0] == 0 and result[1].strip().isdigit():
@@ -157,7 +173,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regSite] = self.siteName
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
                 self.mr.machines[mid][self.regMachineJobId] = result[1].strip()
-                self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(
+                self.mr.machines[mid][self.reg_site_server_node_name] = self.__getVMName(
                     result[1].strip())
                 self.mr.machines[mid][self.mr.regSiteType] = self.siteType
                 self.mr.updateMachineStatus(mid, self.mr.statusBooting)
@@ -193,7 +209,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
             try:
                 workingMachines = sorted(workingMachines.items(),
-                                         key=lambda machine_: HTCondor.calcMachineLoad(machine_[0]),
+                                         key=lambda machine_: IntegrationAdapter.calcMachineLoad(machine_[0]),
                                          reverse=True)
             except KeyError:
                 workingMachines = []
@@ -216,7 +232,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 # booting machines can be terminated immediately
                 idsToTerminate.append(machine[self.regMachineJobId])
             elif self.getConfig(self.configDrainWorkingMachines):
-                if HTCondor.calcDrainStatus(mid)[1] is True:
+                if IntegrationAdapter.calcDrainStatus(mid)[1] is True:
                     continue
                 # working machines should be set to drain mode
                 idsToDrain.append(machine[self.regMachineJobId])
@@ -227,7 +243,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         self.logger.debug("Machines to drain (%d): %s" % (len(idsToDrain), ", ".join(idsToDrain)))
         if idsToDrain:
-            [HTCondor.drainMachine(mid) for mid, machine in self.getSiteMachines().items()
+            [IntegrationAdapter.drainMachine(mid) for mid, machine in self.getSiteMachines().items()
              if machine[self.regMachineJobId] in idsToDrain]
 
         if len(idsRemoved + idsInvalidated) > 0:
@@ -259,7 +275,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 nDrainedSlots = 0
 
                 for mid in runningMachines[machineType]:
-                    nDrainedSlots += HTCondor.calcDrainStatus(mid)[0]
+                    nDrainedSlots += IntegrationAdapter.calcDrainStatus(mid)[0]
                 nCores = self.getConfig(self.ConfigMachines)[machineType]["cores"]
                 nMachines = len(runningMachines[machineType])
                 # Calculate the number of available slots
@@ -305,10 +321,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         Booting = Freiburg batch job for machine was submitted
         Up      = Freiburg batch job is running, VM is Booting,
-                  HTCondorIntegrationAdapter switches this to "integrating" and "working".
+                  IntegrationAdapter switches this to "integrating" and "working".
         Disintegrated & Down
 
-        HTCondorIntegrationAdapter is responsible for handling Integrating, Working,
+        IntegrationAdapter is responsible for handling Integrating, Working,
         PendingDisintegration, Disintegrating
         """
         try:
@@ -385,17 +401,17 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.mr.machines[mid][self.mr.regSiteType] = self.siteType
             self.mr.machines[mid][self.mr.regMachineType] = self.__default_machine
             self.mr.machines[mid][self.regMachineJobId] = batchJobId
-            self.mr.machines[mid][self.reg_site_server_condor_name] = self.__getCondorName(batchJobId)
+            self.mr.machines[mid][self.reg_site_server_node_name] = self.__getVMName(batchJobId)
             self.mr.updateMachineStatus(mid, self.mr.statusUp)
 
         self.logger.info("Machines using resources (Freiburg): %d" % self.cloudOccupyingMachinesCount)
 
         with JsonLog() as jsonLog:
-            jsonLog.addItem(self.siteName, "condor_nodes",
+            jsonLog.addItem(self.siteName, "nodes",
                             len(self.getSiteMachines(status=self.mr.statusWorking)))
-            jsonLog.addItem(self.siteName, "condor_nodes_draining",
+            jsonLog.addItem(self.siteName, "nodes_draining",
                             len([mid for mid in self.getSiteMachines(status=self.mr.statusPendingDisintegration)
-                                 if HTCondor.calcDrainStatus(mid)[1] is True]))
+                                 if IntegrationAdapter.calcDrainStatus(mid)[1] is True]))
             jsonLog.addItem(self.siteName, "machines_requested",
                             len(self.getSiteMachines(status=self.mr.statusBooting)) +
                             len(self.getSiteMachines(status=self.mr.statusUp)) +
@@ -449,13 +465,22 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             self.logger.warning("A problem occurred while canceling VMs (RC: %d)\n%s" % (result[0], result[2]))
         return idsRemoved, idsInvalidated
 
-    @classmethod
-    def __getCondorName(cls, batchJobId):
-        """Build condor name for communication with HTCondorIntegrationAdapter.
 
-        Machine registry value "reg_site_server_condor_name" is used to communicate with
-        HTCondorIntegrationAdapter. In Freiburg this name is built from the batch job id."""
-        return cls.__condorNamePrefix + batchJobId
+    def __readVMNamePrefix(self):
+        """Read VM name prefix from config file communication with
+        IntegrationAdapter."""
+
+        self.__vmNamePrefix = self.getConfig(self.configVMNamePrefix)
+        self.logger.debug("VM Prefix: %s" % self.__vmNamePrefix)
+        return self.__vmNamePrefix
+
+    
+    def __getVMName(self, batchJobId):
+        """Build VM name for communication with IntegrationAdapter.
+
+        Machine registry value "reg_site_server_node_name" is used to communicate with
+        IntegrationAdapter. This name must be built from the batch job id."""
+        return self.__vmNamePrefix + batchJobId
 
     @property
     def __userString(self):
@@ -476,28 +501,19 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     def __runningJobs(self):
         # type: () -> dict
         """Get list of running batch jobs, filtered by user ID."""
-        cmd = "showq -r %s" % self.__userString
-
+        cmd = "showq -r --xml %s" % self.__userString
         frResult = self.__execCmdInFreiburg(cmd)
-
         if frResult[0] == 0:
             # returns a list containing all running batch jobs
             # see http://docs.adaptivecomputing.com/maui/commands/showq.php#activeexample
-            frJobsRunning = {jobid: {"cores": cores, "walltime": time_limit}
-                             for jobid, cores, time_limit
-                             in re.findall("""
-                                    ^                   # Line start
-                                    (\d+)               # batch job id (digits) = result 1
-                                    \s+                 # whitespace(s)
-                                    R                   # Job = Running
-                                    \s+                 # whitespace(s)
-                                    (?:[\S]+\s+){7}     # 7 entries [stuff + spaces]
-                                    (\d)                # cores = result 2
-                                    \s+                 # whitespace(s)
-                                    ((?:\d{1,2}:?){3,4})# time limit: 3-4 digit pairs = res3
-                                    \s+.+               # more waste
-                                    $                   # line end
-                                    """, frResult[1], re.MULTILINE | re.VERBOSE)}
+            itemlist = minidom.parseString(frResult[1]).getElementsByTagName('job')
+
+            frJobsRunning = {}
+            for line in itemlist:
+                frJobsRunning.update(
+                    {str(line.attributes['JobID'].value): {
+                        "walltime": str(datetime.timedelta(seconds=int(line.attributes['StartTime'].value)+int(line.attributes['ReqAWDuration'].value)-int(time.time()))), 
+                        "cores": int(line.attributes['ReqProcs'].value)}})
         elif frResult[0] == 255:
             frJobsRunning = {}
             self.logger.warning("SSH connection (showq -r) could not be established.")
