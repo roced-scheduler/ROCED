@@ -2,6 +2,8 @@
 **R**esponsive **O**n-Demand **C**loud-**e**nabled **D**eployment is a tool which can interface with different batch systems (Torque, HTCondor) and cloud sites (Eucalyptus, OpenNebula, OpenStack, Amazon EC2, etc.).
 It monitors demand of computing resources in the batch system(s) and dynamically manages **V**irtual **M**achines (starting and terminating them) on different cloud sites.
 
+[![Build Status](https://travis-ci.org/roced-scheduler/ROCED.svg?branch=master)](https://travis-ci.org/roced-scheduler/ROCED)
+
 ## Design
 
 ROCED periodically runs a management cycle, where it performs three steps:
