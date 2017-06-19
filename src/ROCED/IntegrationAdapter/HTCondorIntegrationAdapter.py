@@ -43,6 +43,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     configCondorWaitWorking = "condor_wait_working"
     configCondorDeadline = "condor_deadline"
 
+
     # list of the different slot states for each machine, e.g. [slot1,slot2,...]
     reg_site_condor_status = "condor_slot_status"
     reg_status_last_update = MachineRegistry.MachineRegistry.regStatusLastUpdate
@@ -59,6 +60,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
     condorActivityDrained = "Drained"
     # condor machine name saved in machine registry - communication to site adapter(s)
     reg_site_server_node_name = "reg_site_server_node_name"
+
 
     # Output and its parsing
     _query_format_string = "-autoformat: Machine State Activity"
@@ -100,7 +102,6 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
         self.addCompulsoryConfigKeys(self.configCondorDeadline, Config.ConfigTypeInt,
                                      description="Timeout (in minutes) before a machine stuck in "
                                                  "status integrating/disintegrating is considered lost.")
-
         self.logger = logging.getLogger(self.getConfig(self.configIntLogger))
 
     def init(self):
@@ -152,11 +153,34 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                 if slot[0] == cls.condorActivityDrained:
                     nDrainedSlots += 1
                     statusDraining = True
+                    cls.mr.machines[machine_id][regMachineDrain] = True
                 if slot[1] == cls.condorStatusRetiring:
                     statusDraining = True
+                    cls.mr.machines[machine_id][regMachineDrain] = True
         except KeyError:
             pass
         return nDrainedSlots, statusDraining
+
+    @classmethod
+    def isMachineBusy(cls, machine_id):
+        # type: (dict) -> float
+        """Return true if minimal one slot is claimed
+
+        :param machine_id: Single machine registry entry
+        :type machine_id: str
+        :return: float
+        """
+        machine = cls.mr.machines[machine_id]
+        cores_claimed = 0.0
+        machine[cls.mr.regMachineBusy] = False
+        for slot in range(len(machine[cls.reg_site_condor_status])):
+            if machine[cls.reg_site_condor_status][slot][0] in cls.condorStatusClaimed:
+                machine[cls.mr.regMachineBusy] = True
+                break
+
+        return machine[cls.mr.regMachineBusy] 
+
+
 
     @property
     def siteName(self):
@@ -222,14 +246,14 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                 elif self.mr.calcLastStateChange(mid) > condor_timeout:
                     self.mr.updateMachineStatus(mid, self.mr.statusDisintegrated)
 
-            # "Working" machines need machine load > 0.01, otherwise they are "unclaimed".
+            # "Working" machines has minimal one claimed slot, otherwise they are "unclaimed".
             # -> "pending disintegration"
             if machine_[self.mr.regStatus] == self.mr.statusWorking:
                 if machine_[self.reg_site_server_node_name] in condor_machines:
                     # update condor slot status & calculate machine load
                     self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                         machine_[self.reg_site_server_node_name]]
-                    if self.calcMachineLoad(mid) <= 0.01 and self.mr.calcLastStateChange(mid) > condor_wait_working:
+                    if self.isMachineBusy(mid) == False and self.mr.calcLastStateChange(mid) > condor_wait_working:
                         self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration)
                     # If slot activity/machine state indicate draining -> Pending Disintegration
                     if self.calcDrainStatus(mid)[1] is True:
@@ -247,11 +271,11 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                         # update condor slot status & calculate machine load
                         self.mr.machines[mid][self.reg_site_condor_status] = condor_machines[
                             machine_[self.reg_site_server_node_name]]
-                        self.calcMachineLoad(mid)
+                        self.isMachineBusy(mid)
 
-                        # machine load > 0.01 -> at least one slot is claimed -> re-enable
+                        # at least one slot is claimed -> re-enable
                         # TODO: Switch to an integer "cores_claimed" and compare > 0
-                        if self.mr.machines[mid][self.mr.regMachineLoad] > 0.01:
+                        if self.mr.machines[mid][self.mr.regMachineBusy] == True:
                             # Only re-enable non-draining nodes
                             if self.calcDrainStatus(mid)[1] is False:
                                 self.mr.updateMachineStatus(mid, self.mr.statusWorking)

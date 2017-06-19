@@ -62,6 +62,8 @@ class MachineRegistry(Event.EventPublisher, Singleton):
     regMachineId = "machine_id"
     regMachineCores = "machine_cores"
     regMachineLoad = "machine_load"
+    regMachineBusy = "machine_busy"
+    regMachineDrain = "machine_drained"
     regVpnIp = "vpn_ip"
     regVpnCert = "vpn_cert"
     regVpnCertIsValid = "vpn_cert_is_valid"
@@ -134,6 +136,8 @@ class MachineRegistry(Event.EventPublisher, Singleton):
         self.machines[mid] = dict()
         self.machines[mid][self.regSite] = self.regSite
         self.machines[mid][self.statusChangeHistory] = []
+        self.machines[mid][self.regMachineBusy] = False
+        self.machines[mid][self.regMachineDrain] = False
         self.publishEvent(NewMachineEvent(mid))
         return mid
 

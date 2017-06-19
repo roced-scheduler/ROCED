@@ -25,6 +25,7 @@ import re
 from xml.dom import minidom
 import datetime
 import time
+from collections import Counter
 
 from Core import MachineRegistry, Config
 from SiteAdapter.Site import SiteAdapterBase
@@ -45,16 +46,14 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     configIgnoreDrainingMachines = "ignore_draining_machines"
     configDrainWorkingMachines = "drain_working_machines"
     configVMNamePrefix = "vm_prefix"
-    configIntegrationAdapterType = "IntegrationAdapterType"
 
     regMachineJobId = "batch_job_id"
     __vmStartScript = "startVM.py"
+    vanishedVMs = Counter()
     """Python script to be executed in Freiburg. This starts the VM with the corresponding image.
     This python script has to be adapted on the server with user name, OpenStack Dashboard PW,
     image GUID, etc.
     """
-    __vmNamePrefix = "moab-vm-"
-    """VM machine name prefix. This prefix must be the same in the batch system"""
 
     def __init__(self):
         super(FreiburgSiteAdapter, self).__init__()
@@ -82,8 +81,6 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                                "if it has to terminate machines?", default=False)
         self.addCompulsoryConfigKeys(self.configVMNamePrefix, Config.ConfigTypeString,
                                      "prefix for VMs' hostname")
-        self.addCompulsoryConfigKeys(self.configIntegrationAdapterType, Config.ConfigTypeString,
-                                     "Type of the integration adapter")
 
 
         self.__default_machine = "vm-default"
@@ -91,16 +88,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     def init(self):
         self.mr.registerListener(self)
         self.logger = logging.getLogger(self.getConfig(self.configSiteLogger))
-        self.__readVMNamePrefix()
         super(FreiburgSiteAdapter, self).init()
+        self.__readVMNamePrefix()
+        self.reg_site_server_node_name = "reg_site_server_node_name"
 
-
-        ###
-        # Connect IntegrationAdapter with SideAdapter
-        ###
-        integrationAdapterType = str("IntegrationAdapter.")+self.getConfig(self.configIntegrationAdapterType)
-        IntegrationAdapter = __import__(integrationAdapterType, fromlist=["IntegrationAdapter"] )
-        reg_site_server_node_name = "reg_site_server_node_name" 
 
 
 
@@ -108,17 +99,18 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         ###
         # Try to add "booting" machines (submitted batch jobs) to machine registry.
         ###
+        # Getting List of running, completed and idle Machines from the MOAB XML output:
         try:
-            idleJobs = self.__idleJobs
-            runningJobs = self.__runningJobs
-            completedJobs = self.__completedJobs
+            frJobs = self.__getJobs
+            if frJobs is None:
+                raise ValueError
         except ValueError:
-            if idleJobs is None:
-                idleJobs = []
-            if runningJobs is None:
-                runningJobs = {}
-            if completedJobs is None:
-                completedJobs = {}
+            frJobs = [{}, {}, {}, {}]
+
+        idleJobs=merge_dicts(frJobs[0],frJobs[1])
+        blockedJobs=frJobs[1]
+        runningJobs=frJobs[2]
+        completedJobs=frJobs[3]
 
         # Machines that are found running get this type by default
         self.__default_machine = list(self.getConfig(self.ConfigMachines).keys())[0]
@@ -130,6 +122,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 if machine_[self.regMachineJobId] in runningJobs:
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                 elif machine_[self.regMachineJobId] in completedJobs:
+                    self.logger.debug("MOAB job %s is completet: Machine %s is DOWN" % (mr[mid][self.regMachineJobId], mid) )
                     self.mr.updateMachineStatus(mid, self.mr.statusDown)
                 else:
                     self.logger.debug("Couldn't assign machine %s." % machine_[self.regMachineJobId])
@@ -140,8 +133,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regSiteType] = self.siteType
                 self.mr.machines[mid][self.mr.regMachineType] = self.__default_machine
                 self.mr.machines[mid][self.regMachineJobId] = jobId
-                self.mr.machines[mid][self.reg_site_server_node_name] = self.__getVMName(
-                    jobId)
+                self.mr.machines[mid][self.reg_site_server_node_name] = self.__getVMName(jobId)
                 self.mr.updateMachineStatus(mid, self.mr.statusBooting)
         self.logger.debug("Content of machine registry:\n%s" % self.getSiteMachines())
 
@@ -165,7 +157,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             count = maxMachinesPerCycle
         for i in range(count):
             # send batch jobs to boot machines
-            result = self.__execCmdInFreiburg("msub -m p -l walltime=%s,mem=%s,nodes=1:ppn=%d %s" % (machineSettings["walltime"], machineSettings["memory"], machineSettings["cores"], self.__vmStartScript))
+            result = self.__execCmdInFreiburg("msub -j oe -m p -l walltime=%s,mem=%s,nodes=1:ppn=%d %s" % (machineSettings["walltime"], machineSettings["memory"], machineSettings["cores"], self.__vmStartScript))
 
             # std_out = batch job id
             if result[0] == 0 and result[1].strip().isdigit():
@@ -201,29 +193,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         except KeyError:
             bootingMachines = []
 
-        # Running machines, sorted by load (idle first). These machines are put into drain mode
-        if self.getConfig(self.configDrainWorkingMachines) is True:
-            workingMachines = merge_dicts(
-                self.getSiteMachines(self.mr.statusIntegrating, machineType),
-                self.getSiteMachines(self.mr.statusWorking, machineType),
-                self.getSiteMachines(self.mr.statusPendingDisintegration, machineType))
-            try:
-                workingMachines = sorted(workingMachines.items(),
-                                         key=lambda machine_: IntegrationAdapter.calcMachineLoad(machine_[0]),
-                                         reverse=True)
-            except KeyError:
-                workingMachines = []
-            # Merge lists
-            machinesToRemove = bootingMachines + workingMachines
-        else:
-            machinesToRemove = bootingMachines
+        machinesToRemove = bootingMachines
 
         # needed amount of machines
         machinesToRemove = machinesToRemove[0:count]
 
         # list of batch job ids to terminate/drain
         idsToTerminate = []
-        idsToDrain = []
         idsRemoved = []
         idsInvalidated = []
 
@@ -231,23 +207,16 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             if machine[self.mr.regStatus] == self.mr.statusBooting:
                 # booting machines can be terminated immediately
                 idsToTerminate.append(machine[self.regMachineJobId])
-            elif self.getConfig(self.configDrainWorkingMachines):
-                if IntegrationAdapter.calcDrainStatus(mid)[1] is True:
-                    continue
-                # working machines should be set to drain mode
-                idsToDrain.append(machine[self.regMachineJobId])
 
         self.logger.debug("Machines to terminate (%d): %s" % (len(idsToTerminate), ", ".join(idsToTerminate)))
         if idsToTerminate:
             idsRemoved, idsInvalidated = self.__cancelFreiburgMachines(idsToTerminate)
 
-        self.logger.debug("Machines to drain (%d): %s" % (len(idsToDrain), ", ".join(idsToDrain)))
-        if idsToDrain:
-            [IntegrationAdapter.drainMachine(mid) for mid, machine in self.getSiteMachines().items()
-             if machine[self.regMachineJobId] in idsToDrain]
-
         if len(idsRemoved + idsInvalidated) > 0:
             # update status
+            [self.logger.debug("Machine %s was terminated an is now DOWN " % mid) for mid, machine
+             in self.getSiteMachines().items()
+             if machine[self.regMachineJobId] in idsRemoved + idsInvalidated]
             [self.mr.updateMachineStatus(mid, self.mr.statusDown) for mid, machine
              in self.getSiteMachines().items()
              if machine[self.regMachineJobId] in idsRemoved + idsInvalidated]
@@ -275,7 +244,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 nDrainedSlots = 0
 
                 for mid in runningMachines[machineType]:
-                    nDrainedSlots += IntegrationAdapter.calcDrainStatus(mid)[0]
+                    try:
+                        nDrainedSlots += self.mr.machines[mid][self.mr.regMachineDrain]*self.mr.machines[mid][self.mr.regMachineCores]
+                    except:
+                        self.logger.debug("can not count drained slots for machine %s" % mid)
                 nCores = self.getConfig(self.ConfigMachines)[machineType]["cores"]
                 nMachines = len(runningMachines[machineType])
                 # Calculate the number of available slots
@@ -313,6 +285,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                         self.__cancelFreiburgMachines([self.mr.machines[evt.id].get(self.regMachineJobId)])
                 except Exception as err:
                     self.logger.warning("Canceling machine failed with exception %s" % err)
+                self.logger.debug("Machine %s goes direct from state disintegrated to state down" % evt.id)
+                self.logger.debug("Event is %s" % repr(evt))
+                if hasattr(evt, '__dict__'):
+                    self.logger.debug("Event dict is %s" % repr(evt.__dict__))
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDown)
 
     def manage(self):
@@ -327,24 +303,19 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         IntegrationAdapter is responsible for handling Integrating, Working,
         PendingDisintegration, Disintegrating
         """
+
+        # Getting List of running, completed and idle Machines from the MOAB XML output:
         try:
-            frJobsRunning = self.__runningJobs
-            if frJobsRunning is None:
+            frJobs = self.__getJobs
+            if frJobs is None:
                 raise ValueError
         except ValueError:
-            frJobsRunning = {}
-        try:
-            frJobsCompleted = self.__completedJobs
-            if frJobsCompleted is None:
-                raise ValueError
-        except ValueError:
-            frJobsCompleted = {}
-        try:
-            frJobsIdle = self.__idleJobs
-            if frJobsIdle is None:
-                raise ValueError
-        except ValueError:
-            frJobsIdle = {}
+            frJobs = [{}, {}, {}, {}]
+
+        frJobsIdle=merge_dicts(frJobs[0],frJobs[1])
+        frJobsBlocked=frJobs[1]
+        frJobsRunning=frJobs[2]
+        frJobsCompleted=frJobs[3]
 
         mr = self.getSiteMachines()
         for mid in mr:
@@ -355,10 +326,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                               self.mr.statusDisintegrating]:
                 try:
                     frJobsRunning.pop(batchJobId)
+                    self.logger.debug('Removing batch-job %s from list of running Jobs' % mr[mid][self.regMachineJobId] )
                     continue
-                except (KeyError, AttributeError):
+                except (KeyError, AttributeError, IndexError):
                     # AttributeError: frJobsRunning is Empty
                     # KeyError: batchJobId not in frJobsRunning
+                    self.logger.debug('Matching between machine registry entry %s and batch-job ID (%s) failed during removal of machines with ignorable states.' % (mid, mr[mid][self.regMachineJobId]))
                     pass
             # Machines which failed to boot/died/got canceled (return code != 0) -> down
             # A machine MAY fail to boot with return code 0 or we just missed some states -> regular shutdown
@@ -379,7 +352,13 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 continue
             elif batchJobId in frJobsRunning:
                 # ROCED machine down, but job still running
-                frJobsRunning.pop(batchJobId)
+                try:
+                    frJobsRunning.pop(batchJobId)
+                    self.logger.debug('Removing batch-job (%s) from list of running Jobs' % batchJobId)
+                except (KeyError, AttributeError, IndexError):
+                    self.logger.debug('Matching between machine registry entry %s and batch-job ID (%s) failed during removal of down machines with still alive MOAB job.' % (mid, mr[mid][self.regMachineJobId]))
+                    pass
+ 
                 if self.mr.calcLastStateChange(mid) > 5*60:
                     self.__cancelFreiburgMachines(batchJobId)
                 continue
@@ -387,11 +366,20 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             if mr[mid][self.mr.regStatus] == self.mr.statusBooting:
                 # batch job running: machine -> up
                 if batchJobId in frJobsRunning:
+                    del self.vanishedVMs[mid]
                     self.mr.updateMachineStatus(mid, self.mr.statusUp)
                     frJobsRunning.pop(batchJobId)
-                # Machine disappeared. If the machine later appears again, it will be added automatically.
+                # Machine disappeared. If the MOAB job is completed.
                 elif batchJobId not in frJobsIdle and batchJobId not in frJobsCompleted:
-                    self.mr.updateMachineStatus(mid, self.mr.statusDown)
+                    self.logger.info('Corresponding MOAB-job (%s) for machine %s was not found (%s retry) ' % (mr[mid][self.regMachineJobId], mid, self.vanishedVMs[mid]))
+                    self.vanishedVMs[mid] += 1
+                    if self.vanishedVMs[mid] >= 5:
+                        self.logger.debug("Corresponding Moab-job %s for machine %s was not found for 3 cycles" % (mr[mid][self.regMachineJobId], mid))
+                        self.mr.updateMachineStatus(mid, self.mr.statusDown)
+                        del self.vanishedVMs[mid]
+                else:
+                    del self.vanishedVMs[mid]
+
 
         # All remaining unaccounted batch jobs
         for batchJobId in frJobsRunning:
@@ -411,7 +399,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                             len(self.getSiteMachines(status=self.mr.statusWorking)))
             jsonLog.addItem(self.siteName, "nodes_draining",
                             len([mid for mid in self.getSiteMachines(status=self.mr.statusPendingDisintegration)
-                                 if IntegrationAdapter.calcDrainStatus(mid)[1] is True]))
+                                 if self.mr.machines[mid][self.mr.regMachineBusy] is True]))
             jsonLog.addItem(self.siteName, "machines_requested",
                             len(self.getSiteMachines(status=self.mr.statusBooting)) +
                             len(self.getSiteMachines(status=self.mr.statusUp)) +
@@ -466,6 +454,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         return idsRemoved, idsInvalidated
 
 
+
     def __readVMNamePrefix(self):
         """Read VM name prefix from config file communication with
         IntegrationAdapter."""
@@ -477,10 +466,10 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     
     def __getVMName(self, batchJobId):
         """Build VM name for communication with IntegrationAdapter.
-
         Machine registry value "reg_site_server_node_name" is used to communicate with
         IntegrationAdapter. This name must be built from the batch job id."""
-        return self.__vmNamePrefix + batchJobId
+        return self.__vmNamePrefix + str(batchJobId)
+
 
     @property
     def __userString(self):
@@ -498,18 +487,75 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
     @property
     @Caching(validityPeriod=-1, redundancyPeriod=300)
+    def __getJobs(self):
+        # replaces old __runningJobs, __idleJobs and __completedJobs
+        # Getting List of running, completed and idle Machines from the MOAB XML output:
+        cmd = "showq --xml %s && showq -c --xml %s" % ( self.__userString, self.__userString )
+        frResult = self.__execCmdInFreiburg(cmd)
+        if frResult[0] == 0:
+            # returns a list containing all batch jobs for a specific user
+            # see http://docs.adaptivecomputing.com/maui/commands/showq.php#activeexample
+            frJobsIdle = {}
+            frJobsBlocked = {}
+            frJobsRunning = {}
+            frJobsCompleted = {}
+            xmlOutput = minidom.parseString(frResult[1].replace('\n','').replace("</Data><Data>", ""))
+ 
+            xmlJobsList = xmlOutput.getElementsByTagName('queue')
+
+            for queue in xmlJobsList:
+                queueJobsList = queue.getElementsByTagName('job')
+                for line in queueJobsList:
+                        if queue.attributes['option'].value == 'eligible':
+                            line.attributes['State'].value == 'Idle' and frJobsIdle.update({str(line.attributes['JobID'].value): {"State": str(line.attributes['State'].value)}})
+                        if queue.attributes['option'].value == 'blocked':
+                            line.attributes['State'].value == 'Idle' and frJobsBlocked.update({str(line.attributes['JobID'].value): {"State": str(line.attributes['State'].value)}})
+                        if queue.attributes['option'].value == 'active':
+                            line.attributes['State'].value == 'Running' and frJobsRunning.update({str(line.attributes['JobID'].value): {
+                            "walltime": str(datetime.timedelta(seconds=int(line.attributes['StartTime'].value)+int(line.attributes['ReqAWDuration'].value)-int(time.time()))),
+                            "cores": int(line.attributes['ReqProcs'].value)}})
+                        if queue.attributes['option'].value == 'completed':
+                            line.attributes['State'].value == 'Completed' and frJobsCompleted.update({str(line.attributes['JobID'].value): {str(line.attributes['CompletionCode'].value)}})
+        elif frResult[0] == 255:
+            frJobsIdle = {}
+            frJobsBlocked = {}
+            frJobsRunning = {}
+            frJobsCompleted = {}
+            self.logger.warning("SSH connection (showq -r) could not be established.")
+            raise ValueError("SSH connection (showq -r) could not be established.")
+        else:
+            frJobsIdle = {}
+            frJobsBlocked = {}
+            frJobsRunning = {}
+            frJobsCompleted = {}
+            self.logger.warning("Problem running remote command (showq --xml) (RC %d):\n%s" % (frResult[0], frResult[2]))
+            raise ValueError("Problem running remote command (showq --xml) (RC %d):\n%s" % (frResult[0], frResult[2]))
+        frJobs=[frJobsIdle, frJobsBlocked, frJobsRunning, frJobsCompleted]
+        self.logger.debug("Idle:\n%s" % frJobs[0])
+        self.logger.debug("Blocked:\n%s" % frJobs[1])
+        self.logger.debug("Running:\n%s" % frJobs[2])
+        self.logger.debug("Completed:\n%s" % frJobs[3])
+        return frJobs
+
+
+    @property
+    @Caching(validityPeriod=-1, redundancyPeriod=300)
     def __runningJobs(self):
         # type: () -> dict
         """Get list of running batch jobs, filtered by user ID."""
         cmd = "showq -r --xml %s" % self.__userString
         frResult = self.__execCmdInFreiburg(cmd)
+        xmlOutput = minidom.parseString(frResult[1])
+        xmlJobsList = xmlOutput.getElementsByTagName('queue')
+
+
         if frResult[0] == 0:
             # returns a list containing all running batch jobs
             # see http://docs.adaptivecomputing.com/maui/commands/showq.php#activeexample
-            itemlist = minidom.parseString(frResult[1]).getElementsByTagName('job')
+            runningJobsList = minidom.parseString(frResult[1]).getElementsByTagName('job')
 
             frJobsRunning = {}
-            for line in itemlist:
+            for line in runningJobsList:
                 frJobsRunning.update(
                     {str(line.attributes['JobID'].value): {
                         "walltime": str(datetime.timedelta(seconds=int(line.attributes['StartTime'].value)+int(line.attributes['ReqAWDuration'].value)-int(time.time()))), 
@@ -525,62 +571,3 @@ class FreiburgSiteAdapter(SiteAdapterBase):
 
         self.logger.debug("Running:\n%s" % frJobsRunning)
         return frJobsRunning
-
-    @property
-    @Caching(validityPeriod=-1, redundancyPeriod=300)
-    def __idleJobs(self):
-        # type: () -> list
-        """Get list of idle (submitted, but not yet started) batch jobs, filtered by user ID."""
-        cmd = "showq -i %s" % self.__userString
-
-        frResult = self.__execCmdInFreiburg(cmd)
-
-        if frResult[0] == 0:
-            # returns a list containing all running batch jobs in Freiburg
-            # Negative lookahead for "eligible", otherwise he catches "0 eligible jobs".
-            frJobsIdle = re.findall("^(\d+)\s+(?!eligible)", frResult[1], re.MULTILINE)
-        elif frResult[0] == 255:
-            frJobsIdle = []
-            self.logger.warning("SSH connection (showq -i) could not be established.")
-            raise ValueError("SSH connection (showq -i) could not be established.")
-        else:
-            frJobsIdle = []
-            self.logger.warning("Problem running remote command (showq -i) (RC %d):\n%s" % (frResult[0], frResult[2]))
-            raise ValueError("Problem running remote command (showq -i) (RC %d):\n%s" % (frResult[0], frResult[2]))
-
-        self.logger.debug("Idle:\n%s" % frJobsIdle)
-        return frJobsIdle
-
-    @property
-    @Caching(validityPeriod=-1, redundancyPeriod=300)
-    def __completedJobs(self):
-        # type: () -> dict
-        """Get list of completed batch jobs, filtered by user ID."""
-        cmd = "showq -c %s" % self.__userString
-
-        frResult = self.__execCmdInFreiburg(cmd)
-
-        if frResult[0] == 0:
-            # returns a dict: {batch job id: return code/status, ..}
-            frJobsCompleted = {jobid: rc for jobid, rc in
-                               re.findall("""
-                               ^             # Match at the beginning of lines
-                               (\d+)         # batch job id (digits) = result 1
-                               (?:\(\d+\))?  # Array job
-                               \s+           # whitespace/tab
-                               [RCV]         # job state: completed, vacated, removed
-                               \s+           # whitespace/tab
-                               ([-A-Z0-9]+)  # Return-code = result 2: +/- int or CNCLD
-                               \s+.+$        # useless rest
-                               """, frResult[1], re.MULTILINE | re.VERBOSE)}
-        elif frResult[0] == 255:
-            frJobsCompleted = {}
-            self.logger.warning("SSH connection (showq -c) could not be established.")
-            raise ValueError("SSH connection (showq -c) could not be established.")
-        else:
-            frJobsCompleted = {}
-            self.logger.warning("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
-            raise ValueError("Problem running remote command (showq -c) (RC %d):\n%s" % (frResult[0], frResult[2]))
-
-        self.logger.debug("Completed:\n%s" % frJobsCompleted)
-        return frJobsCompleted
