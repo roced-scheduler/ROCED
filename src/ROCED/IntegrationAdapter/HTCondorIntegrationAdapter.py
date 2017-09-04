@@ -153,10 +153,10 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                 if slot[0] == cls.condorActivityDrained:
                     nDrainedSlots += 1
                     statusDraining = True
-                    cls.mr.machines[machine_id][self.mr.regMachineDrain] = True
+                    cls.mr.machines[machine_id][cls.mr.regMachineDrain] = True
                 if slot[1] == cls.condorStatusRetiring:
                     statusDraining = True
-                    cls.mr.machines[machine_id][self.mr.regMachineDrain] = True
+                    cls.mr.machines[machine_id][cls.mr.regMachineDrain] = True
         except KeyError:
             pass
         return nDrainedSlots, statusDraining
