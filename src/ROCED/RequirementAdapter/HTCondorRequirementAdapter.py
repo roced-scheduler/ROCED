@@ -105,16 +105,17 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
         elif any(error_string in result[1] for error_string in self._CLI_error_strings):
             self.logger.warning("condor_q request timed out.")
             return None
+        else:
+            self.logger.info("Successfully got HTCondor queue status.")
 
         queue_line = (entry.split(",", 3) for entry in str(result[1]).splitlines())
-        converted_line = ((int(status), int(cores), requirement) for status, cores, requirement in queue_line)
+        converted_line = ((int(status), int(cores), str(requirement)) for status, cores, requirement in queue_line)
         if self.getConfig(self.configCondorRequirement):
             # TODO: We could use ClassAd bindings, to check requirement(s)
             filtered_line = ((status, cores) for status, cores, requirement in converted_line
                              if self.getConfig(self.configCondorRequirement) in requirement)
         else:
             filtered_line = ((status, cores) for status, cores, requirement in converted_line)
-
         required_cpus_total = 0
         required_cpus_idle_jobs = 0
         required_cpus_running_jobs = 0
@@ -125,14 +126,15 @@ class HTCondorRequirementAdapter(RequirementAdapterBase):
                     required_cpus_idle_jobs += requested_cpus
                 elif job_status == self.condorStatusRunning:
                     required_cpus_running_jobs += requested_cpus
-        except ValueError:
+        except ValueError as valueerror:
             # This error should only occur, if the result was empty AND CondorRequirement is initial
-            required_cpus_total = 0
-            required_cpus_idle_jobs = 0
-            required_cpus_running_jobs = 0
+            #required_cpus_total = 0
+            #required_cpus_idle_jobs = 0
+            #required_cpus_running_jobs = 0
+            self.logger.warning("ValueError in processing HTCondor output: %s." % valueerror.args)
 
-        self.logger.debug("HTCondor queue: Idle: %d; Running: %d." %
-                          (required_cpus_idle_jobs, required_cpus_running_jobs))
+        self.logger.debug("HTCondor queue: Idle: %d; Running: %d; Total: %d." %
+                          (required_cpus_idle_jobs, required_cpus_running_jobs, required_cpus_total))
 
         # cores->machines: machine definition required for RequirementAdapter
         n_cores = - int(self.getConfig(self.configMachines)[self.getNeededMachineType()]["cores"])
