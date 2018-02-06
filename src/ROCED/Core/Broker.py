@@ -213,13 +213,13 @@ class FeedbackBroker(SiteBrokerBase):
                     for mid in self.mr.machines:
                         if self.mr.machines[mid]["site"] == siteInfo.siteName and \
                             self.mr.machines[mid][self.mr.regMachineType] == mName:
-                            if self.mr.machines[mid][self.mr.regStatus] is self.mr.statusWorking and \
-                                self.mr.machines[mid][self.mr.regStatus] is self.mr.statusDown:
+                            if self.mr.machines[mid][self.mr.regStatus] != self.mr.statusWorking and \
+                                self.mr.machines[mid][self.mr.regStatus] != self.mr.statusDown:
                                 number_of_not_working_pilots += 1
                             if self.mr.machines[mid]["site"] == siteInfo.siteName and \
-                                self.mr.machines[mid][self.mr.regStatus] is not self.mr.statusDown:
+                                self.mr.machines[mid][self.mr.regStatus] != self.mr.statusDown:
                                 delta -= 1
-                    if mReq.required >=1:
+                    if mReq.required >=3:
                         # request VMs per site up to a fix number of not running/idle machines
                         default_delta = siteInfo.machinesPerCycle
                         delta = max(default_delta - number_of_not_working_pilots, 0)
