@@ -213,8 +213,8 @@ class FeedbackBroker(SiteBrokerBase):
                     for mid in self.mr.machines:
                         if self.mr.machines[mid]["site"] == siteInfo.siteName and \
                             self.mr.machines[mid][self.mr.regMachineType] == mName:
-                            if self.mr.machines[mid][self.mr.regStatus] is not self.mr.statusWorking and \
-                                self.mr.machines[mid][self.mr.regStatus] is not self.mr.statusDown:
+                            if self.mr.machines[mid][self.mr.regStatus] is self.mr.statusWorking and \
+                                self.mr.machines[mid][self.mr.regStatus] is self.mr.statusDown:
                                 number_of_not_working_pilots += 1
                             if self.mr.machines[mid]["site"] == siteInfo.siteName and \
                                 self.mr.machines[mid][self.mr.regStatus] is not self.mr.statusDown:
