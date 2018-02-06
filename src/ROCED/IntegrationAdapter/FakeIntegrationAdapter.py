@@ -44,6 +44,9 @@ class FakeIntegrationAdapter(IntegrationAdapterBase):
                                      description="Site name")
         self.addOptionalConfigKeys(self.configSiteLogger, Config.ConfigTypeString,
                                    description="Logger name of Site Adapter", default="FakeInt")
+        self.addOptionalConfigKeys(self.configWaitPD, Config.ConfigTypeInt,
+                                   description="time to wait for pending disintegration", default=None)
+
         self.mr.registerListener(self)
 
     def init(self):
@@ -57,9 +60,10 @@ class FakeIntegrationAdapter(IntegrationAdapterBase):
          if self.mr.calcLastStateChange(mid) > random.randint(2, 6)]
 
         # In our test cases, this is done by site adapter & requirement adapter
-        # [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration) for mid
-        #  in self.mr.getMachines(status=self.mr.statusWorking)
-        #  if self.mr.calcLastStateChange(mid) > random.randint(2, 6)]
+        if type(self.getConfig(self.configWaitPD)) is int:
+            [self.mr.updateMachineStatus(mid, self.mr.statusPendingDisintegration) for mid
+             in self.mr.getMachines(status=self.mr.statusWorking)
+             if self.mr.calcLastStateChange(mid) > random.randint(2, 6)]
         [self.mr.updateMachineStatus(mid, self.mr.statusWorking) for mid
          in self.mr.getMachines(site=self.siteName, status=self.mr.statusIntegrating)]
 
@@ -72,6 +76,7 @@ class FakeIntegrationAdapter(IntegrationAdapterBase):
                 self.mr.updateMachineStatus(evt.id, self.mr.statusIntegrating)
             elif evt.newStatus == self.mr.statusWorking:
                 self.mr.machines[evt.id][self.mr.regMachineLoad] = 0
+                self.mr.machines[evt.id][self.mr.regMachineBusy] = False
             elif evt.newStatus == self.mr.statusPendingDisintegration:
                 # ha, machine to disintegrate
                 self.mr.updateMachineStatus(evt.id, self.mr.statusDisintegrating)

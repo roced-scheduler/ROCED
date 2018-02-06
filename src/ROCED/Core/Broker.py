@@ -1,19 +1,19 @@
 # ===============================================================================
 #
 # Copyright (c) 2010, 2011, 2015 by Georg Fleig, Thomas Hauth and Stephan Riedel
-# 
+#
 # This file is part of ROCED.
-# 
+#
 # ROCED is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # ROCED is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
@@ -24,6 +24,7 @@ import abc
 import logging
 from datetime import datetime
 from operator import attrgetter
+from . import MachineRegistry
 
 
 class SiteBrokerBase(object):
@@ -63,7 +64,7 @@ class StupidBroker(SiteBrokerBase):
     """
 
     # the global(!) maximum of cloud instances to run
-    # can be used as a fallback while debugging Brokering code     
+    # can be used as a fallback while debugging Brokering code
     def __init__(self, max_instances=1000, shutdown_delay=0):
         self.delayedShutdownTime = None
         self.shutdownDelay = shutdown_delay  # seconds
@@ -149,5 +150,83 @@ class StupidBroker(SiteBrokerBase):
                                 self.delayedShutdownTime = datetime.now()
 
                         toSpawn = 0
+
+        return siteOrders
+
+class FeedbackBroker(SiteBrokerBase):
+    """
+    This class implements a simple cloud allocation scheme:
+    - boot machines on all available site up to one idle machine per site
+    - shutdown unneeded machines
+    """
+
+    # the global(!) maximum of cloud instances to run
+    # can be used as a fallback while debugging Brokering code
+    def __init__(self, max_instances=1000, shutdown_delay=0):
+        self.delayedShutdownTime = None
+        self.shutdownDelay = shutdown_delay  # seconds
+        self._maxInstances = max_instances
+        self.logger = logging.getLogger("Broker")
+        self.mr = MachineRegistry.MachineRegistry()
+
+    @staticmethod
+    def modSiteOrders(dict_, siteName, machineName, mod):
+        """
+        Increases or decreases the machines which should be stopped or started
+        :param mod:
+        :param machineName:
+        :param siteName:
+        :type dict_: Dictionary to be manipulated
+        """
+        if mod == 0:
+            return
+
+        if siteName not in dict_:
+            dict_[siteName] = dict({machineName: 0})
+
+        if machineName not in dict_[siteName]:
+            dict_[siteName][machineName] = 0
+
+        dict_[siteName][machineName] += mod
+
+    def decide(self, machineTypes, sitesInfo):
+        """Redistribute cloud usage."""
+        # TODO: report if not all req can be met
+        machinesToSpawn = dict()
+        # machinesToSpawn contains a wishlist of machines. Distribute this to the cloud.
+        # Spawn cheap sites first.
+        cheapFirst = sorted(sitesInfo, key=attrgetter("cost"), reverse=False)
+        # Shutdown expensive sites first.
+        expensiveFirst = sorted(sitesInfo, key=attrgetter("cost"), reverse=True)
+        siteOrders = dict()
+
+
+        # run over machine types
+        for (mName, mReq) in machineTypes.items():
+            # don't request new machines in case of failure or no request exist
+            for siteInfo in sitesInfo:
+                if mName in siteInfo.supportedMachineTypes:
+                    number_of_not_working_pilots = 0
+                    delta = 0
+
+                    # Count number of idle machines
+                    for mid in self.mr.machines:
+                        if self.mr.machines[mid]["site"] == siteInfo.siteName and \
+                            self.mr.machines[mid][self.mr.regMachineType] == mName:
+                            if self.mr.machines[mid][self.mr.regStatus] is not self.mr.statusWorking and \
+                                self.mr.machines[mid][self.mr.regStatus] is not self.mr.statusDown:
+                                number_of_not_working_pilots += 1
+                            if self.mr.machines[mid]["site"] == siteInfo.siteName and \
+                                self.mr.machines[mid][self.mr.regStatus] is not self.mr.statusDown:
+                                delta -= 1
+                    if mReq.required >=1:
+                        # request VMs per site up to a fix number of not running/idle machines
+                        default_delta = siteInfo.machinesPerCycle
+                        delta = max(default_delta - number_of_not_working_pilots, 0)
+
+                    self.logger.info("Machine type '%s' and site '%s': not working pilots %d, request %d" %
+                                (mName, siteInfo.siteName, number_of_not_working_pilots, delta))
+
+                    self.modSiteOrders(siteOrders,siteInfo.siteName, mName, delta)
 
         return siteOrders

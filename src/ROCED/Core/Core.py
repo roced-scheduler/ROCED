@@ -1,19 +1,19 @@
 # ===============================================================================
 #
 # Copyright (c) 2010, 2011, 2015 by Georg Fleig, Thomas Hauth and Stephan Riedel
-# 
+#
 # This file is part of ROCED.
-# 
+#
 # ROCED is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # ROCED is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with ROCED.  If not, see <http://www.gnu.org/licenses/>.
 #
@@ -240,6 +240,8 @@ class ScaleCoreFactory(object):
         # TODO: Get rid of hard-coded StupidBroker
         if broker_type == "Broker.StupidBroker":
             return Broker.StupidBroker(max_instances=4000)
+        elif broker_type == "Broker.FeedbackBroker":
+            return Broker.FeedbackBroker(max_instances=4000)
         else:
             raise NotImplementedError("Broker type %s not supported." % broker_type)
 
