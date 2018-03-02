@@ -23,6 +23,9 @@ from __future__ import unicode_literals, absolute_import
 import datetime
 import logging
 import uuid
+from keystoneauth1 import loading
+from keystoneauth1 import session
+import os
 
 try:
     from novaclient.client import Client
@@ -73,6 +76,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
     configKeypair = "openstack_keypair_id"
     configNetwork = "openstack_network_id"
     configUserData = "user_data"
+    configUserDomainName = "user_domain_name"
+    configProjectName = "project_name"
+    configDiskSize = "disk_size"
 
     # name, id and status of VMs at OpenStack
     reg_site_server_name = "reg_site_server_name"
@@ -106,8 +112,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         self.addCompulsoryConfigKeys(self.configUser, Config.ConfigTypeString,
                                      "OpenStack user name")
         self.addCompulsoryConfigKeys(self.configPass, Config.ConfigTypeString, "OpenStack password")
-        self.addCompulsoryConfigKeys(self.configTenant, Config.ConfigTypeString,
-                                     "OpenStack tenant information")
+        self.addCompulsoryConfigKeys(self.configProjectName, Config.ConfigTypeString,
+                                     "OpenStack project name")
+        self.addOptionalConfigKeys(self.configUserDomainName, Config.ConfigTypeString,
+                                     "OpenStack User domain name",
+                                     default = "default")
         self.addOptionalConfigKeys(self.configTimeout, Config.ConfigTypeInt,
                                    description="OpenStack connection timeout", default=300)
         self.addOptionalConfigKeys(self.configAdmin, Config.ConfigTypeString,
@@ -117,6 +126,13 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                                    description="OpenStack admin password", default=None)
         self.addOptionalConfigKeys(self.configAdminTenant, Config.ConfigTypeString,
                                    description="OpenStack admin tenant", default=None)
+        self.addOptionalConfigKeys(self.configProjectName, Config.ConfigTypeString,
+                                   description="project name",
+                                   default="default")
+        self.addOptionalConfigKeys(self.configDiskSize, Config.ConfigTypeInt,
+                                   description="size of system disk",
+                                   default=0)
+
 
         # TODO check if this is really needed...
         # init ConfigMachineType with empty dictionary
@@ -239,10 +255,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             fls = self.getConfig(self.configFlavor)  # nova.flavors.find(name=self.getConfig(self.configFlavor))
             img = self.getConfig(self.configImage)  # nova.images.find(name=self.getConfig(self.configImage))
             key = self.getConfig(self.configKeypair)  # nova.keypairs.list()
+            disk_size = self.getConfig(self.configDiskSize)
             name_prefix = str(self.siteName + "-")
-            print self.getConfig(self.configUserData)
+            print(self.getConfig(self.configUserData))
             user_data = open(self.getConfig(self.configUserData), "r")
-            print user_data
+            print(user_data)
             daytime = datetime.datetime.strptime(self.getConfig(self.configDay), "%H:%M")
             nighttime = datetime.datetime.strptime(self.getConfig(self.configNight), "%H:%M")
 
@@ -281,11 +298,24 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 mid = name_prefix + str(uuid.uuid4())
                 self.mr.newMachine(mid)
                 # spawn machine at site
-                if not key is None:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}], userdata=user_data,
-                                             key_name=key)
+                if key is None and disk_size is 0:
+                    vm = nova.servers.create(mid, img, fls,
+                                             nics=[{"net-id": netw}],
+                                             userdata=user_data)
+                elif key is None:
+                    print("disk size: %s" % disk_size)
+                    vm = nova.servers.create(mid, img, fls,
+                                             nics=[{"net-id": netw}],
+                                             userdata=user_data, disk=100)
+                elif disk_size is 0:
+                    vm = nova.servers.create(mid, img, fls,
+                                             nics=[{"net-id": netw}],
+                                             userdata=user_data, key_name=key)
                 else:
-                    vm = nova.servers.create(mid, img, fls, nics=[{"net-id": netw}], userdata=user_data)
+                    vm = nova.servers.create(mid, img, fls,
+                                             nics=[{"net-id": netw}],
+                                             userdata=user_data, disk=disk_size,
+                                             key_name=key)
 
                 # set some machine information in machine registry
                 self.mr.machines[mid][self.mr.regSite] = self.siteName
@@ -517,8 +547,6 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         # Write Json log file:
         #  requested machines, nodes, draining nodes.
         ###
-        self.logger.info("Current machines running at %s: %d" %
-                         (self.siteName, self.runningMachinesCount[self.getConfig(self.configMachines).keys()[0]]))
         json_log = JsonLog()
         json_log.addItem(self.siteName, "machines_requested",
                          int(len(self.getSiteMachines(status=self.mr.statusBooting)) +
@@ -579,18 +607,34 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         # login in data to OpenStack
         if admin_access:
-            user = self.getConfig(self.configAdmin)
-            password = self.getConfig(self.configAdminPass)
-            tenant = self.getConfig(self.configAdminTenant)
+            logger.info("admin settings are not suported anymore")
+            exit(1)
         else:
             user = self.getConfig(self.configUser)
             password = self.getConfig(self.configPass)
-            tenant = self.getConfig(self.configTenant)
-        keystone = self.getConfig(self.configKeystoneServer)
-        time_out = self.getConfig(self.configTimeout)
+            user_domain_name = self.getConfig(self.configUserDomainName)
+            project_name = self.getConfig(self.configProjectName)
+            keystone = self.getConfig(self.configKeystoneServer)
+            time_out = self.getConfig(self.configTimeout)
 
-        # client = __import__("novaclient", globals(), locals(), [], 0)
-        return Client(2, user, password, tenant, keystone, timeout=time_out)
+#            user_domain_name=os.getenv('OS_USER_DOMAIN_NAME')
+#            project_name=os.getenv('OS_PROJECT_NAME')
+
+
+            # client = __import__("novaclient", globals(), locals(), [], 0)
+            return Client(2, user, password, user_domain_name=user_domain_name,
+                         auth_url=keystone, project_name=project_name,
+                         timeout=time_out)
+
+#        loader = loading.get_plugin_loader('password')
+#        auth = loader.load_from_options(auth_url=os.getenv('OS_AUTH_URL'),
+#                                        username=os.getenv('OS_USERNAME'),
+#                                        password=os.getenv('OS_PASSWORD'),
+#                                        user_domain_name=os.getenv('OS_USER_DOMAIN_NAME'),
+#                                        project_name=os.getenv('OS_PROJECT_NAME'))
+#
+#        sess = session.Session(auth=auth)
+#        return Client(2, session=sess)
 
     def __getNovaMachines(self):
         """Get list of machines from OpenStack
