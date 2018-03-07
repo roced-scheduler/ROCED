@@ -29,7 +29,8 @@ import os
 
 try:
     from novaclient.client import Client
-    from novaclient.v1_1.hypervisors import HypervisorManager
+    from novaclient.v2.hypervisors import HypervisorManager
+    import cinderclient.client
 except ImportError as e:
     print(e)
 
@@ -194,6 +195,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         self._machineType = list(self.getConfig(self.configMachines).keys())[0]
 
+        self.__Session = self.__getAuthSession()
+
+
     def getMaxMachines(self):
         """
         Get maximum number of allowed VMs on site
@@ -249,7 +253,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         try:
             nova = self.__getNovaApi()
-
+            cinder = cinderclient.client.Client("2",session=self.__Session)
             # important to give a specifc network due to bug in nova api:
             netw = self.getConfig(self.configNetwork)
             fls = self.getConfig(self.configFlavor)  # nova.flavors.find(name=self.getConfig(self.configFlavor))
@@ -298,24 +302,38 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 mid = name_prefix + str(uuid.uuid4())
                 self.mr.newMachine(mid)
                 # spawn machine at site
+                volume_id = ''
+                block_dev_mapping_v2 = []
+                if disk_size != 0:
+                    volume_id = cinder.volumes.create(
+                                    size=self.getConfig(self.configDiskSize),
+                                    imageRef=self.getConfig(self.configImage)).id
+                    block_dev_mapping_v2=[{'uuid': volume_id,
+                                            'boot_index': '0',
+                                            'source_type': 'volume',
+                                            'destination_type': 'volume',
+                                            'delete_on_termination': True}]
+                    while(cinder.volumes.get(volume_id).status != "available"):
+                        True
+
                 if key is None and disk_size is 0:
                     vm = nova.servers.create(mid, img, fls,
                                              nics=[{"net-id": netw}],
                                              userdata=user_data)
                 elif key is None:
                     print("disk size: %s" % disk_size)
-                    vm = nova.servers.create(mid, img, fls,
+                    vm = nova.servers.create(mid, image=None, flavor=fls,
                                              nics=[{"net-id": netw}],
-                                             userdata=user_data, disk=100)
+                                             block_device_mapping_v2=block_dev_mapping_v2)
                 elif disk_size is 0:
                     vm = nova.servers.create(mid, img, fls,
                                              nics=[{"net-id": netw}],
                                              userdata=user_data, key_name=key)
                 else:
-                    vm = nova.servers.create(mid, img, fls,
+                    vm = nova.servers.create(mid, image=None, flavor=fls,
                                              nics=[{"net-id": netw}],
-                                             userdata=user_data, disk=disk_size,
-                                             key_name=key)
+                                             userdata=user_data, key_name=key,
+                                             block_device_mapping_v2=block_dev_mapping_v2)
 
                 # set some machine information in machine registry
                 self.mr.machines[mid][self.mr.regSite] = self.siteName
@@ -596,6 +614,19 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
                 return vm_hypervisor
 
+    def __getAuthSession(self):
+        """Create Keystone session
+        :return: KeyStoneSession
+        """
+        loader = loading.get_plugin_loader('password')
+        auth = loader.load_from_options(auth_url=self.getConfig(self.configKeystoneServer),
+                                username=self.getConfig(self.configUser),
+                                password=self.getConfig(self.configPass),
+                                user_domain_name=self.getConfig(self.configUserDomainName),
+                                project_name=self.getConfig(self.configProjectName))
+
+        return session.Session(auth=auth)
+
     def __getNovaApi(self, admin_access=False):
         """Nova Client API
 
@@ -609,32 +640,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         if admin_access:
             logger.info("admin settings are not suported anymore")
             exit(1)
-        else:
-            user = self.getConfig(self.configUser)
-            password = self.getConfig(self.configPass)
-            user_domain_name = self.getConfig(self.configUserDomainName)
-            project_name = self.getConfig(self.configProjectName)
-            keystone = self.getConfig(self.configKeystoneServer)
-            time_out = self.getConfig(self.configTimeout)
-
-#            user_domain_name=os.getenv('OS_USER_DOMAIN_NAME')
-#            project_name=os.getenv('OS_PROJECT_NAME')
-
-
-            # client = __import__("novaclient", globals(), locals(), [], 0)
-            return Client(2, user, password, user_domain_name=user_domain_name,
-                         auth_url=keystone, project_name=project_name,
-                         timeout=time_out)
-
-#        loader = loading.get_plugin_loader('password')
-#        auth = loader.load_from_options(auth_url=os.getenv('OS_AUTH_URL'),
-#                                        username=os.getenv('OS_USERNAME'),
-#                                        password=os.getenv('OS_PASSWORD'),
-#                                        user_domain_name=os.getenv('OS_USER_DOMAIN_NAME'),
-#                                        project_name=os.getenv('OS_PROJECT_NAME'))
-#
-#        sess = session.Session(auth=auth)
-#        return Client(2, session=sess)
+        return Client(2, session=self.__Session)
 
     def __getNovaMachines(self):
         """Get list of machines from OpenStack
