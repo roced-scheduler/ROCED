@@ -21,6 +21,7 @@
 from __future__ import unicode_literals, absolute_import
 
 import datetime
+import time
 import logging
 import uuid
 from keystoneauth1 import loading
@@ -299,7 +300,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             ###
             for count in range(requested):
                 # init new machine in machine registry
-                mid = name_prefix + str(uuid.uuid4())
+                mid = str(uuid.uuid4())
+                hostname = name_prefix +str(int(time.time()*1000))
                 self.mr.newMachine(mid)
                 # spawn machine at site
                 volume_id = ''
@@ -317,20 +319,20 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                         True
 
                 if key is None and disk_size is 0:
-                    vm = nova.servers.create(mid, img, fls,
+                    vm = nova.servers.create(hostname, img, fls,
                                              nics=[{"net-id": netw}],
                                              userdata=user_data)
                 elif key is None:
-                    print("disk size: %s" % disk_size)
-                    vm = nova.servers.create(mid, image=None, flavor=fls,
+                    vm = nova.servers.create(hostname, image=None, flavor=fls,
                                              nics=[{"net-id": netw}],
+                                             userdata=user_data,
                                              block_device_mapping_v2=block_dev_mapping_v2)
                 elif disk_size is 0:
-                    vm = nova.servers.create(mid, img, fls,
+                    vm = nova.servers.create(hostname, img, fls,
                                              nics=[{"net-id": netw}],
                                              userdata=user_data, key_name=key)
                 else:
-                    vm = nova.servers.create(mid, image=None, flavor=fls,
+                    vm = nova.servers.create(hostname, image=None, flavor=fls,
                                              nics=[{"net-id": netw}],
                                              userdata=user_data, key_name=key,
                                              block_device_mapping_v2=block_dev_mapping_v2)
@@ -341,8 +343,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
                 self.mr.machines[mid][self.reg_site_server_id] = vm.id
                 self.mr.machines[mid][self.reg_site_server_status] = vm.status
-                self.mr.machines[mid][self.reg_site_server_condor_name] = mid
-                self.mr.machines[mid][self.reg_site_server_name] = mid
+                self.mr.machines[mid][self.reg_site_server_condor_name] = hostname
+                self.mr.machines[mid][self.reg_site_server_name] = hostname
                 # if admin account is set, also set the hypervisor
                 if self.getConfig(self.configUseTime):
                     # time.sleep(1)
@@ -372,13 +374,26 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         :return:
         """
         try:
-            # initialize the NovaAPI
+            # initialize the NovaAPI and CinderAPI
             nova = self.__getNovaApi()
+            cinder = cinderclient.client.Client("2",session=self.__Session)
+            # get volume ID from VM
+            server =  nova.servers.find(id=self.mr.machines[mid.id][self.reg_site_server_id])
+            volume_ids = [ volumeID.id  for volumeID in nova.volumes.get_server_volumes(server.id) ]
+            self.logger.debug("volume ids for machine %s: %s" % (mid, volume_ids))
             # send terminate/delete command
             nova.servers.find(id=self.mr.machines[mid.id][self.reg_site_server_id]).delete()
+            # delete attached volumes
+            if self.getConfig(self.configDiskSize) > 0:
+                for volume_id in volume_ids:
+                    while(cinder.volumes.get(volume_id).status != "available"):
+                        True
+                    cinder.volumes.get(volume_id).delete()
             # remove from machine registry
+            self.logger.info("machine %s is removed" % mid.id)
             self.mr.removeMachine(mid)
-        except Exception:
+        except Exception as detail:
+            self.logger.info("error while termination of machine %s: %s" % (mid.id, detail))
             pass
 
     def __openstackStopMachine(self, mid):
@@ -661,10 +676,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
             if len(nova_results) >= 1:
                 for (id_, name, status) in nova_results:
-                    # set some machine information
-                    nova_machines[name] = {}
-                    nova_machines[name][self.reg_site_server_id] = id_
-                    nova_machines[name][self.reg_site_server_status] = status
+                    if str(self.siteName + "-") in name:
+                        # set some machine information
+                        nova_machines[name] = {}
+                        nova_machines[name][self.reg_site_server_id] = id_
+                        nova_machines[name][self.reg_site_server_status] = status
 
             return nova_machines
 
