@@ -21,6 +21,7 @@
 from __future__ import unicode_literals, absolute_import
 
 import datetime
+import time
 import logging
 import uuid
 from keystoneauth1 import loading
@@ -29,7 +30,8 @@ import os
 
 try:
     from novaclient.client import Client
-    from novaclient.v1_1.hypervisors import HypervisorManager
+    from novaclient.v2.hypervisors import HypervisorManager
+    import cinderclient.client
 except ImportError as e:
     print(e)
 
@@ -194,6 +196,9 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         self._machineType = list(self.getConfig(self.configMachines).keys())[0]
 
+        self.__Session = self.__getAuthSession()
+
+
     def getMaxMachines(self):
         """
         Get maximum number of allowed VMs on site
@@ -249,7 +254,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
         try:
             nova = self.__getNovaApi()
-
+            cinder = cinderclient.client.Client("2",session=self.__Session)
             # important to give a specifc network due to bug in nova api:
             netw = self.getConfig(self.configNetwork)
             fls = self.getConfig(self.configFlavor)  # nova.flavors.find(name=self.getConfig(self.configFlavor))
@@ -295,27 +300,42 @@ class OpenStackSiteAdapter(SiteAdapterBase):
             ###
             for count in range(requested):
                 # init new machine in machine registry
-                mid = name_prefix + str(uuid.uuid4())
+                mid = str(uuid.uuid4())
+                hostname = name_prefix +str(int(time.time()*1000))
                 self.mr.newMachine(mid)
                 # spawn machine at site
+                volume_id = ''
+                block_dev_mapping_v2 = []
+                if disk_size != 0:
+                    volume_id = cinder.volumes.create(
+                                    size=self.getConfig(self.configDiskSize),
+                                    imageRef=self.getConfig(self.configImage)).id
+                    block_dev_mapping_v2=[{'uuid': volume_id,
+                                            'boot_index': '0',
+                                            'source_type': 'volume',
+                                            'destination_type': 'volume',
+                                            'delete_on_termination': True}]
+                    while(cinder.volumes.get(volume_id).status != "available"):
+                        True
+
                 if key is None and disk_size is 0:
-                    vm = nova.servers.create(mid, img, fls,
+                    vm = nova.servers.create(hostname, img, fls,
                                              nics=[{"net-id": netw}],
                                              userdata=user_data)
                 elif key is None:
-                    print("disk size: %s" % disk_size)
-                    vm = nova.servers.create(mid, img, fls,
+                    vm = nova.servers.create(hostname, image=None, flavor=fls,
                                              nics=[{"net-id": netw}],
-                                             userdata=user_data, disk=100)
+                                             userdata=user_data,
+                                             block_device_mapping_v2=block_dev_mapping_v2)
                 elif disk_size is 0:
-                    vm = nova.servers.create(mid, img, fls,
+                    vm = nova.servers.create(hostname, img, fls,
                                              nics=[{"net-id": netw}],
                                              userdata=user_data, key_name=key)
                 else:
-                    vm = nova.servers.create(mid, img, fls,
+                    vm = nova.servers.create(hostname, image=None, flavor=fls,
                                              nics=[{"net-id": netw}],
-                                             userdata=user_data, disk=disk_size,
-                                             key_name=key)
+                                             userdata=user_data, key_name=key,
+                                             block_device_mapping_v2=block_dev_mapping_v2)
 
                 # set some machine information in machine registry
                 self.mr.machines[mid][self.mr.regSite] = self.siteName
@@ -323,8 +343,8 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 self.mr.machines[mid][self.mr.regMachineType] = machineType
                 self.mr.machines[mid][self.reg_site_server_id] = vm.id
                 self.mr.machines[mid][self.reg_site_server_status] = vm.status
-                self.mr.machines[mid][self.reg_site_server_condor_name] = mid
-                self.mr.machines[mid][self.reg_site_server_name] = mid
+                self.mr.machines[mid][self.reg_site_server_condor_name] = hostname
+                self.mr.machines[mid][self.reg_site_server_name] = hostname
                 # if admin account is set, also set the hypervisor
                 if self.getConfig(self.configUseTime):
                     # time.sleep(1)
@@ -354,13 +374,26 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         :return:
         """
         try:
-            # initialize the NovaAPI
+            # initialize the NovaAPI and CinderAPI
             nova = self.__getNovaApi()
+            cinder = cinderclient.client.Client("2",session=self.__Session)
+            # get volume ID from VM
+            server =  nova.servers.find(id=self.mr.machines[mid.id][self.reg_site_server_id])
+            volume_ids = [ volumeID.id  for volumeID in nova.volumes.get_server_volumes(server.id) ]
+            self.logger.debug("volume ids for machine %s: %s" % (mid, volume_ids))
             # send terminate/delete command
             nova.servers.find(id=self.mr.machines[mid.id][self.reg_site_server_id]).delete()
+            # delete attached volumes
+            if self.getConfig(self.configDiskSize) > 0:
+                for volume_id in volume_ids:
+                    while(cinder.volumes.get(volume_id).status != "available"):
+                        True
+                    cinder.volumes.get(volume_id).delete()
             # remove from machine registry
+            self.logger.info("machine %s is removed" % mid.id)
             self.mr.removeMachine(mid)
-        except Exception:
+        except Exception as detail:
+            self.logger.info("error while termination of machine %s: %s" % (mid.id, detail))
             pass
 
     def __openstackStopMachine(self, mid):
@@ -596,6 +629,19 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
                 return vm_hypervisor
 
+    def __getAuthSession(self):
+        """Create Keystone session
+        :return: KeyStoneSession
+        """
+        loader = loading.get_plugin_loader('password')
+        auth = loader.load_from_options(auth_url=self.getConfig(self.configKeystoneServer),
+                                username=self.getConfig(self.configUser),
+                                password=self.getConfig(self.configPass),
+                                user_domain_name=self.getConfig(self.configUserDomainName),
+                                project_name=self.getConfig(self.configProjectName))
+
+        return session.Session(auth=auth)
+
     def __getNovaApi(self, admin_access=False):
         """Nova Client API
 
@@ -609,32 +655,7 @@ class OpenStackSiteAdapter(SiteAdapterBase):
         if admin_access:
             logger.info("admin settings are not suported anymore")
             exit(1)
-        else:
-            user = self.getConfig(self.configUser)
-            password = self.getConfig(self.configPass)
-            user_domain_name = self.getConfig(self.configUserDomainName)
-            project_name = self.getConfig(self.configProjectName)
-            keystone = self.getConfig(self.configKeystoneServer)
-            time_out = self.getConfig(self.configTimeout)
-
-#            user_domain_name=os.getenv('OS_USER_DOMAIN_NAME')
-#            project_name=os.getenv('OS_PROJECT_NAME')
-
-
-            # client = __import__("novaclient", globals(), locals(), [], 0)
-            return Client(2, user, password, user_domain_name=user_domain_name,
-                         auth_url=keystone, project_name=project_name,
-                         timeout=time_out)
-
-#        loader = loading.get_plugin_loader('password')
-#        auth = loader.load_from_options(auth_url=os.getenv('OS_AUTH_URL'),
-#                                        username=os.getenv('OS_USERNAME'),
-#                                        password=os.getenv('OS_PASSWORD'),
-#                                        user_domain_name=os.getenv('OS_USER_DOMAIN_NAME'),
-#                                        project_name=os.getenv('OS_PROJECT_NAME'))
-#
-#        sess = session.Session(auth=auth)
-#        return Client(2, session=sess)
+        return Client(2, session=self.__Session)
 
     def __getNovaMachines(self):
         """Get list of machines from OpenStack
@@ -655,10 +676,11 @@ class OpenStackSiteAdapter(SiteAdapterBase):
 
             if len(nova_results) >= 1:
                 for (id_, name, status) in nova_results:
-                    # set some machine information
-                    nova_machines[name] = {}
-                    nova_machines[name][self.reg_site_server_id] = id_
-                    nova_machines[name][self.reg_site_server_status] = status
+                    if str(self.siteName + "-") in name:
+                        # set some machine information
+                        nova_machines[name] = {}
+                        nova_machines[name][self.reg_site_server_id] = id_
+                        nova_machines[name][self.reg_site_server_status] = status
 
             return nova_machines
 
