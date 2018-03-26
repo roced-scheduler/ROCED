@@ -46,6 +46,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
     configIgnoreDrainingMachines = "ignore_draining_machines"
     configDrainWorkingMachines = "drain_working_machines"
     configVMNamePrefix = "vm_prefix"
+    configSSHPrefix = "ssh_prefix"
 
     regMachineJobId = "batch_job_id"
     __vmStartScript = "startVM.py"
@@ -81,6 +82,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                                                "if it has to terminate machines?", default=False)
         self.addCompulsoryConfigKeys(self.configVMNamePrefix, Config.ConfigTypeString,
                                      "prefix for VMs' hostname")
+        self.addOptionalConfigKeys(self.configSSHPrefix, Config.ConfigTypeString,
+                                     description="prefix for ssh commands", default="")
 
 
         self.__default_machine = "vm-default"
@@ -358,7 +361,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
                 except (KeyError, AttributeError, IndexError):
                     self.logger.debug('Matching between machine registry entry %s and batch-job ID (%s) failed during removal of down machines with still alive MOAB job.' % (mid, mr[mid][self.regMachineJobId]))
                     pass
- 
+
                 if self.mr.calcLastStateChange(mid) > 5*60:
                     self.__cancelFreiburgMachines(batchJobId)
                 continue
@@ -414,6 +417,8 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         frSsh = Ssh(host=self.getConfig(self.configFreiburgServer),
                     username=self.getConfig(self.configFreiburgUser),
                     key=self.getConfig(self.configFreiburgKey))
+        cmd=self.getConfig(self.configSSHPrefix)+' "'+cmd+'"'
+        self.logger.debug("ssh command send: %s" % cmd)
         return frSsh.handleSshCall(call=cmd, quiet=True)
 
     def __cancelFreiburgMachines(self, batchJobIds):
@@ -463,12 +468,12 @@ class FreiburgSiteAdapter(SiteAdapterBase):
         self.logger.debug("VM Prefix: %s" % self.__vmNamePrefix)
         return self.__vmNamePrefix
 
-    
+
     def __getVMName(self, batchJobId):
         """Build VM name for communication with IntegrationAdapter.
         Machine registry value "reg_site_server_node_name" is used to communicate with
         IntegrationAdapter. This name must be built from the batch job id."""
-        return self.__vmNamePrefix + str(batchJobId)
+        return self.__readVMNamePrefix() + str(batchJobId)
 
 
     @property
@@ -500,7 +505,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             frJobsRunning = {}
             frJobsCompleted = {}
             xmlOutput = minidom.parseString(frResult[1].replace('\n','').replace("</Data><Data>", ""))
- 
+
             xmlJobsList = xmlOutput.getElementsByTagName('queue')
 
             for queue in xmlJobsList:
@@ -558,7 +563,7 @@ class FreiburgSiteAdapter(SiteAdapterBase):
             for line in runningJobsList:
                 frJobsRunning.update(
                     {str(line.attributes['JobID'].value): {
-                        "walltime": str(datetime.timedelta(seconds=int(line.attributes['StartTime'].value)+int(line.attributes['ReqAWDuration'].value)-int(time.time()))), 
+                        "walltime": str(datetime.timedelta(seconds=int(line.attributes['StartTime'].value)+int(line.attributes['ReqAWDuration'].value)-int(time.time()))),
                         "cores": int(line.attributes['ReqProcs'].value)}})
         elif frResult[0] == 255:
             frJobsRunning = {}
