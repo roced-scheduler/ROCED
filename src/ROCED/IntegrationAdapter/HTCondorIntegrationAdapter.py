@@ -63,8 +63,9 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
 
 
     # Output and its parsing
-    _query_format_string = "-autoformat: Machine State Activity"
+    _query_format_string = "-autoformat: ParasiteId State Activity"
     regex_queue_parser = re.compile("([a-z-0-9]+).* ([a-zA-Z]+) ([a-zA-Z]+)", re.MULTILINE)
+
     collector_error_string = "Failed to end classad message"
 
     def __init__(self):
@@ -178,7 +179,7 @@ class HTCondorIntegrationAdapter(IntegrationAdapterBase):
                 machine[cls.mr.regMachineBusy] = True
                 break
 
-        return machine[cls.mr.regMachineBusy] 
+        return machine[cls.mr.regMachineBusy]
 
 
 
