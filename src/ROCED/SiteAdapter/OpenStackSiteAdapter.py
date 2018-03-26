@@ -388,12 +388,17 @@ class OpenStackSiteAdapter(SiteAdapterBase):
                 for volume_id in volume_ids:
                     while(cinder.volumes.get(volume_id).status != "available"):
                         True
-                    cinder.volumes.get(volume_id).delete()
+                    for volume in cinder.volumes.list():
+                        if volume.id == volume_id:
+                            if str(cinder.volumes.get(volume_id).status) != "deleting":
+                                self.logger.info("found volume to remove: %s in state %s" %
+                                        (volume_id, cinder.volumes.get(volume_id).status))
+                                cinder.volumes.get(volume_id).delete()
+                                self.logger.info("removed attached volume %s" % (volume_id))
             # remove from machine registry
             self.logger.info("machine %s is removed" % mid.id)
             self.mr.removeMachine(mid)
-        except Exception as detail:
-            self.logger.info("error while termination of machine %s: %s" % (mid.id, detail))
+        except Exception:
             pass
 
     def __openstackStopMachine(self, mid):
