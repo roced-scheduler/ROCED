@@ -4,6 +4,12 @@ It monitors demand of computing resources in the batch system(s) and dynamically
 
 [![Build Status](https://travis-ci.org/roced-scheduler/ROCED.svg?branch=master)](https://travis-ci.org/roced-scheduler/ROCED)
 
+## Announcement
+ROCED can manage hundreds of VMs. However, to improve the scheduling for multiple heterogeneous resources, we decided to follow a new approach to schedule resources based on their utilization. Our new resource manager TARDIS (**T**ransparent **A**daptive **R**esource **D**ynamic **I**ntegration **S**ystem), follow this approach and shows good results to manage resources at multiple resource providers.
+Therefore,  we concentrate on the development of TARDIS and stop further development on ROCED.
+ We think that this is the correct way to go and invite you to follow us on GitHub (https://github.com/tardis-resourcemanager/tardis).
+TARDIS also uses the adapter concept to manage resources from different resource providers and support different batch system.
+
 ## Design
 
 ROCED periodically runs a management cycle, where it performs three steps:
